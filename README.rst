@@ -76,7 +76,7 @@ Example of delayed loading:
     >>> kwplot.imshow(final1, pnum=(1, 2, 2), fnum=1, title='optimized')
 
  
-.. image:: https://imgur.com/a/BC1w72S
+.. image:: https://imgur.com/a/BC1w72S.png
 
 
 
