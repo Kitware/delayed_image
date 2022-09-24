@@ -55,6 +55,9 @@ class DelayedOperation(ub.NiceRepr):
 
     def as_graph(self):
         """
+        Builds the underlying graph structure as a networkx graph with human
+        readable labels.
+
         Returns:
             networkx.DiGraph
         """
@@ -105,9 +108,10 @@ class DelayedOperation(ub.NiceRepr):
         """
         import networkx as nx
         import itertools as it
+        import math
         counter = it.count(0)
         graph = nx.DiGraph()
-
+        ndigits = int(math.log10(max(1, len(graph.nodes)))) + 1
         # Can't reuse traverse unfortunately
         stack = [(None, self)]
         while stack:
@@ -116,7 +120,7 @@ class DelayedOperation(ub.NiceRepr):
             # There might be copies of the same node in concat graphs so, we
             # cant assume the id will be unique. We can assert a forest
             # structure though.
-            node_id = f'{next(counter):03d}_{id(item)}'
+            node_id = f'{item.__class__.__name__}_{next(counter):0{ndigits}d}'
 
             graph.add_node(node_id)
             if parent_id is not None:

@@ -1410,23 +1410,29 @@ class DelayedWarp(DelayedImage):
 
         Example:
             >>> # Test optimize nans
-            >>> from delayed_image import DelayedNans
+            >>> from delayed_image import DelayedLoad
             >>> import kwimage
-            >>> base = DelayedNans(dsize=(100, 100), channels='a|b|c')
-            >>> self = base.warp(kwimage.Affine.scale(1.0 + 1e-7))
+            >>> base = DelayedLoad.demo(channels='r|g|b').prepare()
+            >>> transform = kwimage.Affine.scale(1.0 + 1e-7)
+            >>> self = base.warp(transform, dsize=base.dsize)
+            >>> # An optimize will not remove a warp if there is any
+            >>> # doubt if it is the identity.
             >>> new = self.optimize()
+            >>> assert len(self.as_graph().nodes) == 2
+            >>> assert len(new.as_graph().nodes) == 2
+            >>> # But we can specify a threshold where it will
+            >>> self._set_nested_params(noop_eps=1e-6)
+            >>> new = self.optimize()
+            >>> assert len(self.as_graph().nodes) == 2
             >>> assert len(new.as_graph().nodes) == 1
-
-            len(self.as_graph().nodes)
-            len(new.as_graph().nodes)
         """
         new = copy.copy(self)
         new.subdata = self.subdata.optimize()
         if isinstance(new.subdata, DelayedWarp):
             new = new._opt_fuse_warps()
 
-        ### The tolerance should be very strict by default, but
-        ### we also might want to be able to parameterize it
+        # Check if the transform is close enough to identity to be considered
+        # negligable.
         noop_eps = new.meta['noop_eps']
         is_negligable = (
             new.dsize == new.subdata.dsize and
@@ -1624,6 +1630,12 @@ class DelayedWarp(DelayedImage):
             >>> print(ub.repr2(warp0.nesting(), nl=-1, sort=0))
             >>> print(ub.repr2(warp1.nesting(), nl=-1, sort=0))
             >>> print(ub.repr2(warp2.nesting(), nl=-1, sort=0))
+            >>> warp0_nodes = [d['type'] for d in warp0.as_graph().nodes.values()]
+            >>> warp1_nodes = [d['type'] for d in warp1.as_graph().nodes.values()]
+            >>> warp2_nodes = [d['type'] for d in warp2.as_graph().nodes.values()]
+            >>> assert warp0_nodes == ['DelayedWarp', 'DelayedLoad']
+            >>> assert warp1_nodes == ['DelayedWarp', 'DelayedOverview', 'DelayedLoad']
+            >>> assert warp2_nodes == ['DelayedOverview', 'DelayedLoad']
 
         Example:
             >>> # xdoctest: +REQUIRES(module:osgeo)
@@ -1636,6 +1648,10 @@ class DelayedWarp(DelayedImage):
             >>> opt = warp0.optimize()
             >>> print(ub.repr2(warp0.nesting(), nl=-1, sort=0))
             >>> print(ub.repr2(opt.nesting(), nl=-1, sort=0))
+            >>> warp0_nodes = [d['type'] for d in warp0.as_graph().nodes.values()]
+            >>> opt_nodes = [d['type'] for d in opt.as_graph().nodes.values()]
+            >>> assert warp0_nodes == ['DelayedWarp', 'DelayedLoad']
+            >>> assert opt_nodes == ['DelayedWarp', 'DelayedOverview', 'DelayedLoad']
         """
         inner_data = self.subdata
         num_overviews = inner_data.num_overviews
@@ -1991,7 +2007,11 @@ class DelayedCrop(DelayedImage):
             >>> from delayed_image.delayed_leafs import DelayedLoad
             >>> fpath = kwimage.grab_test_image_fpath()
             >>> node0 = DelayedLoad(fpath, channels='r|g|b').prepare()
-            >>> node1 = node0.warp({'scale': 0.432, 'theta': np.pi / 3, 'about': (80, 80), 'shearx': .3, 'offset': (-50, -50)})
+            >>> node1 = node0.warp({'scale': 0.432,
+            >>>                     'theta': np.pi / 3,
+            >>>                     'about': (80, 80),
+            >>>                     'shearx': .3,
+            >>>                     'offset': (-50, -50)})
             >>> node2 = node1[10:50, 1:40]
             >>> self = node2
             >>> new_outer = node2._opt_warp_after_crop()
