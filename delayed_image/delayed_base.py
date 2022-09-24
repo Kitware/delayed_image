@@ -102,6 +102,71 @@ class DelayedOperation(ub.NiceRepr):
             for child in item.children():
                 stack.append((item, child))
 
+    def _leafs(self):
+        """
+        Iterates over all leafs in the tree.
+
+        Yields:
+            Tuple[DelayedOperation] :
+        """
+        # Might be useful in _set_nested_params or other functions that
+        # need to touch all descendants. This will be faster than recursion
+        stack = [self]
+        while stack:
+            item = stack.pop()
+            children = list(item.children())
+            if children:
+                for child in item.children():
+                    stack.append(child)
+            else:
+                yield item
+
+    def _leaf_paths(self):
+        """
+        Builds all independent paths to leafs.
+
+        Yields:
+            Tuple[DelayedOperation, DelayedOperation]:
+                The leaf, and the path to it,
+
+        Example:
+            >>> from delayed_image import demo
+            >>> self = demo.non_aligned_leafs()
+            >>> for leaf, part in list(self._leaf_paths()):
+            ...     leaf.write_network_text()
+            ...     part.write_network_text()
+        """
+        # Might be useful in _set_nested_params or other functions that
+        # need to touch all descendants. This will be faster than recursion
+        import copy
+        stack = [[self]]
+        while stack:
+            path = stack.pop()
+            item = path[-1]
+            children = list(item.children())
+            if children:
+                for child in item.children():
+                    stack.append(path + [child])
+            else:
+                leaf = item
+                # We found a path to a leaf, we now need to process it
+                prev = None
+                assert len(path)
+                for part in path[::-1]:
+                    if hasattr(part, 'parts'):
+                        # Skip concats (todo assert it really is a concat and
+                        # not an unhandled op)
+                        ...
+                    else:
+                        if prev is not None:
+                            if part.subdata is not prev:
+                                # The subdata was a skipped node, we need to
+                                # contract the operation edge.
+                                part = copy.copy(part)
+                                part.subdata = prev
+                        prev = part
+                yield leaf, part
+
     def _traversed_graph(self):
         """
         A flat list of all descendent nodes and their parents

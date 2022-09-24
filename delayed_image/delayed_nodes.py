@@ -350,28 +350,44 @@ class ImageOpsMixin:
             >>> tf = transform.decompose()
             >>> assert tf['scale'] == (4, 4)
             >>> assert tf['offset'] == (3, 5)
+
+        Example:
+            >>> from delayed_image import demo
+            >>> self = demo.non_aligned_leafs()
+            >>> leaf = list(self._leaf_paths())[0][0]
+            >>> tf1 = self.get_transform_from(leaf)
+            >>> tf2 = leaf.get_transform_from(self)
+            >>> np.allclose(np.linalg.inv(tf2), tf1)
         """
         dst = self
-        # Case where there is one known leaf
-        if hasattr(src, 'get_transform_from_leaf') and hasattr(dst, 'get_transform_from_leaf'):
-            src_comp = src
-            dst_comp = dst
-        else:
-            # In the case where we have a concatenated set of delayed images we
-            # have to consider a single path from the root to a shared leaf.
-            # This will work for now, but there may be a more efficient /
-            # elegant way to implement it.
-            src_channels = src.channels.to_oset()
-            dst_channels = dst.channels.to_oset()
-            common_channel = ub.peek(src_channels & dst_channels)
-            src_chan = src.take_channels(common_channel)
-            dst_chan = dst.take_channels(common_channel)
-            src_chan = src_chan.optimize()
-            dst_chan = dst_chan.optimize()
-            src_comp = src_chan.parts[0]
-            dst_comp = dst_chan.parts[0]
-        src_from_leaf = src_comp.get_transform_from_leaf()
-        dst_from_leaf = dst_comp.get_transform_from_leaf()
+        try:
+            # Case where there is one known leaf
+            src_from_leaf = src.get_transform_from_leaf()
+            dst_from_leaf = dst.get_transform_from_leaf()
+        except AttributeError:
+            # This seems more robust
+            src_leaf_paths = ub.udict({id(k): v for k, v in src._leaf_paths()})
+            dst_leaf_paths = ub.udict({id(k): v for k, v in dst._leaf_paths()})
+            common_leaf_ids = dst_leaf_paths & src_leaf_paths
+            common_leaf_id = common_leaf_ids.peek_key()
+            src_part = src_leaf_paths[common_leaf_id]
+            dst_part = dst_leaf_paths[common_leaf_id]
+            if 0:
+                # In the case where we have a concatenated set of delayed images we
+                # have to consider a single path from the root to a shared leaf.
+                # This will work for now, but there may be a more efficient /
+                # elegant way to implement it.
+                src_channels = src.channels.to_oset()
+                dst_channels = dst.channels.to_oset()
+                common_channel = ub.peek(src_channels & dst_channels)
+                src_chan = src.take_channels(common_channel)
+                dst_chan = dst.take_channels(common_channel)
+                src_chan = src_chan.optimize()
+                dst_chan = dst_chan.optimize()
+                src_part = src_chan.parts[0]
+                dst_part = dst_chan.parts[0]
+            src_from_leaf = src_part.get_transform_from_leaf()
+            dst_from_leaf = dst_part.get_transform_from_leaf()
         dst_from_src = dst_from_leaf @ src_from_leaf.inv()
         return dst_from_src
 
