@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Version 0.2.0] -
 
+### Added
+* new method `get_transform_from` which returns the transform from the space of
+  one delayed image to the space of another.
+
 ### Changed
 * Added `noop_eps` parameter to delayed warp, which will optimize it away if
   the warp is close to identity.

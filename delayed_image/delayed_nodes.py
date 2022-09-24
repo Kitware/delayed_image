@@ -325,6 +325,56 @@ class ImageOpsMixin:
         """
         return DelayedAsXarray(self)
 
+    def get_transform_from(self, src):
+        """
+        Find a transform from a given node (src) to this node (self / dst).
+
+        Given two delayed images src and dst that share a common leaf, find the
+        transform from src to dst.
+
+        Args:
+            src (DelayedOperation): the other view to get a transform to.
+                This must share a leaf with self (which is the dst).
+
+        Returns:
+            kwimage.Affine:
+                The transform that warps the space of src to the space of self.
+
+        Example:
+            >>> from delayed_image import *  # NOQA
+            >>> from delayed_image.delayed_leafs import DelayedLoad
+            >>> base = DelayedLoad.demo().prepare()
+            >>> src = base.scale(2)
+            >>> dst = src.warp({'scale': 4, 'offset': (3, 5)})
+            >>> transform = dst.get_transform_from(src)
+            >>> tf = transform.decompose()
+            >>> assert tf['scale'] == (4, 4)
+            >>> assert tf['offset'] == (3, 5)
+        """
+        dst = self
+        # Case where there is one known leaf
+        if hasattr(src, 'get_transform_from_leaf') and hasattr(dst, 'get_transform_from_leaf'):
+            src_comp = src
+            dst_comp = dst
+        else:
+            # In the case where we have a concatenated set of delayed images we
+            # have to consider a single path from the root to a shared leaf.
+            # This will work for now, but there may be a more efficient /
+            # elegant way to implement it.
+            src_channels = src.channels.to_oset()
+            dst_channels = dst.channels.to_oset()
+            common_channel = ub.peek(src_channels & dst_channels)
+            src_chan = src.take_channels(common_channel)
+            dst_chan = dst.take_channels(common_channel)
+            src_chan = src_chan.optimize()
+            dst_chan = dst_chan.optimize()
+            src_comp = src_chan.parts[0]
+            dst_comp = dst_chan.parts[0]
+        src_from_leaf = src_comp.get_transform_from_leaf()
+        dst_from_leaf = dst_comp.get_transform_from_leaf()
+        dst_from_src = dst_from_leaf @ src_from_leaf.inv()
+        return dst_from_src
+
 
 class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
     """

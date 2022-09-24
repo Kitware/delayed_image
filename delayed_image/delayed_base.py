@@ -136,11 +136,17 @@ class DelayedOperation(ub.NiceRepr):
                 stack.append((node_id, child))
         return graph
 
-    def write_network_text(self, with_labels=True):
+    def write_network_text(self, with_labels=True, rich=0):
         from delayed_image.helpers import write_network_text
         graph = self.as_graph()
+        path = None
+        end = '\n'
+        if rich:
+            import rich as rich_mod
+            path = rich_mod.print
+            end = ''
         # TODO: remove once this is merged into networkx itself
-        write_network_text(graph, with_labels=with_labels)
+        write_network_text(graph, with_labels=with_labels, path=path, end=end)
 
     @property
     def shape(self):
