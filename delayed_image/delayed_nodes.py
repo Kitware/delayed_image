@@ -125,7 +125,6 @@ class ImageOpsMixin:
             pad (int | List[Tuple[int, int]]):
                 if specified, applies extra padding
 
-
         Returns:
             DelayedImage
 
@@ -246,10 +245,9 @@ class ImageOpsMixin:
             new = new.warp(pad_warp, dsize=dsize)
         return new
 
-    def warp(self, transform, dsize='auto', antialias=True,
-             interpolation='linear', border_value='auto'):
+    def warp(self, transform, dsize='auto', **warp_kwargs):
         """
-        Applys an affine transformation to the image
+        Applys an affine transformation to the image. See :class:`DelayedWarp`.
 
         Args:
             transform (ndarray | dict | kwimage.Affine):
@@ -274,22 +272,24 @@ class ImageOpsMixin:
             border_value (int | float | str):
                 if auto will be nan for float and 0 for int.
 
+            noop_eps (float):
+                This is the tolerance for optimizing a warp away.
+                If the transform has all of its decomposed parameters (i.e.
+                scale, rotation, translation, shear) less than this value,
+                the warp node can be optimized away. Defaults to 0.
+
         Returns:
             DelayedImage
         """
-        new = DelayedWarp(self, transform, dsize=dsize, antialias=antialias,
-                           interpolation=interpolation)
+        new = DelayedWarp(self, transform, dsize=dsize, **warp_kwargs)
         return new
 
-    def scale(self, scale, dsize='auto', antialias=True,
-              interpolation='linear', border_value='auto'):
+    def scale(self, scale, dsize='auto', **warp_kwargs):
         """
         An alias for self.warp({"scale": scale}, ...)
         """
         transform = {'scale': scale}
-        return self.warp(transform, dsize=dsize, antialias=antialias,
-                         interpolation=interpolation,
-                         border_value=border_value)
+        return self.warp(transform, dsize=dsize, **warp_kwargs)
 
     def dequantize(self, quantization):
         """
@@ -1272,7 +1272,7 @@ class DelayedWarp(DelayedImage):
         >>> print(ub.repr2(warp3.nesting(), nl=-1, sort=0))
     """
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
-                 interpolation='linear', border_value='auto'):
+                 interpolation='linear', border_value='auto', noop_eps=0):
         """
         Args:
             subdata (DelayedArray): data to operate on
@@ -1295,6 +1295,12 @@ class DelayedWarp(DelayedImage):
             interpolation (str):
                 interpolation code or cv2 integer. Interpolation codes are linear,
                 nearest, cubic, lancsoz, and area. Defaults to "linear".
+
+            noop_eps (float):
+                This is the tolerance for optimizing a warp away.
+                If the transform has all of its decomposed parameters (i.e.
+                scale, rotation, translation, shear) less than this value,
+                the warp node can be optimized away. Defaults to 0.
         """
         super().__init__(subdata)
         transform = kwimage.Affine.coerce(transform)
@@ -1302,10 +1308,15 @@ class DelayedWarp(DelayedImage):
             from delayed_image.helpers import _auto_dsize
             dsize = _auto_dsize(transform, self.subdata.dsize)
         self.meta['transform'] = transform
+        self.meta['dsize'] = dsize
         self.meta['antialias'] = antialias
         self.meta['interpolation'] = interpolation
-        self.meta['dsize'] = dsize
         self.meta['border_value'] = border_value
+        self.meta['noop_eps'] = noop_eps
+        # Mark which keys need to be passed around and for what reason
+        self._data_keys = ['transform', 'dsize']
+        self._algo_keys = [
+            'interpolation', 'antialias', 'border_value', 'noop_eps']
 
     @property
     def transform(self):
@@ -1366,7 +1377,7 @@ class DelayedWarp(DelayedImage):
                                     interpolation=interpolation,
                                     antialias=antialias,
                                     border_value=border_value)
-        # final = cv2.warpPerspective(sub_data_, M, dsize=dsize, flags=flags)
+        # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
         final = kwarray.atleast_nd(final, 3, front=False)
         return final
@@ -1396,6 +1407,18 @@ class DelayedWarp(DelayedImage):
             >>> # Should simply return a new nan generator
             >>> new = self.optimize()
             >>> assert len(new.as_graph().nodes) == 1
+
+        Example:
+            >>> # Test optimize nans
+            >>> from delayed_image import DelayedNans
+            >>> import kwimage
+            >>> base = DelayedNans(dsize=(100, 100), channels='a|b|c')
+            >>> self = base.warp(kwimage.Affine.scale(1.0 + 1e-7))
+            >>> new = self.optimize()
+            >>> assert len(new.as_graph().nodes) == 1
+
+            len(self.as_graph().nodes)
+            len(new.as_graph().nodes)
         """
         new = copy.copy(self)
         new.subdata = self.subdata.optimize()
@@ -1404,15 +1427,19 @@ class DelayedWarp(DelayedImage):
 
         ### The tolerance should be very strict by default, but
         ### we also might want to be able to parameterize it
-        if new.transform.isclose_identity(rtol=0, atol=0) and new.dsize == new.subdata.dsize:
+        noop_eps = new.meta['noop_eps']
+        is_negligable = (
+            new.dsize == new.subdata.dsize and
+            new.transform.isclose_identity(rtol=noop_eps, atol=noop_eps)
+        )
+        if is_negligable:
             new = new.subdata
         elif isinstance(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
         elif hasattr(new.subdata, '_optimized_warp'):
             # The subdata knows how to optimize itself wrt a warp
-            warp_kwargs = ub.dict_isect(self.meta, {
-                'transform', 'dsize', 'antialias', 'interpolation',
-                'border_value'})
+            warp_kwargs = ub.dict_isect(
+                self.meta, self._data_keys + self._algo_keys)
             new = new.subdata._optimized_warp(**warp_kwargs).optimize()
         else:
             split = new._opt_split_warp_overview()
@@ -1438,7 +1465,7 @@ class DelayedWarp(DelayedImage):
         # TODO: could ensure the metadata is compatable, for now just take the
         # most recent
         dsize = self.meta['dsize']
-        common_meta = ub.dict_isect(self.meta, {'antialias', 'interpolation', 'border_value'})
+        common_meta = ub.dict_isect(self.meta, self._algo_keys)
         new_transform = tf2 @ tf1
         new = self.__class__(inner_data, new_transform, dsize=dsize,
                              **common_meta)
@@ -1571,7 +1598,7 @@ class DelayedWarp(DelayedImage):
                 notcrop.meta['dsize'] = new_chain_dsize
             new_head = chain[0]
 
-        warp_meta = ub.dict_isect(self.meta, {'antialias', 'interpolation', 'border_value'})
+        warp_meta = ub.dict_isect(self.meta, self._algo_keys)
         tf2 = self.meta['transform']
         dsize = self.meta['dsize']
         new_transform = tf2 @ tf1
@@ -1643,8 +1670,7 @@ class DelayedWarp(DelayedImage):
         if new_transform.isclose_identity():
             new = overview
         else:
-            common_meta = ub.dict_isect(self.meta, {
-                'antialias', 'interpolation', 'border_value'})
+            common_meta = ub.dict_isect(self.meta, self._algo_keys)
             new = overview.warp(new_transform, dsize=dsize, **common_meta)
         return new
 
@@ -2008,7 +2034,7 @@ class DelayedCrop(DelayedImage):
 
         warp_meta = ub.dict_isect(self.meta, {'dsize'})
         warp_meta.update(ub.dict_isect(
-            self.subdata.meta, {'antialias', 'interpolation', 'border_value'}))
+            self.subdata.meta, self.subdata._algo_keys))
 
         new_inner = self.subdata.subdata.crop(inner_slice, outer_chan_idxs)
         new_outer = new_inner.warp(outer_transform, **warp_meta)
@@ -2280,19 +2306,6 @@ def _rectify_retain(remove, retain):
             if retain is None:
                 retain = set()
     return retain
-
-
-DelayedOverview2      = DelayedOverview
-DelayedCrop2          = DelayedCrop
-DelayedDequantize2    = DelayedDequantize
-DelayedWarp2          = DelayedWarp
-DelayedAsXarray2      = DelayedAsXarray
-DelayedImage2         = DelayedImage
-DelayedArray2         = DelayedArray
-DelayedChannelConcat2 = DelayedChannelConcat
-DelayedFrameStack2    = DelayedFrameStack
-DelayedConcat2        = DelayedConcat
-DelayedStack2         = DelayedStack
 
 
 class CoordinateCompatibilityError(ValueError):

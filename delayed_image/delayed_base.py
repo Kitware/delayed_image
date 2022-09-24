@@ -73,6 +73,7 @@ class DelayedOperation(ub.NiceRepr):
             sub_meta.pop('border_value', None)
             sub_meta.pop('antialias', None)
             sub_meta.pop('interpolation', None)
+            sub_meta.pop('noop_eps', None)
             if 'fpath' in sub_meta:
                 sub_meta['fname'] = ub.Path(sub_meta.pop('fpath')).name
             param_key = ub.repr2(sub_meta, sort=0, compact=1, nl=0, precision=4)
@@ -192,7 +193,6 @@ class DelayedOperation(ub.NiceRepr):
                 ensure the graph is optimized before loading.  Default to True.
             **kwargs: for backwards compatibility, these will allow for
                 in-place modification of select nested parameters.
-                In general these should not be used, and may be deprecated.
 
         Returns:
             ArrayLike
@@ -211,10 +211,7 @@ class DelayedOperation(ub.NiceRepr):
                     warnings.filters.remove(to_remove)
             """
             # Undeprecate, I think I actually like this, but maybe not inplace.
-            # ub.schedule_deprecation(
-            #     'kwcoco', 'kwargs', type='passed to DelayedOperation2.finalize',
-            #     migration='setup the desired state beforhand',
-            #     deprecate='0.3.2', error='0.4.3', remove='0.4.3')
+            # It might be better to make this procedure happen in optmize.
             self._set_nested_params(**kwargs)
         if prepare:
             self = self.prepare()
@@ -280,9 +277,3 @@ class DelayedUnaryOperation(DelayedOperation):
         """
         if self.subdata is not None:
             yield self.subdata
-
-
-# backwards compat, will be deprecatd
-DelayedOperation2 = DelayedOperation
-DelayedUnaryOperation2 = DelayedUnaryOperation
-DelayedNaryOperation2 = DelayedNaryOperation

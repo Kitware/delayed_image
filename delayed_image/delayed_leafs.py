@@ -272,7 +272,7 @@ class DelayedNans(DelayedImageLeaf):
         new = self.__class__(new_dsize, channels=channels)
         return new
 
-    def _optimized_warp(self, transform, dsize=None, antialias=True, interpolation='linear', border_value='auto'):
+    def _optimized_warp(self, transform, dsize=None, **warp_kwargs):
         """
         Returns:
             DelayedImage
@@ -312,10 +312,3 @@ class DelayedIdentity(DelayedImageLeaf):
             ArrayLike
         """
         return self.data
-
-
-# backwards compat, will be deprecatd
-DelayedIdentity2 = DelayedIdentity
-DelayedNans2 = DelayedNans
-DelayedLoad2 = DelayedLoad
-DelayedImageLeaf2 = DelayedImageLeaf
