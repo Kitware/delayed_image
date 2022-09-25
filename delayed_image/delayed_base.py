@@ -135,6 +135,17 @@ class DelayedOperation(ub.NiceRepr):
             >>> for leaf, part in list(self._leaf_paths()):
             ...     leaf.write_network_text()
             ...     part.write_network_text()
+
+        Example:
+            >>> from delayed_image import demo
+            >>> import delayed_image
+            >>> orig = delayed_image.DelayedLoad.demo().prepare()
+            >>> part1 = orig[0:100, 0:100].scale(2, dsize=(128, 128))
+            >>> part2 = delayed_image.DelayedNans(dsize=(128, 128))
+            >>> self = delayed_image.DelayedChannelConcat([part2, part1])
+            >>> for leaf, part in list(self._leaf_paths()):
+            ...     leaf.write_network_text()
+            ...     part.write_network_text()
         """
         # Might be useful in _set_nested_params or other functions that
         # need to touch all descendants. This will be faster than recursion
@@ -156,7 +167,7 @@ class DelayedOperation(ub.NiceRepr):
                     if hasattr(part, 'parts'):
                         # Skip concats (todo assert it really is a concat and
                         # not an unhandled op)
-                        ...
+                        part = prev
                     else:
                         if prev is not None:
                             if part.subdata is not prev:
