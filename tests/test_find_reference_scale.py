@@ -1,7 +1,10 @@
 
 
 def test_find_reference_scale():
-    import rich
+    try:
+        from rich import print as rprint
+    except ImportError:
+        rprint = print
     import delayed_image
     raw = delayed_image.DelayedLoad.demo(key='astro').prepare()
 
@@ -19,16 +22,16 @@ def test_find_reference_scale():
     opt_ref = ref.optimize()
     opt_mod = mod.optimize()
 
-    rich.print('\n-- [green] REF --')
+    rprint('\n-- [green] REF --')
     ref.write_network_text(rich=1)
 
-    rich.print('\n-- [green] REF (opt) --')
+    rprint('\n-- [green] REF (opt) --')
     opt_ref.write_network_text(rich=1)
 
-    rich.print('\n-- [red] MOD --')
+    rprint('\n-- [red] MOD --')
     mod.write_network_text(rich=1)
 
-    rich.print('\n-- [red] MOD (opt) --')
+    rprint('\n-- [red] MOD (opt) --')
     opt_mod.write_network_text(rich=1)
 
     # If we know we have a common leaf, then we should be able to construct
@@ -42,10 +45,10 @@ def test_find_reference_scale():
     recon_mod = opt_ref.warp(tf_mod_from_ref, dsize=mod.dsize)
     recon_opt_mod = recon_mod.optimize()
 
-    rich.print('\n-- [orange1] MOD (recon) --')
+    rprint('\n-- [orange1] MOD (recon) --')
     recon_mod.write_network_text(rich=1)
 
-    rich.print('\n-- [orange1] MOD (recon, opt) --')
+    rprint('\n-- [orange1] MOD (recon, opt) --')
     recon_opt_mod.write_network_text(rich=1)
 
     tf1 = recon_mod.get_transform_from_leaf()
