@@ -524,7 +524,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         Example:
             >>> # Test nodata works correctly
             >>> # xdoctest: +REQUIRES(module:osgeo)
-            >>> from delayed_image.lazy_loaders *
+            >>> from delayed_image.lazy_loaders import *
             >>> from delayed_image.lazy_loaders import _demo_geoimg_with_nodata
             >>> fpath = _demo_geoimg_with_nodata()
             >>> self = LazyGDalFrameFile(fpath, nodata_method='auto')
