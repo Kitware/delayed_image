@@ -8,13 +8,19 @@ stages:
 - deploy
 .common_template: &common_template
   tags:
+    # Tags define which runners will accept which jobs
   - docker
   - linux
   - build
+
   variables:
+    # Change pip's cache directory to be inside the project directory
+    # since we can only cache local items.
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
   except:
+    # Don't run the pipeline for new tags
   - tags
+
   cache:
     paths:
     - .cache/pip
@@ -54,7 +60,7 @@ stages:
   - MOD_NAME=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['tool']['xcookie']['mod_name'])")
   - echo "MOD_NAME=$MOD_NAME"
   - pip install -r requirements/gdal.txt
-  - pip install "$MOD_NAME"[testsheadless] -f wheelhouse
+  - pip install "$MOD_NAME"[tests,headless] -f wheelhouse
   - |-
     mkdir -p sandbox && cd sandbox && pytest -s --xdoc --xdoctest-verbose=3 --cov-config ../pyproject.toml --cov-report html --cov-report term --cov="$MOD_NAME" "$(python -c "import ubelt; print(ubelt.modname_to_modpath('${MOD_NAME}'))")" ../tests && cd ..
 .test_full-loose_template: &test_full-loose_template
@@ -77,7 +83,7 @@ stages:
   - MOD_NAME=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['tool']['xcookie']['mod_name'])")
   - echo "MOD_NAME=$MOD_NAME"
   - pip install -r requirements/gdal.txt
-  - pip install "$MOD_NAME"[tests,optionalheadless] -f wheelhouse
+  - pip install "$MOD_NAME"[tests,optional,headless] -f wheelhouse
   - |-
     mkdir -p sandbox && cd sandbox && pytest -s --xdoc --xdoctest-verbose=3 --cov-config ../pyproject.toml --cov-report html --cov-report term --cov="$MOD_NAME" "$(python -c "import ubelt; print(ubelt.modname_to_modpath('${MOD_NAME}'))")" ../tests && cd ..
 .test_minimal-strict_template: &test_minimal-strict_template
@@ -249,8 +255,12 @@ gpgsign/wheels:
   artifacts:
     paths:
     - wheelhouse/*.asc
+
   only:
     refs:
+        # Gitlab will only expose protected variables on protected branches
+        # (which I've set to be main and release), so only run this stage
+        # there.
     - master
     - main
     - release
@@ -259,11 +269,14 @@ gpgsign/wheels:
   - export GPG_EXECUTABLE=gpg
   - export GPG_KEYID=$(cat dev/public_gpg_key)
   - echo "GPG_KEYID = $GPG_KEYID"
+    # Decrypt and import GPG Keys / trust
+    # note the variable pointed to by VARNAME_CI_SECRET is a protected variables only available on main and release branch
   - source dev/secrets_configuration.sh
   - CI_SECRET=${!VARNAME_CI_SECRET}
   - $GPG_EXECUTABLE --version
   - openssl version
   - $GPG_EXECUTABLE --list-keys
+    # note CI_KITWARE_SECRET is a protected variables only available on main and release branch
   - CIS=$CI_SECRET openssl enc -aes-256-cbc -pbkdf2 -md SHA512 -pass env:CIS -d -a
     -in dev/ci_public_gpg_key.pgp.enc | $GPG_EXECUTABLE --import
   - CIS=$CI_SECRET openssl enc -aes-256-cbc -pbkdf2 -md SHA512 -pass env:CIS -d -a
