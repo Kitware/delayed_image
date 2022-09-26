@@ -20,3 +20,5 @@ ubelt >= 1.2.1
 #xarray >= 0.16.0
 #safer>=4.4.1
 #packaging>=21.3
+
+affine >= 2.3.1

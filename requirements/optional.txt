@@ -4,4 +4,3 @@ lark_cython>=0.0.12
 lark>=1.1.2
 
 xarray >= 0.16.0
-affine >= 2.3.1
