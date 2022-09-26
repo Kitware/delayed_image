@@ -3,8 +3,10 @@
 def test_find_reference_scale():
     try:
         from rich import print as rprint
+        use_rich = 1
     except ImportError:
         rprint = print
+        use_rich = 0
     import delayed_image
     raw = delayed_image.DelayedLoad.demo(key='astro').prepare()
 
@@ -23,16 +25,16 @@ def test_find_reference_scale():
     opt_mod = mod.optimize()
 
     rprint('\n-- [green] REF --')
-    ref.write_network_text(rich=1)
+    ref.write_network_text(rich=use_rich)
 
     rprint('\n-- [green] REF (opt) --')
-    opt_ref.write_network_text(rich=1)
+    opt_ref.write_network_text(rich=use_rich)
 
     rprint('\n-- [red] MOD --')
-    mod.write_network_text(rich=1)
+    mod.write_network_text(rich=use_rich)
 
     rprint('\n-- [red] MOD (opt) --')
-    opt_mod.write_network_text(rich=1)
+    opt_mod.write_network_text(rich=use_rich)
 
     # If we know we have a common leaf, then we should be able to construct
     # the transform from one image to the other.
@@ -46,10 +48,10 @@ def test_find_reference_scale():
     recon_opt_mod = recon_mod.optimize()
 
     rprint('\n-- [orange1] MOD (recon) --')
-    recon_mod.write_network_text(rich=1)
+    recon_mod.write_network_text(rich=use_rich)
 
     rprint('\n-- [orange1] MOD (recon, opt) --')
-    recon_opt_mod.write_network_text(rich=1)
+    recon_opt_mod.write_network_text(rich=use_rich)
 
     tf1 = recon_mod.get_transform_from_leaf()
     tf2 = mod.get_transform_from_leaf()
