@@ -499,7 +499,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
 
     @profile
     def __getitem__(self, index):
-        """
+        r"""
         References:
             https://gis.stackexchange.com/questions/162095/gdal-driver-create-typeerror
 

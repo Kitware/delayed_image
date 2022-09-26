@@ -1284,6 +1284,7 @@ class DelayedAsXarray(DelayedImage):
     Casts the data to an xarray object in the finalize step
 
     Example;
+        >>> # xdoctest: +REQUIRES(module:xarray)
         >>> from delayed_image.delayed_nodes import *  # NOQA
         >>> from delayed_image import DelayedLoad
         >>> # without channels

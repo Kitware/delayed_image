@@ -2,3 +2,5 @@
 # python ~/local/tools/supported_python_versions_pip.py pygments
 lark_cython>=0.0.12
 lark>=1.1.2
+
+xarray >= 0.16.0
