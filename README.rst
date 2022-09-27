@@ -79,10 +79,8 @@ Example of delayed loading:
 .. image:: https://i.imgur.com/3SGvxtC.png
 
 
-
 SensorChanSpec
 --------------
-
 
 Includes the SensorChan spec, which makes handling channels from different
 sensing sources easier.
