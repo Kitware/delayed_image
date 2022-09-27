@@ -264,6 +264,17 @@ gpgsign/wheels:
     - master
     - main
     - release
+  needs:
+  - job: build/cp36-linux-x86_64
+    artifacts: true
+  - job: build/cp37-linux-x86_64
+    artifacts: true
+  - job: build/cp38-linux-x86_64
+    artifacts: true
+  - job: build/cp39-linux-x86_64
+    artifacts: true
+  - job: build/cp310-linux-x86_64
+    artifacts: true
   script:
   - ls wheelhouse
   - export GPG_EXECUTABLE=gpg
