@@ -1,2 +1,2 @@
 def test_import():
-    import delayed_image
+    import delayed_image  # NOQA

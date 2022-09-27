@@ -55,6 +55,9 @@ class DelayedOperation(ub.NiceRepr):
 
     def as_graph(self):
         """
+        Builds the underlying graph structure as a networkx graph with human
+        readable labels.
+
         Returns:
             networkx.DiGraph
         """
@@ -73,6 +76,7 @@ class DelayedOperation(ub.NiceRepr):
             sub_meta.pop('border_value', None)
             sub_meta.pop('antialias', None)
             sub_meta.pop('interpolation', None)
+            sub_meta.pop('noop_eps', None)
             if 'fpath' in sub_meta:
                 sub_meta['fname'] = ub.Path(sub_meta.pop('fpath')).name
             param_key = ub.repr2(sub_meta, sort=0, compact=1, nl=0, precision=4)
@@ -98,15 +102,92 @@ class DelayedOperation(ub.NiceRepr):
             for child in item.children():
                 stack.append((item, child))
 
+    def _leafs(self):
+        """
+        Iterates over all leafs in the tree.
+
+        Yields:
+            Tuple[DelayedOperation] :
+        """
+        # Might be useful in _set_nested_params or other functions that
+        # need to touch all descendants. This will be faster than recursion
+        stack = [self]
+        while stack:
+            item = stack.pop()
+            children = list(item.children())
+            if children:
+                for child in item.children():
+                    stack.append(child)
+            else:
+                yield item
+
+    def _leaf_paths(self):
+        """
+        Builds all independent paths to leafs.
+
+        Yields:
+            Tuple[DelayedOperation, DelayedOperation]:
+                The leaf, and the path to it,
+
+        Example:
+            >>> from delayed_image import demo
+            >>> self = demo.non_aligned_leafs()
+            >>> for leaf, part in list(self._leaf_paths()):
+            ...     leaf.write_network_text()
+            ...     part.write_network_text()
+
+        Example:
+            >>> from delayed_image import demo
+            >>> import delayed_image
+            >>> orig = delayed_image.DelayedLoad.demo().prepare()
+            >>> part1 = orig[0:100, 0:100].scale(2, dsize=(128, 128))
+            >>> part2 = delayed_image.DelayedNans(dsize=(128, 128))
+            >>> self = delayed_image.DelayedChannelConcat([part2, part1])
+            >>> for leaf, part in list(self._leaf_paths()):
+            ...     leaf.write_network_text()
+            ...     part.write_network_text()
+        """
+        # Might be useful in _set_nested_params or other functions that
+        # need to touch all descendants. This will be faster than recursion
+        import copy
+        stack = [[self]]
+        while stack:
+            path = stack.pop()
+            item = path[-1]
+            children = list(item.children())
+            if children:
+                for child in item.children():
+                    stack.append(path + [child])
+            else:
+                leaf = item
+                # We found a path to a leaf, we now need to process it
+                prev = None
+                assert len(path)
+                for part in path[::-1]:
+                    if hasattr(part, 'parts'):
+                        # Skip concats (todo assert it really is a concat and
+                        # not an unhandled op)
+                        part = prev
+                    else:
+                        if prev is not None:
+                            if part.subdata is not prev:
+                                # The subdata was a skipped node, we need to
+                                # contract the operation edge.
+                                part = copy.copy(part)
+                                part.subdata = prev
+                        prev = part
+                yield leaf, part
+
     def _traversed_graph(self):
         """
         A flat list of all descendent nodes and their parents
         """
         import networkx as nx
         import itertools as it
+        import math
         counter = it.count(0)
         graph = nx.DiGraph()
-
+        ndigits = int(math.log10(max(1, len(graph.nodes)))) + 1
         # Can't reuse traverse unfortunately
         stack = [(None, self)]
         while stack:
@@ -115,7 +196,7 @@ class DelayedOperation(ub.NiceRepr):
             # There might be copies of the same node in concat graphs so, we
             # cant assume the id will be unique. We can assert a forest
             # structure though.
-            node_id = f'{next(counter):03d}_{id(item)}'
+            node_id = f'{item.__class__.__name__}_{next(counter):0{ndigits}d}'
 
             graph.add_node(node_id)
             if parent_id is not None:
@@ -131,11 +212,17 @@ class DelayedOperation(ub.NiceRepr):
                 stack.append((node_id, child))
         return graph
 
-    def write_network_text(self, with_labels=True):
+    def write_network_text(self, with_labels=True, rich=0):
         from delayed_image.helpers import write_network_text
         graph = self.as_graph()
+        path = None
+        end = '\n'
+        if rich:
+            import rich as rich_mod
+            path = rich_mod.print
+            end = ''
         # TODO: remove once this is merged into networkx itself
-        write_network_text(graph, with_labels=with_labels)
+        write_network_text(graph, with_labels=with_labels, path=path, end=end)
 
     @property
     def shape(self):
@@ -192,7 +279,6 @@ class DelayedOperation(ub.NiceRepr):
                 ensure the graph is optimized before loading.  Default to True.
             **kwargs: for backwards compatibility, these will allow for
                 in-place modification of select nested parameters.
-                In general these should not be used, and may be deprecated.
 
         Returns:
             ArrayLike
@@ -211,10 +297,7 @@ class DelayedOperation(ub.NiceRepr):
                     warnings.filters.remove(to_remove)
             """
             # Undeprecate, I think I actually like this, but maybe not inplace.
-            # ub.schedule_deprecation(
-            #     'kwcoco', 'kwargs', type='passed to DelayedOperation2.finalize',
-            #     migration='setup the desired state beforhand',
-            #     deprecate='0.3.2', error='0.4.3', remove='0.4.3')
+            # It might be better to make this procedure happen in optmize.
             self._set_nested_params(**kwargs)
         if prepare:
             self = self.prepare()
@@ -280,9 +363,3 @@ class DelayedUnaryOperation(DelayedOperation):
         """
         if self.subdata is not None:
             yield self.subdata
-
-
-# backwards compat, will be deprecatd
-DelayedOperation2 = DelayedOperation
-DelayedUnaryOperation2 = DelayedUnaryOperation
-DelayedNaryOperation2 = DelayedNaryOperation

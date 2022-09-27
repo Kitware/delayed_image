@@ -125,7 +125,6 @@ class ImageOpsMixin:
             pad (int | List[Tuple[int, int]]):
                 if specified, applies extra padding
 
-
         Returns:
             DelayedImage
 
@@ -246,10 +245,9 @@ class ImageOpsMixin:
             new = new.warp(pad_warp, dsize=dsize)
         return new
 
-    def warp(self, transform, dsize='auto', antialias=True,
-             interpolation='linear', border_value='auto'):
+    def warp(self, transform, dsize='auto', **warp_kwargs):
         """
-        Applys an affine transformation to the image
+        Applys an affine transformation to the image. See :class:`DelayedWarp`.
 
         Args:
             transform (ndarray | dict | kwimage.Affine):
@@ -274,22 +272,24 @@ class ImageOpsMixin:
             border_value (int | float | str):
                 if auto will be nan for float and 0 for int.
 
+            noop_eps (float):
+                This is the tolerance for optimizing a warp away.
+                If the transform has all of its decomposed parameters (i.e.
+                scale, rotation, translation, shear) less than this value,
+                the warp node can be optimized away. Defaults to 0.
+
         Returns:
             DelayedImage
         """
-        new = DelayedWarp(self, transform, dsize=dsize, antialias=antialias,
-                           interpolation=interpolation)
+        new = DelayedWarp(self, transform, dsize=dsize, **warp_kwargs)
         return new
 
-    def scale(self, scale, dsize='auto', antialias=True,
-              interpolation='linear', border_value='auto'):
+    def scale(self, scale, dsize='auto', **warp_kwargs):
         """
         An alias for self.warp({"scale": scale}, ...)
         """
         transform = {'scale': scale}
-        return self.warp(transform, dsize=dsize, antialias=antialias,
-                         interpolation=interpolation,
-                         border_value=border_value)
+        return self.warp(transform, dsize=dsize, **warp_kwargs)
 
     def dequantize(self, quantization):
         """
@@ -324,6 +324,72 @@ class ImageOpsMixin:
             DelayedAsXarray
         """
         return DelayedAsXarray(self)
+
+    def get_transform_from(self, src):
+        """
+        Find a transform from a given node (src) to this node (self / dst).
+
+        Given two delayed images src and dst that share a common leaf, find the
+        transform from src to dst.
+
+        Args:
+            src (DelayedOperation): the other view to get a transform to.
+                This must share a leaf with self (which is the dst).
+
+        Returns:
+            kwimage.Affine:
+                The transform that warps the space of src to the space of self.
+
+        Example:
+            >>> from delayed_image import *  # NOQA
+            >>> from delayed_image.delayed_leafs import DelayedLoad
+            >>> base = DelayedLoad.demo().prepare()
+            >>> src = base.scale(2)
+            >>> dst = src.warp({'scale': 4, 'offset': (3, 5)})
+            >>> transform = dst.get_transform_from(src)
+            >>> tf = transform.decompose()
+            >>> assert tf['scale'] == (4, 4)
+            >>> assert tf['offset'] == (3, 5)
+
+        Example:
+            >>> from delayed_image import demo
+            >>> self = demo.non_aligned_leafs()
+            >>> leaf = list(self._leaf_paths())[0][0]
+            >>> tf1 = self.get_transform_from(leaf)
+            >>> tf2 = leaf.get_transform_from(self)
+            >>> np.allclose(np.linalg.inv(tf2), tf1)
+        """
+        dst = self
+        try:
+            # Case where there is one known leaf
+            src_from_leaf = src.get_transform_from_leaf()
+            dst_from_leaf = dst.get_transform_from_leaf()
+        except AttributeError:
+            # This seems more robust
+            src_leaf_paths = ub.udict({id(k): v for k, v in src._leaf_paths()})
+            dst_leaf_paths = ub.udict({id(k): v for k, v in dst._leaf_paths()})
+            common_leaf_ids = dst_leaf_paths & src_leaf_paths
+            common_leaf_id = common_leaf_ids.peek_key()
+            src_part = src_leaf_paths[common_leaf_id]
+            dst_part = dst_leaf_paths[common_leaf_id]
+            if 0:
+                # In the case where we have a concatenated set of delayed images we
+                # have to consider a single path from the root to a shared leaf.
+                # This will work for now, but there may be a more efficient /
+                # elegant way to implement it.
+                src_channels = src.channels.to_oset()
+                dst_channels = dst.channels.to_oset()
+                common_channel = ub.peek(src_channels & dst_channels)
+                src_chan = src.take_channels(common_channel)
+                dst_chan = dst.take_channels(common_channel)
+                src_chan = src_chan.optimize()
+                dst_chan = dst_chan.optimize()
+                src_part = src_chan.parts[0]
+                dst_part = dst_chan.parts[0]
+            src_from_leaf = src_part.get_transform_from_leaf()
+            dst_from_leaf = dst_part.get_transform_from_leaf()
+        dst_from_src = dst_from_leaf @ src_from_leaf.inv()
+        return dst_from_src
 
 
 class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
@@ -1218,6 +1284,7 @@ class DelayedAsXarray(DelayedImage):
     Casts the data to an xarray object in the finalize step
 
     Example;
+        >>> # xdoctest: +REQUIRES(module:xarray)
         >>> from delayed_image.delayed_nodes import *  # NOQA
         >>> from delayed_image import DelayedLoad
         >>> # without channels
@@ -1272,7 +1339,7 @@ class DelayedWarp(DelayedImage):
         >>> print(ub.repr2(warp3.nesting(), nl=-1, sort=0))
     """
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
-                 interpolation='linear', border_value='auto'):
+                 interpolation='linear', border_value='auto', noop_eps=0):
         """
         Args:
             subdata (DelayedArray): data to operate on
@@ -1295,6 +1362,12 @@ class DelayedWarp(DelayedImage):
             interpolation (str):
                 interpolation code or cv2 integer. Interpolation codes are linear,
                 nearest, cubic, lancsoz, and area. Defaults to "linear".
+
+            noop_eps (float):
+                This is the tolerance for optimizing a warp away.
+                If the transform has all of its decomposed parameters (i.e.
+                scale, rotation, translation, shear) less than this value,
+                the warp node can be optimized away. Defaults to 0.
         """
         super().__init__(subdata)
         transform = kwimage.Affine.coerce(transform)
@@ -1302,10 +1375,15 @@ class DelayedWarp(DelayedImage):
             from delayed_image.helpers import _auto_dsize
             dsize = _auto_dsize(transform, self.subdata.dsize)
         self.meta['transform'] = transform
+        self.meta['dsize'] = dsize
         self.meta['antialias'] = antialias
         self.meta['interpolation'] = interpolation
-        self.meta['dsize'] = dsize
         self.meta['border_value'] = border_value
+        self.meta['noop_eps'] = noop_eps
+        # Mark which keys need to be passed around and for what reason
+        self._data_keys = ['transform', 'dsize']
+        self._algo_keys = [
+            'interpolation', 'antialias', 'border_value', 'noop_eps']
 
     @property
     def transform(self):
@@ -1366,7 +1444,7 @@ class DelayedWarp(DelayedImage):
                                     interpolation=interpolation,
                                     antialias=antialias,
                                     border_value=border_value)
-        # final = cv2.warpPerspective(sub_data_, M, dsize=dsize, flags=flags)
+        # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
         final = kwarray.atleast_nd(final, 3, front=False)
         return final
@@ -1396,23 +1474,45 @@ class DelayedWarp(DelayedImage):
             >>> # Should simply return a new nan generator
             >>> new = self.optimize()
             >>> assert len(new.as_graph().nodes) == 1
+
+        Example:
+            >>> # Test optimize nans
+            >>> from delayed_image import DelayedLoad
+            >>> import kwimage
+            >>> base = DelayedLoad.demo(channels='r|g|b').prepare()
+            >>> transform = kwimage.Affine.scale(1.0 + 1e-7)
+            >>> self = base.warp(transform, dsize=base.dsize)
+            >>> # An optimize will not remove a warp if there is any
+            >>> # doubt if it is the identity.
+            >>> new = self.optimize()
+            >>> assert len(self.as_graph().nodes) == 2
+            >>> assert len(new.as_graph().nodes) == 2
+            >>> # But we can specify a threshold where it will
+            >>> self._set_nested_params(noop_eps=1e-6)
+            >>> new = self.optimize()
+            >>> assert len(self.as_graph().nodes) == 2
+            >>> assert len(new.as_graph().nodes) == 1
         """
         new = copy.copy(self)
         new.subdata = self.subdata.optimize()
         if isinstance(new.subdata, DelayedWarp):
             new = new._opt_fuse_warps()
 
-        ### The tolerance should be very strict by default, but
-        ### we also might want to be able to parameterize it
-        if new.transform.isclose_identity(rtol=0, atol=0) and new.dsize == new.subdata.dsize:
+        # Check if the transform is close enough to identity to be considered
+        # negligable.
+        noop_eps = new.meta['noop_eps']
+        is_negligable = (
+            new.dsize == new.subdata.dsize and
+            new.transform.isclose_identity(rtol=noop_eps, atol=noop_eps)
+        )
+        if is_negligable:
             new = new.subdata
         elif isinstance(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
         elif hasattr(new.subdata, '_optimized_warp'):
             # The subdata knows how to optimize itself wrt a warp
-            warp_kwargs = ub.dict_isect(self.meta, {
-                'transform', 'dsize', 'antialias', 'interpolation',
-                'border_value'})
+            warp_kwargs = ub.dict_isect(
+                self.meta, self._data_keys + self._algo_keys)
             new = new.subdata._optimized_warp(**warp_kwargs).optimize()
         else:
             split = new._opt_split_warp_overview()
@@ -1438,7 +1538,7 @@ class DelayedWarp(DelayedImage):
         # TODO: could ensure the metadata is compatable, for now just take the
         # most recent
         dsize = self.meta['dsize']
-        common_meta = ub.dict_isect(self.meta, {'antialias', 'interpolation', 'border_value'})
+        common_meta = ub.dict_isect(self.meta, self._algo_keys)
         new_transform = tf2 @ tf1
         new = self.__class__(inner_data, new_transform, dsize=dsize,
                              **common_meta)
@@ -1571,7 +1671,7 @@ class DelayedWarp(DelayedImage):
                 notcrop.meta['dsize'] = new_chain_dsize
             new_head = chain[0]
 
-        warp_meta = ub.dict_isect(self.meta, {'antialias', 'interpolation', 'border_value'})
+        warp_meta = ub.dict_isect(self.meta, self._algo_keys)
         tf2 = self.meta['transform']
         dsize = self.meta['dsize']
         new_transform = tf2 @ tf1
@@ -1597,6 +1697,12 @@ class DelayedWarp(DelayedImage):
             >>> print(ub.repr2(warp0.nesting(), nl=-1, sort=0))
             >>> print(ub.repr2(warp1.nesting(), nl=-1, sort=0))
             >>> print(ub.repr2(warp2.nesting(), nl=-1, sort=0))
+            >>> warp0_nodes = [d['type'] for d in warp0.as_graph().nodes.values()]
+            >>> warp1_nodes = [d['type'] for d in warp1.as_graph().nodes.values()]
+            >>> warp2_nodes = [d['type'] for d in warp2.as_graph().nodes.values()]
+            >>> assert warp0_nodes == ['DelayedWarp', 'DelayedLoad']
+            >>> assert warp1_nodes == ['DelayedWarp', 'DelayedOverview', 'DelayedLoad']
+            >>> assert warp2_nodes == ['DelayedOverview', 'DelayedLoad']
 
         Example:
             >>> # xdoctest: +REQUIRES(module:osgeo)
@@ -1609,6 +1715,10 @@ class DelayedWarp(DelayedImage):
             >>> opt = warp0.optimize()
             >>> print(ub.repr2(warp0.nesting(), nl=-1, sort=0))
             >>> print(ub.repr2(opt.nesting(), nl=-1, sort=0))
+            >>> warp0_nodes = [d['type'] for d in warp0.as_graph().nodes.values()]
+            >>> opt_nodes = [d['type'] for d in opt.as_graph().nodes.values()]
+            >>> assert warp0_nodes == ['DelayedWarp', 'DelayedLoad']
+            >>> assert opt_nodes == ['DelayedWarp', 'DelayedOverview', 'DelayedLoad']
         """
         inner_data = self.subdata
         num_overviews = inner_data.num_overviews
@@ -1643,8 +1753,7 @@ class DelayedWarp(DelayedImage):
         if new_transform.isclose_identity():
             new = overview
         else:
-            common_meta = ub.dict_isect(self.meta, {
-                'antialias', 'interpolation', 'border_value'})
+            common_meta = ub.dict_isect(self.meta, self._algo_keys)
             new = overview.warp(new_transform, dsize=dsize, **common_meta)
         return new
 
@@ -1965,7 +2074,11 @@ class DelayedCrop(DelayedImage):
             >>> from delayed_image.delayed_leafs import DelayedLoad
             >>> fpath = kwimage.grab_test_image_fpath()
             >>> node0 = DelayedLoad(fpath, channels='r|g|b').prepare()
-            >>> node1 = node0.warp({'scale': 0.432, 'theta': np.pi / 3, 'about': (80, 80), 'shearx': .3, 'offset': (-50, -50)})
+            >>> node1 = node0.warp({'scale': 0.432,
+            >>>                     'theta': np.pi / 3,
+            >>>                     'about': (80, 80),
+            >>>                     'shearx': .3,
+            >>>                     'offset': (-50, -50)})
             >>> node2 = node1[10:50, 1:40]
             >>> self = node2
             >>> new_outer = node2._opt_warp_after_crop()
@@ -2008,7 +2121,7 @@ class DelayedCrop(DelayedImage):
 
         warp_meta = ub.dict_isect(self.meta, {'dsize'})
         warp_meta.update(ub.dict_isect(
-            self.subdata.meta, {'antialias', 'interpolation', 'border_value'}))
+            self.subdata.meta, self.subdata._algo_keys))
 
         new_inner = self.subdata.subdata.crop(inner_slice, outer_chan_idxs)
         new_outer = new_inner.warp(outer_transform, **warp_meta)
@@ -2280,19 +2393,6 @@ def _rectify_retain(remove, retain):
             if retain is None:
                 retain = set()
     return retain
-
-
-DelayedOverview2      = DelayedOverview
-DelayedCrop2          = DelayedCrop
-DelayedDequantize2    = DelayedDequantize
-DelayedWarp2          = DelayedWarp
-DelayedAsXarray2      = DelayedAsXarray
-DelayedImage2         = DelayedImage
-DelayedArray2         = DelayedArray
-DelayedChannelConcat2 = DelayedChannelConcat
-DelayedFrameStack2    = DelayedFrameStack
-DelayedConcat2        = DelayedConcat
-DelayedStack2         = DelayedStack
 
 
 class CoordinateCompatibilityError(ValueError):

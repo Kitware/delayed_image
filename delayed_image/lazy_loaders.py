@@ -499,7 +499,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
 
     @profile
     def __getitem__(self, index):
-        """
+        r"""
         References:
             https://gis.stackexchange.com/questions/162095/gdal-driver-create-typeerror
 
@@ -513,7 +513,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
             >>> kwplot.imshow(img_part)
 
             >>> self = LazyGDalFrameFile.demo(dsize=(6600, 4400))
-            >>> self.nodata_method = 0
+            >>> self.nodata_method = 'float'
             >>> index = [slice(2100, 2508, None), slice(4916, 5324, None), None]
             >>> img_part = self[index]
             >>> # xdoctest: +REQUIRES(--show)
@@ -524,10 +524,10 @@ class LazyGDalFrameFile(ub.NiceRepr):
         Example:
             >>> # Test nodata works correctly
             >>> # xdoctest: +REQUIRES(module:osgeo)
-            >>> from delayed_image.lazy_loaders *
+            >>> from delayed_image.lazy_loaders import *
             >>> from delayed_image.lazy_loaders import _demo_geoimg_with_nodata
             >>> fpath = _demo_geoimg_with_nodata()
-            >>> self = LazyGDalFrameFile(fpath, nodata_method='auto')
+            >>> self = LazyGDalFrameFile(fpath, nodata_method='float')
             >>> imdata = self[:]
             >>> # xdoctest: +REQUIRES(--show)
             >>> import kwplot
