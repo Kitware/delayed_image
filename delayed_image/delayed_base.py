@@ -1,9 +1,13 @@
 """
 Abstract nodes
 """
-
 import numpy as np
 import ubelt as ub
+
+try:
+    import rich as rich_mod
+except Exception:
+    rich_mod = None
 
 
 # from kwcoco.util.util_monkey import Reloadable  # NOQA
@@ -12,6 +16,7 @@ class DelayedOperation(ub.NiceRepr):
 
     def __init__(self):
         self.meta = {}
+        self._opt_logs = []
 
     def __nice__(self):
         """
@@ -208,17 +213,18 @@ class DelayedOperation(ub.NiceRepr):
             node_data['meta'] = sub_meta
             node_data['obj'] = item
 
-            for child in item.children():
+            for child in list(item.children())[::-1]:
                 stack.append((node_id, child))
         return graph
 
-    def write_network_text(self, with_labels=True, rich=0):
+    def write_network_text(self, with_labels=True, rich='auto'):
         from delayed_image.helpers import write_network_text
         graph = self.as_graph()
         path = None
         end = '\n'
+        if rich == 'auto':
+            rich = rich_mod is not None
         if rich:
-            import rich as rich_mod
             path = rich_mod.print
             end = ''
         # TODO: remove once this is merged into networkx itself
