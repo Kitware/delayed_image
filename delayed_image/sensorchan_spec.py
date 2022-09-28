@@ -88,6 +88,9 @@ class SensorSpec(ub.NiceRepr):
     def __nice__(self):
         return self.spec
 
+    def __json__(self):
+        return self.spec
+
 
 class SensorChanSpec(ub.NiceRepr):
     """
@@ -151,6 +154,9 @@ class SensorChanSpec(ub.NiceRepr):
         self.spec: str = spec
 
     def __nice__(self):
+        return self.spec
+
+    def __json__(self):
         return self.spec
 
     def __str__(self):
@@ -371,6 +377,9 @@ class FusedSensorChanSpec(SensorChanSpec):
     @property
     def spec(self):
         return '{}:{}'.format(self.sensor.spec, self.chans.spec)
+
+    def __json__(self):
+        return self.spec
 
 
 class SensorChanNode:

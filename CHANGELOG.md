@@ -7,14 +7,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.2.1 - Unreleased
 
-
-## Version 0.2.1 - Released 2022-09-27
-
-
-## Version 0.2.1 - Released 2022-09-27
+### Added
+* Added `__json__` to sensorchan specs
 
 
-## [Version 0.2.0] -
+## [Version 0.2.0] - Released 2022-09-27
 
 ### Added
 * new method `get_transform_from` which returns the transform from the space of
