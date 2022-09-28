@@ -6,11 +6,10 @@ def test_crop_optimize_issue():
     prepared, there wasn't any issue.
 
     The issue was that when you had
-
-    * Warp(scale=2, dsize=(400, 400))
-        * Dequantize(scale=2, dsize=(200, 200))
-            * Overview(dsize=(200, 200))
-                * Load(dsize=(400, 400))
+        * Warp(scale=2, dsize=(400, 400))
+            * Dequantize(scale=2, dsize=(200, 200))
+                * Overview(dsize=(200, 200))
+                    * Load(dsize=(400, 400))
 
     It would optimize to
         * Dequantize(scale=2, dsize=(200, 200))
@@ -19,7 +18,6 @@ def test_crop_optimize_issue():
     Instead of
         * Dequantize(scale=2, dsize=(400, 400))
             * Load(dsize=(400, 400))
-
     """
     # from delayed_image import demo
     # demo.non_aligned_leafs()
