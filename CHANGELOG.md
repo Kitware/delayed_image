@@ -5,11 +5,20 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.2.1 - Unreleased
+## Version 0.2.2 - Unreleased
 
 ### Added
 * Added `__json__` to sensorchan specs
+* Added `resize` method
 
+### Fixed
+* A Dequantize node between a warp and and overview now has its size modified correctly.
+
+### Changed
+* `write_network_text` now defaults to rich='auto'
+
+### Changed
+* 3.6 support
 
 ## [Version 0.2.0] - Released 2022-09-27
 

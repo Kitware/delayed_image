@@ -21,6 +21,8 @@ except Exception:
 # Stacking
 # --------
 
+TRACE_OPTIMIZE = 0  # TODO: make this a local setting
+
 
 class DelayedStack(DelayedNaryOperation):
     """
@@ -288,6 +290,16 @@ class ImageOpsMixin:
         """
         An alias for self.warp({"scale": scale}, ...)
         """
+        transform = {'scale': scale}
+        return self.warp(transform, dsize=dsize, **warp_kwargs)
+
+    def resize(self, dsize, **warp_kwargs):
+        """
+        Resize an image to a specific width/height by scaling it.
+        """
+        old_dsize = np.array(self.dsize)
+        new_dsize = np.array(dsize)
+        scale = new_dsize / old_dsize
         transform = {'scale': scale}
         return self.warp(transform, dsize=dsize, **warp_kwargs)
 
@@ -1507,6 +1519,8 @@ class DelayedWarp(DelayedImage):
         )
         if is_negligable:
             new = new.subdata
+            if TRACE_OPTIMIZE:
+                new._opt_logs.append('Contract identity warp')
         elif isinstance(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
         elif hasattr(new.subdata, '_optimized_warp'):
@@ -1542,11 +1556,21 @@ class DelayedWarp(DelayedImage):
         new_transform = tf2 @ tf1
         new = self.__class__(inner_data, new_transform, dsize=dsize,
                              **common_meta)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('Fused warps')
         return new
 
     def _opt_absorb_overview(self):
         """
         Remove the overview if we can get a higher resolution without it
+
+        Given this warp node, if it has a scale component could undo an
+        overview (i.e. the scale factor is greater than 2), we want to:
+
+            1. determine if there is an overview deeper in the tree.
+            2. remove that overview and that scale factor from this warp
+            3. modify any intermediate nodes that will be changed by having the
+               deeper overview removed.
 
         Example:
             >>> # xdoctest: +REQUIRES(module:osgeo)
@@ -1590,7 +1614,7 @@ class DelayedWarp(DelayedImage):
         parent = self
         subdata = None
         chain = []
-        num_dc = 0
+        num_dcrops = 0
         for i in range(4):
             subdata = parent.subdata
             if subdata is None:
@@ -1605,7 +1629,7 @@ class DelayedWarp(DelayedImage):
             elif isinstance(subdata, DelayedDequantize):
                 pass
             elif isinstance(subdata, DelayedCrop):
-                num_dc += 1
+                num_dcrops += 1
             else:
                 subdata = None
                 break
@@ -1617,8 +1641,12 @@ class DelayedWarp(DelayedImage):
         if subdata is None:
             return self
 
-        if num_dc > 1:
+        if num_dcrops > 1:
             return self
+
+        # At this point we have some chain:
+        # [Warp, Something, ..., Overview]
+        # The chain is the [Something, ...] part
 
         # Replace the overview node with a warp node that mimics it.
         # This has no impact on the function of the operation stack.
@@ -1631,12 +1659,17 @@ class DelayedWarp(DelayedImage):
         if not chain:
             # The overview is directly after this warp
             new_head = mimic_overview.subdata
+            if TRACE_OPTIMIZE:
+                new_head._opt_logs.extend(mimic_overview._opt_logs)
+                new_head._opt_logs.append('absorb_neighbor')
         else:
             # Copy the chain so this does not mutate the input
             chain = [copy.copy(n) for n in chain]
             for u, v in ub.iter_window(chain, 2):
                 u.subdata = v
             tail = chain[-1]
+            if TRACE_OPTIMIZE:
+                mimic_overview._opt_logs.extend(tail.subdata._opt_logs)
             tail.subdata = mimic_overview
             # Check if the tail of the chain is a crop.
             if hasattr(tail, '_opt_warp_after_crop'):
@@ -1651,16 +1684,24 @@ class DelayedWarp(DelayedImage):
                 # Remove the modified warp
                 tail_parent = chain[-2] if len(chain) > 1 else self
                 new_tail = modified_tail.subdata
+                if TRACE_OPTIMIZE:
+                    new_tail._opt_logs.extend(modified_tail._opt_logs)
+                    new_tail._opt_logs.extend(tail_parent.subdata._opt_logs)
+                    new_tail._opt_logs.append('modify-tail')
                 tail_parent.subdata = new_tail
                 chain[-1] = new_tail
                 for notcrop in chain[:-1]:
                     notcrop.meta['dsize'] = new_chain_dsize
             else:
                 # The chain does not contain a crop operation, we can safely
-                # remove it.
-                # Finally remove the overview transform entirely
+                # remove it. Finally remove the overview transform entirely
                 tail.subdata = mimic_overview.subdata
                 new_chain_dsize = mimic_overview.subdata.meta['dsize']
+                for notcrop in chain:
+                    notcrop.meta['dsize'] = new_chain_dsize
+                if TRACE_OPTIMIZE:
+                    tail._opt_logs.extend(mimic_overview._opt_logs)
+                    tail._opt_logs.append('safe-to-remove')
 
             # The dsize within the chain might be wrong due to our
             # modification. I **think** its ok to just directly set it to the
@@ -1670,12 +1711,16 @@ class DelayedWarp(DelayedImage):
             for notcrop in chain[:-1]:
                 notcrop.meta['dsize'] = new_chain_dsize
             new_head = chain[0]
+            if TRACE_OPTIMIZE:
+                new_head._opt_logs.append('absorb_chain')
 
         warp_meta = ub.dict_isect(self.meta, self._algo_keys)
         tf2 = self.meta['transform']
         dsize = self.meta['dsize']
         new_transform = tf2 @ tf1
         new = self.__class__(new_head, new_transform, dsize=dsize, **warp_meta)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('_opt_absorb_overview')
         return new
 
     def _opt_split_warp_overview(self):
@@ -1755,6 +1800,8 @@ class DelayedWarp(DelayedImage):
         else:
             common_meta = ub.dict_isect(self.meta, self._algo_keys)
             new = overview.warp(new_transform, dsize=dsize, **common_meta)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('Split overviews')
         return new
 
 
@@ -1826,6 +1873,8 @@ class DelayedDequantize(DelayedImage):
         quantization = self.meta['quantization']
         new = copy.copy(self.subdata)
         new.subdata = new.subdata.dequantize(quantization)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('_opt_dequant_before_other')
         return new
 
     def _transform_from_subdata(self):
@@ -1970,11 +2019,21 @@ class DelayedCrop(DelayedImage):
                 chan_idxs = new.meta.get('chan_idxs', None)
                 space_slice = new.meta.get('space_slice', None)
                 taken = new.subdata
+                if TRACE_OPTIMIZE:
+                    _new_logs = []
                 if chan_idxs is not None:
+                    if TRACE_OPTIMIZE:
+                        _new_logs.extend(new.subdata._opt_logs)
+                        _new_logs.extend(new._opt_logs)
+                        _new_logs.append('concat-chan-crop-interact')
                     taken = new.subdata.take_channels(chan_idxs).optimize()
                 if space_slice is not None:
+                    if TRACE_OPTIMIZE:
+                        _new_logs.append('concat-space-crop-interact')
                     taken = taken.crop(space_slice)._opt_push_under_concat().optimize()
                 new = taken
+                if TRACE_OPTIMIZE:
+                    new._opt_logs.extend(_new_logs)
             else:
                 new = new._opt_push_under_concat().optimize()
 
@@ -2059,6 +2118,8 @@ class DelayedCrop(DelayedImage):
             new_chan_idxs = list(ub.take(inner_chan_idxs, outer_chan_idxs))
         new_crop = (slice(new_ystart, new_ystop), slice(new_xstart, new_xstop))
         new = self.__class__(inner_data, new_crop, new_chan_idxs)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('fuse crops')
         return new
 
     def _opt_warp_after_crop(self):
@@ -2125,6 +2186,10 @@ class DelayedCrop(DelayedImage):
 
         new_inner = self.subdata.subdata.crop(inner_slice, outer_chan_idxs)
         new_outer = new_inner.warp(outer_transform, **warp_meta)
+        if TRACE_OPTIMIZE:
+            new_outer._opt_logs.extend(self.subdata.subdata._opt_logs)
+            new_outer._opt_logs.extend(self.subdata._opt_logs)
+            new_outer._opt_logs.append('_opt_warp_after_crop')
         return new_outer
 
     def _opt_dequant_after_crop(self):
@@ -2134,6 +2199,8 @@ class DelayedCrop(DelayedImage):
         new = copy.copy(self)
         new.subdata = self.subdata.subdata  # Remove the dequantization
         new = new.dequantize(quantization)  # Push it after the crop
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('_opt_dequant_after_crop')
         return new
 
 
@@ -2270,6 +2337,9 @@ class DelayedOverview(DelayedImage):
         transform = self._transform_from_subdata()
         dsize = self.meta['dsize']
         new = self.subdata.warp(transform, dsize=dsize)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append(self._opt_logs)
+            new._opt_logs.append('_opt_overview_as_warp')
         return new
 
     def _opt_crop_after_overview(self):
@@ -2321,6 +2391,8 @@ class DelayedOverview(DelayedImage):
         if not np.all(np.isclose(np.eye(3), new_outer_warp)):
             # we might have to apply an additional warp at the end.
             new = new.warp(new_outer_warp)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('_opt_crop_after_overview')
         return new
 
     def _opt_fuse_overview(self):
@@ -2329,6 +2401,8 @@ class DelayedOverview(DelayedImage):
         inner_overrview = self.subdata.meta['overview']
         new_overview = inner_overrview + outer_overview
         new = self.subdata.subdata.get_overview(new_overview)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('_opt_fuse_overview')
         return new
 
     def _opt_dequant_after_overview(self):
@@ -2338,6 +2412,8 @@ class DelayedOverview(DelayedImage):
         new = copy.copy(self)
         new.subdata = self.subdata.subdata  # Remove the dequantization
         new = new.dequantize(quantization)  # Push it after the crop
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('_opt_dequant_after_overview')
         return new
 
     def _opt_warp_after_overview(self):
@@ -2379,6 +2455,9 @@ class DelayedOverview(DelayedImage):
         new_inner_overview = outer_overview
         new = self.subdata.subdata.get_overview(new_inner_overview)
         new = new.warp(new_outer)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.extend(self.subdata._opt_logs)
+            new._opt_logs.append('_opt_warp_after_overview')
         return new
 
 

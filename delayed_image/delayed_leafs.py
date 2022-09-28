@@ -6,7 +6,7 @@ import kwarray
 import kwimage
 import numpy as np
 import warnings
-from delayed_image.delayed_nodes import DelayedImage
+from delayed_image.delayed_nodes import DelayedImage, TRACE_OPTIMIZE
 # from delayed_image.delayed_nodes import DelayedArray
 
 try:
@@ -270,6 +270,8 @@ class DelayedNans(DelayedImageLeaf):
         new_height = box.height.ravel()[0]
         new_dsize = (new_width, new_height)
         new = self.__class__(new_dsize, channels=channels)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('Nans._optimized_crop')
         return new
 
     def _optimized_warp(self, transform, dsize=None, **warp_kwargs):
@@ -279,6 +281,8 @@ class DelayedNans(DelayedImageLeaf):
         """
         # Warping does nothing to nans, except maybe changing the dsize
         new = self.__class__(dsize, channels=self.channels)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('Nans._optimized_warp')
         return new
 
 
