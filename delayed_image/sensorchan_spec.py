@@ -128,7 +128,7 @@ class SensorChanSpec(ub.NiceRepr):
         >>> print(s1)
         >>> print(s2)
         *:BGR,*:BGR,*:nir,*:land.0|land.1|land.2|land.3
-        (*,*):BGR,*:(nir,land:4)
+        (*):BGR,*:(nir,land:4)
         >>> import delayed_image
         >>> c = delayed_image.ChannelSpec.coerce('BGR,BGR,nir,land.0:8')
         >>> c1 = c.normalize()

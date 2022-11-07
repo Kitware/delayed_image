@@ -544,7 +544,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             >>> from delayed_image.delayed_nodes import *  # NOQA
             >>> import kwcoco
             >>> dset = kwcoco.CocoDataset.demo('vidshapes8-multispectral')
-            >>> self = delayed = dset.coco_image(1).delay(mode=1)
+            >>> self = delayed = dset.coco_image(1).delay()
             >>> channels = 'B11|B8|B1|B10'
             >>> new = self.take_channels(channels)
 
@@ -555,7 +555,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             >>> from delayed_image.delayed_nodes import *  # NOQA
             >>> from delayed_image.delayed_leafs import DelayedLoad
             >>> dset = kwcoco.CocoDataset.demo('vidshapes8-multispectral')
-            >>> delayed = dset.coco_image(1).delay(mode=1)
+            >>> delayed = dset.coco_image(1).delay()
             >>> astro = DelayedLoad.demo('astro', channels='r|g|b').prepare()
             >>> aligned = astro.warp(kwimage.Affine.scale(600 / 512), dsize='auto')
             >>> self = combo = DelayedChannelConcat(delayed.parts + [aligned])
@@ -584,7 +584,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             >>> import kwcoco
             >>> from delayed_image.delayed_nodes import *  # NOQA
             >>> dset = kwcoco.CocoDataset.demo('vidshapes8-multispectral', use_cache=1, verbose=100)
-            >>> self = delayed = dset.coco_image(1).delay(mode=1)
+            >>> self = delayed = dset.coco_image(1).delay()
             >>> channels = 'B1|foobar|bazbiz|B8'
             >>> new = self.take_channels(channels)
             >>> new_cropped = new.crop((slice(10, 200), slice(12, 350)))
