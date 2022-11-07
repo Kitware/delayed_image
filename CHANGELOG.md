@@ -7,6 +7,8 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.2.3 - Unreleased
 
+### Fixed
+* Issue in SensorChan spec where duplicate sensors were present in concise codes
 
 ## Version 0.2.2 - Released 2022-09-28
 
