@@ -210,6 +210,7 @@ class SensorChanSpec(ub.NiceRepr):
     def concise(self):
         """
         Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
             >>> from delayed_image import SensorChanSpec
             >>> a = SensorChanSpec.coerce('Cam1:(red,blue)')
             >>> b = SensorChanSpec.coerce('Cam2:(blue,green)')
