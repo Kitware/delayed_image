@@ -128,7 +128,7 @@ class SensorChanSpec(ub.NiceRepr):
         >>> print(s1)
         >>> print(s2)
         *:BGR,*:BGR,*:nir,*:land.0|land.1|land.2|land.3
-        (*,*):BGR,*:(nir,land:4)
+        (*):BGR,*:(nir,land:4)
         >>> import delayed_image
         >>> c = delayed_image.ChannelSpec.coerce('BGR,BGR,nir,land.0:8')
         >>> c1 = c.normalize()
@@ -208,6 +208,23 @@ class SensorChanSpec(ub.NiceRepr):
         return new
 
     def concise(self):
+        """
+        Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
+            >>> from delayed_image import SensorChanSpec
+            >>> a = SensorChanSpec.coerce('Cam1:(red,blue)')
+            >>> b = SensorChanSpec.coerce('Cam2:(blue,green)')
+            >>> c = (a + b).concise()
+            >>> print(c)
+            (Cam1,Cam2):blue,Cam1:red,Cam2:green
+            >>> # Note the importance of parenthesis in the previous example
+            >>> # otherwise channels will be assigned to `*` the generic sensor.
+            >>> a = SensorChanSpec.coerce('Cam1:red,blue')
+            >>> b = SensorChanSpec.coerce('Cam2:blue,green')
+            >>> c = (a + b).concise()
+            >>> print(c)
+            (*,Cam2):blue,*:green,Cam1:red
+        """
         new_spec = concise_sensor_chan(self.spec)
         new = self.__class__(new_spec)
         return new
@@ -555,7 +572,7 @@ class SensorChanTransformer(Transformer):
             pass1_sensors = []
             pass1_chans = []
             for chan, sensors in chan_to_sensors.items():
-                sense_part = ','.join(sorted(sensors))
+                sense_part = ','.join(sorted(ub.unique(sensors)))
                 if len(sensors) > 1:
                     sense_part = '({})'.format(sense_part)
                 pass1_sensors.append(sense_part)
