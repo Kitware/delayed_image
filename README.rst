@@ -18,8 +18,8 @@ do everything in the right order yourself.
 
 Note: GDAL is optional, but recommended. Precompiled GDAL wheels are available
 on Kitware's `large image wheel repository <https://girder.github.io/large_image_wheels/>`__.
-Use ``pip install gdal -f https://girder.github.io/large_image_wheels/`` to
-install gdal from this server. Track status of official gdal wheels `here
+Use ``pip install gdal -f https://girder.github.io/large_image_wheels/`` 
+to install gdal from this server. Track status of official gdal wheels `here
 <https://github.com/OSGeo/gdal/issues/3060>`__.
 
 
