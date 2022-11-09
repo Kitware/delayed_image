@@ -328,7 +328,7 @@ def _demo_geoimg_with_nodata():
 class LazyGDalFrameFile(ub.NiceRepr):
     """
     TODO:
-        - [ ] Move to its own backend module
+        - [x] Move to its own backend module
         - [ ] When used with COCO, allow the image metadata to populate the
               height, width, and channels if possible.
 

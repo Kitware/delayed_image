@@ -209,7 +209,7 @@ def dequantize(quant_data, quantization):
         quantization (Dict[str, Any]):
             quantization information dictionary to undo.
             Expected keys are:
-            orig_type (str)
+            orig_dtype (str)
             orig_min (float)
             orig_max (float)
             quant_min (float)

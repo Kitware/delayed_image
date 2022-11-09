@@ -1,9 +1,5 @@
 r"""
-A rewrite of the delayed operations
-
-Note:
-    The classes in this submodule will have their names changed when the old
-    POC delayed operations are deprecated.
+The delayed image module.
 
 TODO:
     The optimize logic could likley be better expressed as some sort of
@@ -238,7 +234,7 @@ Example:
 """
 
 
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 __author__ = 'Jon Crall'
 __author_email__ = 'jon.crall@kitware.com'
 
