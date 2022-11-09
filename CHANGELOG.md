@@ -7,6 +7,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.2.4 - Unreleased
 
+### Changed
+
+* modified the signature of `DelayedLoad.demo` to better match `__init__` and
+  `grab_image_test_fpath`.
+
 
 ## Version 0.2.3 - Released 2022-11-07
 
