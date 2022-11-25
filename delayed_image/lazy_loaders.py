@@ -334,6 +334,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
 
     Example:
         >>> # xdoctest: +REQUIRES(module:osgeo)
+        >>> from delayed_image.lazy_loaders import *  # NOQA
         >>> self = LazyGDalFrameFile.demo()
         >>> print('self = {!r}'.format(self))
         >>> self[0:3, 0:3]
