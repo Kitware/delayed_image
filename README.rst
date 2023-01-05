@@ -18,8 +18,8 @@ do everything in the right order yourself.
 
 Note: GDAL is optional, but recommended. Precompiled GDAL wheels are available
 on Kitware's `large image wheel repository <https://girder.github.io/large_image_wheels/>`__.
-Use ``pip install gdal -f https://girder.github.io/large_image_wheels/`` to
-install gdal from this server. Track status of official gdal wheels `here
+Use ``pip install gdal -f https://girder.github.io/large_image_wheels/`` 
+to install gdal from this server. Track status of official gdal wheels `here
 <https://github.com/OSGeo/gdal/issues/3060>`__.
 
 
@@ -33,6 +33,31 @@ following code from kwcoco:
 * SensorChannelSpec
 * DelayedLoad & other delayed operations
 
+
+Quick Start
+-----------
+
+.. code:: python
+
+    # Given a path to some image
+    import kwimage
+    fpath = kwimage.grab_test_image_fpath('amazon')
+
+    # Demo how to load, scale, and crop a part of an image.
+    import delayed_image
+    delayed = delayed_image.DelayedLoad(fpath)
+    delayed = delayed.prepare()
+    delayed = delayed.scale(0.1)
+    delayed = delayed[128:256, 128:256]
+
+    import kwplot
+    kwplot.autompl()
+    kwplot.imshow(delayed.finalize())
+    kwimage.imwrite('foo.png', delayed.finalize())
+    
+.. image:: https://i.imgur.com/lsWLkPx.png
+
+See `the quickstart jupyter notebook <examples/quickstart.ipynb/>`__ for more details.
 
 Delayed Loading
 ---------------

@@ -174,7 +174,7 @@ Example:
     >>> def _tocanvas(img):
     ...     if img.dtype.kind == 'u':
     ...         return img
-    ...     return kwimage.ensure_uint255(kwimage.fill_nans_with_checkers(img))
+    ...     return kwimage.ensure_uint255(kwimage.fill_nans_with_checkers(img).clip(0, 1))
     >>> row.append(kwimage.draw_header_text(vidspace_box.draw_on(_tocanvas(delayed_vidspace.finalize())), 'vidspace'))
     >>> # Draw finalized aligned crops
     >>> tostack_grid.append([]); row = tostack_grid[-1]
