@@ -41,7 +41,19 @@ Notes:
             Set the Repository URL: https://gitlab.kitware.com/computer-vision/delayed_image
 
         For gitlab you also need to setup an integrations and add gitlab
-        incoming webhook Then go to $REPO_URL/hooks and add the URL
+        incoming webhook
+
+            https://readthedocs.org/dashboard/delayed_image/integrations/create/
+
+        Then go to
+
+            https://gitlab.kitware.com/computer-vision/delayed_image/hooks
+
+        and add the URL
+
+        select push, tag, and merge request
+
+        See Docs for more details https://docs.readthedocs.io/en/stable/integrations.html
 
         Will also need to activate the main branch:
             https://readthedocs.org/projects/delayed_image/versions/
@@ -499,7 +511,8 @@ class GoogleStyleDocstringProcessor:
         #     import xdev
         #     xdev.embed()
 
-        if 0:
+        RENDER_IMAGES = 1
+        if RENDER_IMAGES:
             # DEVELOPING
             if any('REQUIRES(--show)' in line for line in lines):
                 # import xdev
