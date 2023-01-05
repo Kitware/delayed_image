@@ -57,8 +57,7 @@ Quick Start
     
 .. image:: https://i.imgur.com/lsWLkPx.png
 
-See examples/quickstart.ipynb for a more in-depth version of the above
-quick-start.
+See `the quickstart jupyter notebook <examples/quickstart.ipynb/>`__ for more details.
 
 Delayed Loading
 ---------------
