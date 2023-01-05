@@ -34,6 +34,29 @@ following code from kwcoco:
 * DelayedLoad & other delayed operations
 
 
+Quick Start
+-----------
+
+.. code:: python
+
+    # Given a path to some image
+    import kwimage
+    fpath = kwimage.grab_test_image_fpath('amazon')
+
+    # Demo how to load, scale, and crop a part of an image.
+    import delayed_image
+    delayed = delayed_image.DelayedLoad(fpath)
+    delayed = delayed.prepare()
+    delayed = delayed.scale(0.1)
+    delayed = delayed[128:256, 128:256]
+
+    import kwplot
+    kwplot.autompl()
+    kwplot.imshow(delayed.finalize())
+    kwimage.imwrite('foo.png', delayed.finalize())
+    
+.. image:: https://i.imgur.com/lsWLkPx.png
+
 Delayed Loading
 ---------------
 
