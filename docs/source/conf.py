@@ -1,6 +1,6 @@
 """
 Notes:
-    Based on template code in: ~/code/delayed_image/docs/source/conf.py
+    Based on template code in: ~/code/xcookie/xcookie/builders/docs_conf.py
 
     http://docs.readthedocs.io/en/latest/getting_started.html
 
@@ -13,7 +13,6 @@ Notes:
     sphinx-quickstart
 
     # need to edit the conf.py
-
     cd ~/code/delayed_image/docs
     sphinx-apidoc -f -o ~/code/delayed_image/docs/source ~/code/delayed_image/delayed_image --separate
     make html
@@ -38,11 +37,23 @@ Notes:
         Make sure you have a .readthedocs.yml file
 
         Click import project: (for github you can select, but gitlab you need to import manually)
-            Set the Repository NAME: $REPO_NAME
-            Set the Repository URL: $REPO_URL
+            Set the Repository NAME: delayed_image
+            Set the Repository URL: https://gitlab.kitware.com/computer-vision/delayed_image
 
         For gitlab you also need to setup an integrations and add gitlab
-        incoming webhook Then go to $REPO_URL/hooks and add the URL
+        incoming webhook
+
+            https://readthedocs.org/dashboard/delayed_image/integrations/create/
+
+        Then go to
+
+            https://gitlab.kitware.com/computer-vision/delayed_image/hooks
+
+        and add the URL
+
+        select push, tag, and merge request
+
+        See Docs for more details https://docs.readthedocs.io/en/stable/integrations.html
 
         Will also need to activate the main branch:
             https://readthedocs.org/projects/delayed_image/versions/
@@ -92,7 +103,7 @@ def parse_version(fpath):
     return visitor.version
 
 project = 'delayed_image'
-copyright = '2022, Jon Crall'
+copyright = '2023, Jon Crall'
 author = 'Jon Crall'
 modname = 'delayed_image'
 
@@ -225,7 +236,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'delayed_imagedoc'
+htmlhelp_basename = 'xcookiedoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -280,8 +291,6 @@ texinfo_documents = [
 
 
 # -- Extension configuration -------------------------------------------------
-
-
 from sphinx.domains.python import PythonDomain  # NOQA
 # from sphinx.application import Sphinx  # NOQA
 from typing import Any, List  # NOQA
@@ -385,28 +394,25 @@ class GoogleStyleDocstringProcessor:
         Example:
             >>> import ubelt as ub
             >>> self = GoogleStyleDocstringProcessor()
-            >>> lines = ub.codeblock(
-            ...     '''
-            ...     Hello world
-            ...
-            ...     CommandLine:
-            ...         hi
-            ...
-            ...     CommandLine:
-            ...
-            ...         bye
-            ...
-            ...     TextArt:
-            ...
-            ...         1
-            ...         2
-            ...
-            ...         345
-            ...
-            ...     Foobar:
-            ...
-            ...     TextArt:
-            ...     ''').split(chr(10))
+            >>> lines = ['Hello world',
+            >>>              '',
+            >>>              'CommandLine:',
+            >>>              '    hi',
+            >>>              '',
+            >>>              'CommandLine:',
+            >>>              '',
+            >>>              '    bye',
+            >>>              '',
+            >>>              'TextArt:',
+            >>>              '',
+            >>>              '    1',
+            >>>              '    2',
+            >>>              '',
+            >>>              '    345',
+            >>>              '',
+            >>>              'Foobar:',
+            >>>              '',
+            >>>              'TextArt:']
             >>> new_lines = self.process(lines[:])
             >>> print(chr(10).join(new_lines))
         """
@@ -505,7 +511,8 @@ class GoogleStyleDocstringProcessor:
         #     import xdev
         #     xdev.embed()
 
-        if 0:
+        RENDER_IMAGES = 1
+        if RENDER_IMAGES:
             # DEVELOPING
             if any('REQUIRES(--show)' in line for line in lines):
                 # import xdev

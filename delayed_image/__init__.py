@@ -228,7 +228,7 @@ Example:
     >>> tostack_grid = [[_tocanvas(c) for c in cols] for cols in tostack_grid]
     >>> tostack_rows  = [kwimage.stack_images(cols, axis=1, bg_value=(5, 100, 10), pad=10) for cols in tostack_grid if cols]
     >>> stack = kwimage.stack_images(tostack_rows, axis=0, bg_value=(5, 100, 10), pad=10)
-    >>> kwplot.imshow(stack, title='notice how the "undone all" crops are shifted to the right such that they align with the original image')
+    >>> kwplot.imshow(stack, title='notice how the "undone all" crops are shifted to the right' + chr(10) + 'such that they align with the original image')
     >>> kwplot.show_if_requested()
 
 """
