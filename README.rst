@@ -1,7 +1,7 @@
 The delayed_image Module
 ========================
 
-|Pypi| |PypiDownloads|
+|Pypi| |PypiDownloads| |ReadTheDocs|
 
 The delayed image module lets you describe (a tree of) image operations, but
 waits to execute them until the user calls ``finalize``. This allows for a
@@ -210,3 +210,6 @@ grouping.
 
 .. |PypiDownloads| image:: https://img.shields.io/pypi/dm/delayed_image.svg
     :target: https://pypistats.org/packages/delayed_image
+
+.. |ReadTheDocs| image:: https://readthedocs.org/projects/delayed_image/badge/?version=latest
+    :target: http://delayed_image.readthedocs.io/en/latest/
