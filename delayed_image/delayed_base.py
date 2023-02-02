@@ -327,7 +327,6 @@ class DelayedOperation(ub.NiceRepr):
         # just sits at the user-level and ensures correct final output whereas
         # the protected function can return optimized representations that
         # other _finalize methods can utilize.
-        self.print_graph('all')
         final = self._finalize()
         # Ensure we are array like
         final = final[:]
