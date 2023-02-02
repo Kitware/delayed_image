@@ -58,10 +58,17 @@ class DelayedOperation(ub.NiceRepr):
             item['children'] = child_nestings
         return item
 
-    def as_graph(self):
+    def as_graph(self, fields='auto'):
         """
         Builds the underlying graph structure as a networkx graph with human
         readable labels.
+
+        Args:
+            fields (str | List[str]):
+                Add the specified fields as labels. If 'auto' then does
+                somthing "reasonable". If 'all' then shows everything.
+                TODO: only implemented for "auto" and "all", implement general
+                field selection (PR Wanted).
 
         Returns:
             networkx.DiGraph
@@ -77,11 +84,12 @@ class DelayedOperation(ub.NiceRepr):
             if 'channels' in sub_meta:
                 sub_meta['channels'] = str(sub_meta['channels'].spec)
                 sub_meta.pop('num_channels', None)
-            sub_meta.pop('jagged', None)
-            sub_meta.pop('border_value', None)
-            sub_meta.pop('antialias', None)
-            sub_meta.pop('interpolation', None)
-            sub_meta.pop('noop_eps', None)
+            if fields == 'auto':
+                sub_meta.pop('jagged', None)
+                sub_meta.pop('border_value', None)
+                sub_meta.pop('antialias', None)
+                sub_meta.pop('interpolation', None)
+                sub_meta.pop('noop_eps', None)
             if 'fpath' in sub_meta:
                 sub_meta['fname'] = ub.Path(sub_meta.pop('fpath')).name
             param_key = ub.repr2(sub_meta, sort=0, compact=1, nl=0, precision=4)
@@ -217,9 +225,16 @@ class DelayedOperation(ub.NiceRepr):
                 stack.append((node_id, child))
         return graph
 
-    def write_network_text(self, with_labels=True, rich='auto'):
+    def print_graph(self, fields='auto', with_labels=True, rich='auto'):
+        """
+        Alias for write_network_text
+        """
+        self.write_network_text(fields=fields, with_labels=with_labels, rich=rich)
+
+    def write_network_text(self, fields='auto', with_labels=True, rich='auto'):
+        # TODO: remove once this is merged into networkx itself
         from delayed_image.helpers import write_network_text
-        graph = self.as_graph()
+        graph = self.as_graph(fields=fields)
         path = None
         end = '\n'
         if rich == 'auto':
@@ -227,7 +242,6 @@ class DelayedOperation(ub.NiceRepr):
         if rich:
             path = rich_mod.print
             end = ''
-        # TODO: remove once this is merged into networkx itself
         write_network_text(graph, with_labels=with_labels, path=path, end=end)
 
     @property
@@ -313,6 +327,7 @@ class DelayedOperation(ub.NiceRepr):
         # just sits at the user-level and ensures correct final output whereas
         # the protected function can return optimized representations that
         # other _finalize methods can utilize.
+        self.print_graph('all')
         final = self._finalize()
         # Ensure we are array like
         final = final[:]

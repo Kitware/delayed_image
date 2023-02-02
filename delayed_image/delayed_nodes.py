@@ -1605,7 +1605,9 @@ class DelayedWarp(DelayedImage):
         transform = self.meta['transform']
         params = transform.decompose()
         sx, sy = params['scale']
-        if sx < 2 and sy < 2:
+        eps = 1e-8
+        twoish = (2 - eps)
+        if sx < twoish and sy < twoish:
             return self
 
         # Lookahead to see if there is a nearby overview operation that can be
