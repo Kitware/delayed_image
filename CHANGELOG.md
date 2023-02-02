@@ -12,6 +12,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 * modified the signature of `DelayedLoad.demo` to better match `__init__` and
   `grab_image_test_fpath`.
 
+### Fixed
+
+* floating point bug where an overview would fail to be absorbed into a warp.
+
 
 ## Version 0.2.3 - Released 2022-11-07
 
