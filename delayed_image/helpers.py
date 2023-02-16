@@ -94,10 +94,13 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     leaf_region_box = leaf_region_bounds.bounding_box().to_ltrb()
 
     # Quantize to a region that is possible to sample from
-    leaf_crop_box = leaf_region_box.quantize()
+    leaf_crop_box = leaf_region_box.quantize(inplace=True)
 
     # is this ok?
-    leaf_crop_box = leaf_crop_box.clip(0, 0, None, None)
+    # leaf_crop_box = leaf_crop_box.clip(0, 0, None, None, inplace=True)
+    # Optimized clip
+    ltrb = leaf_crop_box.data
+    np.clip(ltrb, 0, None, out=ltrb)
 
     # Because we sampled a large quantized region, we need to modify the
     # transform to nudge it a bit to the left, undoing the quantization,
@@ -107,8 +110,9 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     crop_offset = leaf_crop_box.data[0, 0:2]
     root_offset = root_region_bounds.exterior.data.min(axis=0)
 
-    tf_root_to_newroot = kwimage.Affine.affine(offset=-root_offset).matrix
-    tf_newleaf_to_leaf = kwimage.Affine.affine(offset=crop_offset).matrix
+    # TODO: could optimize this logic
+    tf_root_to_newroot = kwimage.Affine.translate(offset=-root_offset).matrix
+    tf_newleaf_to_leaf = kwimage.Affine.translate(offset=crop_offset).matrix
 
     # Resample the smaller region to align it with the root region
     # Note: The right most transform is applied first
