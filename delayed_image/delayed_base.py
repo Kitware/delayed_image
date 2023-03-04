@@ -12,7 +12,7 @@ except Exception:
 try:
     from xdev import profile
 except ImportError:
-    profile = ub.profile
+    profile = ub.identity
 
 
 # from kwcoco.util.util_monkey import Reloadable  # NOQA
