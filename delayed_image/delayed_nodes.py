@@ -103,6 +103,7 @@ class DelayedFrameStack(DelayedStack):
 
 class ImageOpsMixin:
 
+    @profile
     def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True, pad=0):
         """
         Crops an image along integer pixel coordinates.
@@ -223,6 +224,7 @@ class ImageOpsMixin:
             new = DelayedCrop(self, space_slice, chan_idxs)
         return new
 
+    @profile
     def _padded_crop(self, space_slice, pad=0):
         """
         Does the type of padded crop we want, but inefficiently using a warp.
@@ -512,6 +514,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             final = np.concatenate(stack, axis=2)
         return final
 
+    @profile
     def optimize(self):
         """
         Returns:
@@ -596,7 +599,6 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
         """
         if channels is None:
             return self
-        from delayed_image.delayed_leafs import DelayedNans
         current_channels = self.channels
 
         if isinstance(channels, list):
@@ -620,86 +622,6 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
         # This may be a bottleneck
         subindexer = kwarray.FlatIndexer([
             comp.num_channels for comp in self.parts])
-
-        class _InnerAccumSegment(ub.NiceRepr):
-            """
-            Gather the indexes we need to take from an inner component
-            """
-            def __init__(curr, comp):
-                curr.comp = comp
-                curr.start = None
-                curr.stop = None
-                curr.codes = None
-                curr.indexes = []
-
-            def __nice__(curr):
-                return f'{curr.start}, {curr.stop}, {curr.indexes}, {curr.codes}'
-
-            def add_inner(curr, inner, code):
-                if curr.start is None:
-                    curr.start = inner
-                    curr.stop = inner + 1
-                    if code is not None:
-                        curr.codes = []
-                else:
-                    if code is None:
-                        curr.codes = None
-                    # Can we take a contiguous slice?
-                    if curr.stop is not None and curr.stop == inner:
-                        curr.stop = inner + 1
-                    else:
-                        # Contiguous input is broken, fallback to indexes only.
-                        curr.stop = None
-
-                # Accumulate the codes if we can
-                if curr.codes is not None:
-                    curr.codes.append(code)
-
-                # cast to int to prevent numpy types
-                curr.indexes.append(int(inner))
-
-            def get_indexer(curr):
-                """
-                Return an list of indexes into the subcomponent that will form
-                the new contiguous out-component
-                """
-                if curr.stop is not None:
-                    if curr.start == 0 and curr.stop == curr.comp.num_channels:
-                        # We can take the entire component
-                        sub_idxs = Ellipsis
-                        assert curr.indexes[0] == 0
-                        assert curr.indexes[-1] == curr.stop - 1
-                    else:
-                        # In this case we could take the parts as a contiguous
-                        # slice, but just return indexes for now
-                        sub_idxs = list(range(curr.start, curr.stop))
-                        assert sub_idxs == curr.indexes
-                else:
-                    sub_idxs = curr.indexes
-                return sub_idxs
-
-            def get_subcomponent(curr):
-                """
-                Finalize the subcomponent
-                """
-                comp = curr.comp
-                if comp is None:
-                    # There is no component to get a subcomponent from.
-                    # Instead, return nans that correspond to the requested
-                    # codes.
-                    if curr.codes is None:
-                        nan_chan = None
-                    else:
-                        nan_chan = channel_spec.FusedChannelSpec(curr.codes)
-                    sub_comp = DelayedNans(self.dsize, channels=nan_chan)
-                else:
-                    sub_idxs = curr.get_indexer()
-                    if sub_idxs is Ellipsis:
-                        # Entire component is valid, no need for sub-operation
-                        sub_comp = comp
-                    else:
-                        sub_comp = comp.take_channels(sub_idxs)
-                return sub_comp
 
         curr = None
         outer_accum = []
@@ -734,7 +656,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             outer_accum.append(curr)
 
         # Gather the subcomponents into a new delayed concat
-        new_components = [curr.get_subcomponent() for curr in outer_accum]
+        new_components = [curr.get_subcomponent(self.dsize) for curr in outer_accum]
         new = DelayedChannelConcat(new_components)
         return new
 
@@ -1184,6 +1106,7 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
         new = DelayedIdentity(final, dsize=self.dsize, channels=self.channels)
         return new
 
+    @profile
     def _opt_push_under_concat(self):
         assert isinstance(self.subdata, DelayedChannelConcat)
         kwargs = ub.compatible(self.meta, self.__class__.__init__)
@@ -1327,6 +1250,7 @@ class DelayedAsXarray(DelayedImage):
         final = xr.DataArray(subfinal, dims=('y', 'x', 'c'), coords=coords)
         return final
 
+    @profile
     def optimize(self):
         """
         Returns:
@@ -1541,6 +1465,7 @@ class DelayedWarp(DelayedImage):
     def _transform_from_subdata(self):
         return self.transform
 
+    @profile
     def _opt_fuse_warps(self):
         """
         Combine two consecutive warps into a single operation.
@@ -1560,6 +1485,7 @@ class DelayedWarp(DelayedImage):
             new._opt_logs.append('Fused warps')
         return new
 
+    @profile
     def _opt_absorb_overview(self):
         """
         Remove the overview if we can get a higher resolution without it
@@ -1725,6 +1651,7 @@ class DelayedWarp(DelayedImage):
             new._opt_logs.append('_opt_absorb_overview')
         return new
 
+    @profile
     def _opt_split_warp_overview(self):
         """
         Split this node into a warp and an overview if possible
@@ -1871,6 +1798,7 @@ class DelayedDequantize(DelayedImage):
             new = new._opt_push_under_concat().optimize()
         return new
 
+    @profile
     def _opt_dequant_before_other(self):
         quantization = self.meta['quantization']
         new = copy.copy(self.subdata)
@@ -1916,6 +1844,8 @@ class DelayedCrop(DelayedImage):
         >>> final = self._finalize()
         >>> assert final.shape == (16, 16, 2)
     """
+
+    @profile
     def __init__(self, subdata, space_slice=None, chan_idxs=None):
         """
         Args:
@@ -2041,6 +1971,7 @@ class DelayedCrop(DelayedImage):
 
         return new
 
+    @profile
     def _opt_fuse_crops(self):
         """
         Combine two consecutive crops into a single operation.
@@ -2124,6 +2055,7 @@ class DelayedCrop(DelayedImage):
             new._opt_logs.append('fuse crops')
         return new
 
+    @profile
     def _opt_warp_after_crop(self):
         """
         If the child node is a warp, move it after the crop.
@@ -2194,6 +2126,7 @@ class DelayedCrop(DelayedImage):
             new_outer._opt_logs.append('_opt_warp_after_crop')
         return new_outer
 
+    @profile
     def _opt_dequant_after_crop(self):
         # Swap order so dequantize is after the crop
         assert isinstance(self.subdata, DelayedDequantize)
@@ -2331,6 +2264,7 @@ class DelayedOverview(DelayedImage):
         scale = 1 / 2 ** self.meta['overview']
         return kwimage.Affine.scale(scale)
 
+    @profile
     def _opt_overview_as_warp(self):
         """
         Sometimes it is beneficial to replace an overview with a warp as an
@@ -2344,6 +2278,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_overview_as_warp')
         return new
 
+    @profile
     def _opt_crop_after_overview(self):
         """
         Given an outer overview and an inner crop, switch places. We want the
@@ -2397,6 +2332,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_crop_after_overview')
         return new
 
+    @profile
     def _opt_fuse_overview(self):
         assert isinstance(self.subdata, DelayedOverview)
         outer_overview = self.meta['overview']
@@ -2407,6 +2343,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_fuse_overview')
         return new
 
+    @profile
     def _opt_dequant_after_overview(self):
         # Swap order so dequantize is after the crop
         assert isinstance(self.subdata, DelayedDequantize)
@@ -2418,6 +2355,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_dequant_after_overview')
         return new
 
+    @profile
     def _opt_warp_after_overview(self):
         """
         Given an warp followed by an overview, move the warp to the outer scope
@@ -2482,3 +2420,85 @@ class CoordinateCompatibilityError(ValueError):
     systems.
     """
     pass
+
+
+class _InnerAccumSegment:  # (ub.NiceRepr):
+    """
+    Gather the indexes we need to take from an inner component
+    """
+    def __init__(curr, comp):
+        curr.comp = comp
+        curr.start = None
+        curr.stop = None
+        curr.codes = None
+        curr.indexes = []
+
+    # def __nice__(curr):
+    #     return f'{curr.start}, {curr.stop}, {curr.indexes}, {curr.codes}'
+
+    def add_inner(curr, inner, code):
+        if curr.start is None:
+            curr.start = inner
+            curr.stop = inner + 1
+            if code is not None:
+                curr.codes = []
+        else:
+            if code is None:
+                curr.codes = None
+            # Can we take a contiguous slice?
+            if curr.stop is not None and curr.stop == inner:
+                curr.stop = inner + 1
+            else:
+                # Contiguous input is broken, fallback to indexes only.
+                curr.stop = None
+
+        # Accumulate the codes if we can
+        if curr.codes is not None:
+            curr.codes.append(code)
+
+        # cast to int to prevent numpy types
+        curr.indexes.append(int(inner))
+
+    def get_indexer(curr):
+        """
+        Return an list of indexes into the subcomponent that will form
+        the new contiguous out-component
+        """
+        if curr.stop is not None:
+            if curr.start == 0 and curr.stop == curr.comp.num_channels:
+                # We can take the entire component
+                sub_idxs = Ellipsis
+                assert curr.indexes[0] == 0
+                assert curr.indexes[-1] == curr.stop - 1
+            else:
+                # In this case we could take the parts as a contiguous
+                # slice, but just return indexes for now
+                sub_idxs = list(range(curr.start, curr.stop))
+                assert sub_idxs == curr.indexes
+        else:
+            sub_idxs = curr.indexes
+        return sub_idxs
+
+    def get_subcomponent(curr, dsize):
+        """
+        Finalize the subcomponent
+        """
+        from delayed_image.delayed_leafs import DelayedNans
+        comp = curr.comp
+        if comp is None:
+            # There is no component to get a subcomponent from.
+            # Instead, return nans that correspond to the requested
+            # codes.
+            if curr.codes is None:
+                nan_chan = None
+            else:
+                nan_chan = channel_spec.FusedChannelSpec(curr.codes)
+            sub_comp = DelayedNans(dsize, channels=nan_chan)
+        else:
+            sub_idxs = curr.get_indexer()
+            if sub_idxs is Ellipsis:
+                # Entire component is valid, no need for sub-operation
+                sub_comp = comp
+            else:
+                sub_comp = comp.take_channels(sub_idxs)
+        return sub_comp

@@ -9,6 +9,11 @@ try:
 except Exception:
     rich_mod = None
 
+try:
+    from xdev import profile
+except ImportError:
+    profile = ub.identity
+
 
 # from kwcoco.util.util_monkey import Reloadable  # NOQA
 # @Reloadable.developing  # NOQA
@@ -25,6 +30,7 @@ class DelayedOperation(ub.NiceRepr):
         """
         return '{}'.format(self.shape)
 
+    @profile
     def nesting(self):
         """
         Returns:
@@ -97,6 +103,7 @@ class DelayedOperation(ub.NiceRepr):
             node_data['label'] = f'{short_type} {param_key}'
         return graph
 
+    @profile
     def _traverse(self):
         """
         A flat list of all descendent nodes and their parents
@@ -115,6 +122,7 @@ class DelayedOperation(ub.NiceRepr):
             for child in item.children():
                 stack.append((item, child))
 
+    @profile
     def _leafs(self):
         """
         Iterates over all leafs in the tree.
@@ -134,6 +142,7 @@ class DelayedOperation(ub.NiceRepr):
             else:
                 yield item
 
+    @profile
     def _leaf_paths(self):
         """
         Builds all independent paths to leafs.
@@ -191,6 +200,7 @@ class DelayedOperation(ub.NiceRepr):
                         prev = part
                 yield leaf, part
 
+    @profile
     def _traversed_graph(self):
         """
         A flat list of all descendent nodes and their parents
@@ -287,6 +297,7 @@ class DelayedOperation(ub.NiceRepr):
         """
         raise NotImplementedError
 
+    @profile
     def finalize(self, prepare=True, optimize=True, **kwargs):
         """
         Evaluate the operation tree in full.
@@ -340,16 +351,20 @@ class DelayedOperation(ub.NiceRepr):
         """
         raise NotImplementedError
 
+    @profile
     def _set_nested_params(self, **kwargs):
         """
         Hack to override nested params on all warps for things like
         interplation / antialias
         """
-        graph = self.as_graph()
-        for node_id, node_data in graph.nodes(data=True):
-            obj = node_data['obj']
-            common = ub.dict_isect(kwargs, obj.meta)
-            obj.meta.update(common)
+        for _, item in self._traverse():
+            item.meta.update(ub.dict_isect(kwargs, item.meta))
+
+        # graph = self.as_graph()
+        # for node_id, node_data in graph.nodes(data=True):
+        #     obj = node_data['obj']
+        #     common = ub.dict_isect(kwargs, obj.meta)
+        #     obj.meta.update(common)
 
 
 class DelayedNaryOperation(DelayedOperation):

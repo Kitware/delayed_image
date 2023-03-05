@@ -200,6 +200,7 @@ class DelayedLoad(DelayedImageLeaf):
         self = DelayedLoad(fpath, channels=channels)
         return self
 
+    @profile
     def _load_reference(self):
         nodata_method = self.meta.get('nodata_method', None)
         if self.lazy_ref is None:
@@ -215,6 +216,7 @@ class DelayedLoad(DelayedImageLeaf):
                 self.lazy_ref = NotImplemented
         return self
 
+    @profile
     def prepare(self):
         """
         If metadata is missing, perform minimal IO operations in order to
@@ -227,6 +229,7 @@ class DelayedLoad(DelayedImageLeaf):
         self._load_metadata()
         return self
 
+    @profile
     def _load_metadata(self):
         self._load_reference()
         if self.lazy_ref is NotImplemented:
@@ -245,6 +248,7 @@ class DelayedLoad(DelayedImageLeaf):
         self.meta['num_overviews'] = num_overviews
         return self
 
+    @profile
     def _finalize(self):
         """
         Returns:
@@ -293,6 +297,7 @@ class DelayedNans(DelayedImageLeaf):
     def __init__(self, dsize=None, channels=None):
         super().__init__(channels=channels, dsize=dsize)
 
+    @profile
     def _finalize(self):
         """
         Returns:
@@ -302,6 +307,7 @@ class DelayedNans(DelayedImageLeaf):
         final = np.full(shape, fill_value=np.nan)
         return final
 
+    @profile
     def _optimized_crop(self, space_slice=None, chan_idxs=None):
         """
         Crops an image along integer pixel coordinates.
@@ -329,6 +335,7 @@ class DelayedNans(DelayedImageLeaf):
             new._opt_logs.append('Nans._optimized_crop')
         return new
 
+    @profile
     def _optimized_warp(self, transform, dsize=None, **warp_kwargs):
         """
         Returns:
