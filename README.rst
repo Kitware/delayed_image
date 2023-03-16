@@ -167,6 +167,8 @@ each crop corresponds to the same region, but we have removed all scale factors
 (rotation and skew resamplings are still done to align to image corners up to a
 scale factor).
 
+For code details see the doctest in `delayed_image/__init__.py __doc__:2 <https://gitlab.kitware.com/computer-vision/delayed_image/-/blob/main/delayed_image/__init__.py#L115>`_
+
 
 SensorChanSpec
 --------------
