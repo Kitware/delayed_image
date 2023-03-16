@@ -1518,7 +1518,8 @@ class DelayedWarp(DelayedImage):
             >>> opt = self._opt_absorb_overview()._validate()
             >>> opt.write_network_text()
             >>> opt_data = [d for n, d in opt.as_graph().nodes(data=True)]
-            >>> assert opt_data[1]['meta']['space_slice'] == (slice(0, 202, None), slice(0, 200, None))
+            >>> #assert opt_data[1]['meta']['space_slice'] == (slice(0, 202, None), slice(0, 200, None))
+            >>> assert opt_data[1]['meta']['space_slice'] == (slice(0, 204, None), slice(0, 202, None))
             >>> # Any sort of complex chain does prevents this optimization
             >>> # from running.
             >>> self = base.get_overview(1)[0:101, 0:100][0:50, 0:50].warp({'scale': 4})

@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.2.6 - Unreleased
 
+### Fixed:
+* Half of the off-by-one bug, the other half seems to be from align corners.
+
 
 ## Version 0.2.5 - Released 2023-03-04
 
