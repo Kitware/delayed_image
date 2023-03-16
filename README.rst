@@ -127,6 +127,47 @@ Example of delayed loading:
 .. image:: https://i.imgur.com/3SGvxtC.png
 
 
+Native Resolution Sampling
+--------------------------
+
+Consider the case where we have multiple images on disk in different
+resolutions, but they correspond to the same scene (e.g. a satellite image may
+have RGB bands at 10 meter resolution and an infared band at 30 meter
+resolution), and we want to sample corresponding regions in each image.
+Typically a developer may opt to simply rescale everything to the same
+resolution, so everything corresponds and then just crop out the region.  This
+works but it has the negative effect of incurring resampling artifacts.
+
+Delayed image allows for easy and intuitive "native resolution sampling".  We
+can perform a delayed scale operation to get a "view" of an image as if we
+rescaled all component bands to the same resolution, and then perform a delayed
+crop. Finalizing this delayed operation is exactly the same as the previously
+described case (except that it benefits from delayed image's optimized
+operation reordering). However, we can go further. Because we know about the
+underlying operation graph we can undo the scale component while keeping the
+crop component, which results in loading the corresponding parts of the image
+inside the cropped area, but does not do any resampling. The images on disk can
+differ in more than just resolution, they could also be offset, skewed or
+rotated, and this unwarping procedure will still work. 
+
+The following image illustrates an extreme example of this were we simulate a
+low resolution red band (R), a medium but rotated resolution green band (G),
+and a high but cropped resolution blue (B) band.
+
+.. image:: https://i.imgur.com/fW7Mdo1.png
+
+
+The raw bands on disk are shown in the top row. The second row demonstrates the
+aligned space that we can conceptually think in when performing the crop. The
+blue box defined in this row and is projected to all other images using delayed
+image. The third row shows the result of the naive resampled alignment and
+cropping of the blue box (and also pixel differences between optimized and
+non-optimized finalizations). Lastly the fourth row shows the native sampling where
+each crop corresponds to the same region, but we have removed all scale factors
+(rotation and skew resamplings are still done to align to image corners up to a
+scale factor).
+
+
 SensorChanSpec
 --------------
 
