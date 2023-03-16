@@ -85,6 +85,26 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
         >>> slices, tf_new = _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root)
         >>> print('tf_new =\n{!r}'.format(tf_new))
         >>> print('slices = {!r}'.format(slices))
+
+    Example:
+        >>> region_slices = (slice(0, 8), slice(0, 8))
+        >>> region_shape = (100, 100, 1)
+        >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)
+        >>> root_region_bounds = root_region_box.to_polygons()[0]
+        >>> tf_leaf_to_root = kwimage.Affine.affine(scale=2.0001).matrix
+        >>> slices, tf_new = _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root)
+        >>> print('tf_new =\n{!r}'.format(tf_new))
+        >>> print('slices = {!r}'.format(slices))
+
+    Example:
+        >>> region_slices = (slice(0, 8), slice(0, 8))
+        >>> region_shape = (100, 100, 1)
+        >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)
+        >>> root_region_bounds = root_region_box.to_polygons()[0]
+        >>> tf_leaf_to_root = kwimage.Affine.affine(scale=0.4).matrix
+        >>> slices, tf_new = _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root)
+        >>> print('tf_new =\n{!r}'.format(tf_new))
+        >>> print('slices = {!r}'.format(slices))
     """
     # Transform the region bounds into the sub-image space
     tf_leaf_to_root = kwimage.Affine.coerce(tf_leaf_to_root)
@@ -123,7 +143,29 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     )
 
     lt_x, lt_y, rb_x, rb_y = leaf_crop_box.data[0, 0:4]
-    leaf_crop_slices = (slice(lt_y, rb_y), slice(lt_x, rb_x))
+
+    if 1:
+        # Candidate fix
+        root_region_box = root_region_bounds.bounding_box()
+        old_w = root_region_box.width.ravel()[0]
+        old_h = root_region_box.height.ravel()[0]
+        leaf_w = leaf_region_box.width.ravel()[0]
+        leaf_h = leaf_region_box.height.ravel()[0]
+
+        padw = int(np.ceil(leaf_w / old_w))
+        padh = int(np.ceil(leaf_h / old_h))
+    else:
+        padw, padh = 1, 1
+    # padw, padh = 0, 0
+
+    # # leaf_crop_slices = (slice(lt_y, rb_y), slice(lt_x, rb_x))
+    # print('root_region_bounds = {}'.format(ub.urepr(root_region_bounds, nl=1)))
+    # print('leaf_region_bounds = {}'.format(ub.urepr(leaf_region_bounds, nl=1)))
+    # print('tf_leaf_to_root = {}'.format(ub.urepr(tf_leaf_to_root, nl=1)))
+
+    # Need to pad add a bit more to the end of the crop because we are going to
+    # warp afterwards. This fixes at least one case of off-by-one error.
+    leaf_crop_slices = (slice(lt_y, rb_y + padh), slice(lt_x, rb_x + padw))
 
     return leaf_crop_slices, tf_newleaf_to_newroot
 
