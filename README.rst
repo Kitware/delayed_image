@@ -19,7 +19,7 @@ do everything in the right order yourself.
 Note: GDAL is optional, but recommended. Precompiled GDAL wheels are available
 on Kitware's `large image wheel repository <https://girder.github.io/large_image_wheels/>`__.
 Use ``pip install gdal -f https://girder.github.io/large_image_wheels/`` 
-to install gdal from this server. Track status of official gdal wheels `here
+to install GDAL from this server. Track status of official GDAL wheels `here
 <https://github.com/OSGeo/gdal/issues/3060>`__.
 
 
@@ -132,7 +132,7 @@ Native Resolution Sampling
 
 Consider the case where we have multiple images on disk in different
 resolutions, but they correspond to the same scene (e.g. a satellite image may
-have RGB bands at 10 meter resolution and an infared band at 30 meter
+have RGB bands at 10 meter resolution and an infrared band at 30 meter
 resolution), and we want to sample corresponding regions in each image.
 Typically a developer may opt to simply rescale everything to the same
 resolution, so everything corresponds and then just crop out the region.  This
@@ -176,7 +176,42 @@ SensorChanSpec
 Includes the SensorChan spec, which makes handling channels from different
 sensing sources easier.
 
-It has a simple grammar:
+The sensor/channel spec isn't necessary to use delayed image, but it helps ---
+particularly the channel spec --- to be able to semantically label the channels
+when performing delayed load operations.
+
+On a simple level all you need to know to use the basic channel spec is that
+channel names are ``|`` delimited. E.g. ``red|green|blue`` refers to a 3
+channel image. You can use these names to select subsets of channels. Here is
+an example where you load an image, provide it with the semantic labels for
+each channel, and then use them to select a single channel.
+
+.. code:: python
+
+    import delayed_image
+    import kwimage
+    fpath = kwimage.grab_test_image_fpath(overviews=3)
+
+    # When you create a delayed image, you can enrich the image with
+    # information about what channels it contains by specifying the 
+    # channels attribute.
+    delayed = DelayedLoad(fpath, channels='red|green|blue').prepare()
+
+    # You can use this to semantically interact with the channels
+    delayed_g = delayed.take_channels('green')
+    assert delayed_g.shape == (512, 512, 1)
+
+    # Specifying more than one channel works too
+    delayed_rb = delayed.take_channels('blue|red')
+    assert delayed_rb.shape == (512, 512, 2)
+
+
+Much of the Sensor/Channel spec functionality exists for the benefit of other
+projects like `kwcoco <https://gitlab.kitware.com/computer-vision/kwcoco>`_.
+Admittedly, this library isn't the perfect home for the full sensor / channel
+spec, but this is where it currently lives.
+
+The full sensor channel spec has a formal grammar defined in this package.
 
  .. code:: 
 
