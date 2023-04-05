@@ -357,7 +357,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         import kwimage
         import ubelt as ub
         from os.path import join
-        dpath = ub.ensure_app_cache_dir('delayed_image/tests/reader')
+        dpath = ub.Path.appdir('delayed_image/tests/reader').ensuredir()
         fpath = join(dpath, 'foo.tiff')
         kwimage.imwrite(fpath, data, backend='skimage')
         recon1 = kwimage.imread(fpath)
@@ -435,7 +435,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         Ignore:
             >>> self = LazyGDalFrameFile.demo(dsize=(6600, 4400))
         """
-        cache_dpath = ub.ensure_app_cache_dir('delayed_image/demo')
+        cache_dpath = ub.Path.appdir('delayed_image/demo').ensuredir()
         fpath = join(cache_dpath, key + '.cog.tiff')
         depends = ub.odict(dsize=dsize)
         stamp = ub.CacheStamp(fname=key, depends=depends, dpath=cache_dpath,
@@ -599,6 +599,8 @@ class LazyGDalFrameFile(ub.NiceRepr):
             INTERLEAVE = ds.GetMetadata('IMAGE_STRUCTURE').get('INTERLEAVE', '')
             if INTERLEAVE == 'BAND':
                 if len(ds.GetSubDatasets()) > 0:
+                    import xdev
+                    xdev.embed()
                     raise NotImplementedError('Cannot handle interleaved files yet')
 
         if not ub.iterable(index):
