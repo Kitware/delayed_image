@@ -49,9 +49,6 @@ SENSOR_CHAN_GRAMMAR = ub.codeblock(
     // Fused channels are an ordered sequence of channel codes (without sensors)
     fused : chan_code ("|" chan_code)*
 
-    // A channel only part can be a fused channel or a sequence
-    channel_rhs : fused | fused_seq
-
     // Channels can be specified in a sequence but must contain parens
     fused_seq : "(" fused ("," fused)* ")"
 
@@ -59,6 +56,9 @@ SENSOR_CHAN_GRAMMAR = ub.codeblock(
     sensor_seq : "(" IDEN ("," IDEN)* "):"
 
     sensor_lhs : (IDEN ":") | (sensor_seq)
+
+    // A channel only part can be a fused channel or a sequence
+    channel_rhs : fused | fused_seq
 
     sensor_chan : sensor_lhs channel_rhs?
 
@@ -75,6 +75,33 @@ SENSOR_CHAN_GRAMMAR = ub.codeblock(
     %import common.LETTER
     %import common.INT
     ''')
+
+
+"""
+TODO: add the concept of an exclusive or operator with left hand priority. The
+idea is that we can specify a code that will use the one fused channel spec if
+it is available, but if it is not, it will fall back to the next one. E.G.
+
+
+WV:((red|green|blue)^(pan))
+
+(L8,S2,WV,WV1):((red|green|blue)^(pan))
+
+
+Possible Production Rules:
+
+    fused : chan_code ("|" chan_code)*
+    fused_seq : "(" fused ("," fused)* ")"
+
+
+
+Maybe also include that on the sensor side?
+
+Use WV:r|g|b if we have it otherwise use S2:r|g|b
+
+(WV^S2)(r|g|b)
+
+"""
 
 
 class SensorSpec(ub.NiceRepr):

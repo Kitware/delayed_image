@@ -267,7 +267,7 @@ class BaseChannelSpec(ub.NiceRepr):
             return self
         return other + self
 
-    def path_sanitize(self, maxlen=None):
+    def path_sanitize(self, maxlen=128):
         """
         Clean up the channel spec so it can be used in a pathname.
 
@@ -297,14 +297,7 @@ class BaseChannelSpec(ub.NiceRepr):
             >>> print(delayed_image.ChannelSpec.coerce('foo.0:256').normalize().path_sanitize(24))
             tuuxtfnrsvdhezkdndysxo_256
         """
-        spec = self.spec
-        pname = spec.replace('|', '_').replace(':', '-')
-        if maxlen is not None and len(pname) > maxlen:
-            # prevent long names for docker (limit is 242 chars)
-            num_bands = self.numel()
-            hashlen = maxlen - 2
-            hashlen = max(8, hashlen)
-            pname = '{}_{}'.format(ub.hash_data(pname, base='abc')[0:hashlen], num_bands)
+        pname = _path_sanitize_v2(self.spec, maxlen=maxlen, hash_suffix=self.numel)
         return pname
 
 
@@ -703,8 +696,14 @@ class FusedChannelSpec(BaseChannelSpec):
         Returns a string suitable for use in a path.
 
         Note, this may no longer be a valid channel spec
+
+        Example:
+            >>> from delayed_image.channel_spec import *  # NOQA
+            >>> self = FusedChannelSpec.coerce('b1|Z:3|b2|b3|rgb')
+            >>> self.as_path()
+            b1_Z..3_b2_b3_rgb
         """
-        return self.spec.replace('|', '_')
+        return self.path_sanitize()
 
     def __set__(self):
         return self.as_set()
@@ -1104,8 +1103,14 @@ class ChannelSpec(BaseChannelSpec):
         Returns a string suitable for use in a path.
 
         Note, this may no longer be a valid channel spec
+
+        Example:
+            >>> from delayed_image.channel_spec import *
+            >>> self = ChannelSpec('rgb|disparity,flowx|r|flowy')
+            >>> self.as_path()
+            rgb_disparity,flowx_r_flowy
         """
-        return self.spec.replace('|', '_')
+        return self.path_sanitize()
 
     def difference(self, other):
         """
@@ -1698,6 +1703,60 @@ def _parse_concise_slice_syntax(v):
             raise ValueError('invalid slice syntax: {}'.format(v))
 
     return root, start, stop, step
+
+
+def _path_sanitize_v2(path, maxlen=128, hash_suffix=None):
+    """
+    Clean input text so it can be used as a path.
+
+    Args:
+        path (str): the path name to santaize
+        maxlen (int | None):
+            if specified, and the name is longer than this length, it is
+            shortened. Must be 8 or greater.
+        hash_suffix (str | None | callable):
+            if specified, add an extra suffix to the name if it was hashed.
+            Can also be a callable.
+
+    Returns:
+        str: path suitable for usage in a filename
+
+    Example:
+        >>> from delayed_image.channel_spec import _path_sanitize_v2
+        >>> print(_path_sanitize_v2('a chan with space|bar|baz'))
+        a chan with space_bar_baz
+        >>> print(_path_sanitize_v2('dont|use<these>chars:in?a*path.'))
+        dont_use-LT-these-GT-chars..in_Q_a_S_path._
+        >>> print(_path_sanitize_v2('dont|use<these>chars:in?a*path.', maxlen=8))
+        iderkhwc
+    """
+    # https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
+    illegal_character_mapping = {
+        '|': '_',
+        '<': '-LT-',
+        '>': '-GT-',
+        ':': '..',
+        '?': '_Q_',
+        '*': '_S_',
+    }
+    new_name = path
+    for k, v in illegal_character_mapping.items():
+        new_name = new_name.replace(k, v)
+    if new_name.endswith(('.', ' ')):
+        # filenames cannot end with a dot or space.
+        new_name = new_name + '_'
+    if maxlen is not None and len(new_name) > maxlen:
+        # prevent long names for docker (limit is 242 chars)
+        hashlen = maxlen - 2
+        hashlen = max(8, hashlen)
+        hashstr = ub.hash_data(new_name, base='abc')[0:hashlen]
+        if hash_suffix is not None:
+            if callable(hash_suffix):
+                hash_suffix = hash_suffix()
+            new_name = '{}_{}'.format(hashstr, hash_suffix)
+        else:
+            new_name = hashstr
+    return new_name
 
 
 def oset_insert(self, index, obj):

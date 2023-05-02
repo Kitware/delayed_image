@@ -7,6 +7,12 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.2.7 - Unreleased
 
+### Fixed
+* path sanitize now works better on windows
+
+### Changed
+* made `leafs` a public function
+
 
 ## Version 0.2.6 - Released 2023-03-16
 
