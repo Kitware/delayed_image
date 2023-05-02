@@ -1,5 +1,5 @@
 
-def off_by_one_with_upscale():
+def test_off_by_one_with_upscale():
     import delayed_image
     import numpy as np
     delayed = delayed_image.DelayedLoad.demo(key='astro').prepare()
@@ -19,7 +19,7 @@ def off_by_one_with_upscale():
         kwplot.imshow(data2, pnum=(1, 2, 2))
 
 
-def off_by_one_with_multi_scale():
+def test_off_by_one_with_multi_scale():
     import delayed_image
     import numpy as np
     delayed = delayed_image.DelayedLoad.demo(key='astro').prepare()
@@ -38,10 +38,28 @@ def off_by_one_with_multi_scale():
         # kwplot.imshow(data2, pnum=(1, 2, 2))
 
 
-def off_by_one_with_small_img():
+def test_off_by_one_with_small_img():
     """
     This doesn't work right because of the align corners issue
+
+    References:
+        .. [ResizeConfusion] https://jricheimer.github.io/tensorflow/2019/02/11/resize-confusion/
+        .. [InvWarp] https://github.com/ClementPinard/SfmLearner-Pytorch/blob/master/inverse_warp.py
+        .. [TorchAffineTransform] https://discuss.pytorch.org/t/affine-transformation-matrix-paramters-conversion/19522
+        .. [TorchIssue15386] https://github.com/pytorch/pytorch/issues/15386
+        # https://github.com/pytorch/pytorch/issues/20785
+        # https://github.com/pytorch/pytorch/pull/23923
+        # https://github.com/pytorch/pytorch/pull/24929
+        # https://user-images.githubusercontent.com/9757500/58150486-c5315900-7c34-11e9-9466-24f2bd431fa4.png
+
+    SeeAlso:
+        ~/code/kwimage/kwimage/util_warp.py
+        ~/code/kwimage/kwimage/im_cv2.py
+
     """
+    import pytest
+    pytest.skip('This is broken')
+
     import delayed_image
     import kwimage
     import numpy as np

@@ -123,7 +123,7 @@ class DelayedOperation(ub.NiceRepr):
                 stack.append((item, child))
 
     @profile
-    def _leafs(self):
+    def leafs(self):
         """
         Iterates over all leafs in the tree.
 
@@ -141,6 +141,8 @@ class DelayedOperation(ub.NiceRepr):
                     stack.append(child)
             else:
                 yield item
+
+    _leafs = leafs
 
     @profile
     def _leaf_paths(self):
