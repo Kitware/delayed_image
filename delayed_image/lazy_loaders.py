@@ -63,9 +63,17 @@ GLOBAL_GDAL_CACHE = None
 
 
 @ub.memoize
+def _import_gdal():
+    from osgeo import gdal
+    if getattr(gdal, '_UserHasSpecifiedIfUsingExceptions', lambda: False)():
+        gdal.UseExceptions()
+    return gdal
+
+
+@ub.memoize
 def _have_gdal():
     try:
-        from osgeo import gdal
+        gdal = _import_gdal()
     except ImportError:
         return False
     else:
@@ -384,7 +392,8 @@ class LazyGDalFrameFile(ub.NiceRepr):
 
     @profile
     def _reload_cache(self):
-        from osgeo import gdal
+        gdal = _import_gdal()
+        # from osgeo import gdal
         _fpath = os.fspath(self.fpath)
         if _fpath.endswith('.hdr'):
             # Use spectral-like process to point gdal to the correct file given
