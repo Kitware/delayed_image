@@ -1,5 +1,5 @@
-kwarray >= 0.6.0
-kwimage >= 0.9.7
+kwarray>=0.6.7
+kwimage>=0.9.19
 
 # xdev availpkg networkx --request_min=2.2.0
 # xdev availpkg imageio
@@ -15,10 +15,10 @@ numpy>=1.19.2  ; python_version < '3.9' and python_version >= '3.8'    # Python 
 numpy>=1.19.2  ; python_version < '3.8' and python_version >= '3.7'    # Python 3.7
 numpy>=1.19.2  ; python_version < '3.7' and python_version >= '3.6'    # Python 3.6
 
-ubelt >= 1.2.1
+ubelt>=1.2.3
 
-#xarray >= 0.16.0
+#xarray>=0.16.0
 #safer>=4.4.1
 #packaging>=21.3
 
-affine >= 2.3.1
+affine>=2.3.0
