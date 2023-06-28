@@ -279,7 +279,7 @@ class DelayedOperation(ub.NiceRepr):
         tree.
 
         Returns:
-            DelayedOperation2
+            DelayedOperation
         """
         for child in self.children():
             child.prepare()
@@ -318,7 +318,7 @@ class DelayedOperation(ub.NiceRepr):
 
         Notes:
             Do not overload this method. Overload
-            :func:`DelayedOperation2._finalize` instead.
+            :func:`DelayedOperation._finalize` instead.
         """
         if kwargs:
             """
@@ -349,7 +349,7 @@ class DelayedOperation(ub.NiceRepr):
     def optimize(self):
         """
         Returns:
-            DelayedOperation2
+            DelayedOperation
         """
         raise NotImplementedError
 

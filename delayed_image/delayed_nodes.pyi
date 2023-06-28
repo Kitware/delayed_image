@@ -1,23 +1,26 @@
-from typing import List
-from typing import Union
 from typing import Tuple
-from numpy.typing import ArrayLike
-import kwcoco
+from typing import List
 import kwimage
 from numpy import ndarray
 from typing import Dict
 from typing import Any
 import kwimage
-import ubelt as ub
 from _typeshed import Incomplete
-from kwcoco import channel_spec
-from delayed_image.delayed_base import DelayedNaryOperation2, DelayedUnaryOperation2
+from delayed_image import channel_spec
+from delayed_image.delayed_base import DelayedNaryOperation, DelayedUnaryOperation
 from typing import Any
 
+from delayed_image.channel_spec import FusedChannelSpec
+from delayed_image.delayed_leafs import DelayedIdentity
+from delayed_image.delayed_base import DelayedOperation
 
-class DelayedStack2(DelayedNaryOperation2):
+__docstubs__: str
+TRACE_OPTIMIZE: int
 
-    def __init__(self, parts: List[DelayedArray2], axis: int) -> None:
+
+class DelayedArray(DelayedUnaryOperation):
+
+    def __init__(self, subdata: DelayedArray | None = None) -> None:
         ...
 
     def __nice__(self) -> str:
@@ -28,9 +31,22 @@ class DelayedStack2(DelayedNaryOperation2):
         ...
 
 
-class DelayedConcat2(DelayedNaryOperation2):
+class DelayedStack(DelayedNaryOperation):
 
-    def __init__(self, parts: List[DelayedArray2], axis: int) -> None:
+    def __init__(self, parts: List[DelayedArray], axis: int) -> None:
+        ...
+
+    def __nice__(self) -> str:
+        ...
+
+    @property
+    def shape(self) -> None | Tuple[int | None, ...]:
+        ...
+
+
+class DelayedConcat(DelayedNaryOperation):
+
+    def __init__(self, parts: List[DelayedArray], axis: int) -> None:
         ...
 
     def __nice__(self):
@@ -41,109 +57,101 @@ class DelayedConcat2(DelayedNaryOperation2):
         ...
 
 
-class DelayedFrameStack2(DelayedStack2):
+class DelayedFrameStack(DelayedStack):
 
-    def __init__(self, parts: List[DelayedArray2]) -> None:
+    def __init__(self, parts: List[DelayedArray]) -> None:
         ...
 
 
-class JaggedArray2(ub.NiceRepr):
-    parts: Incomplete
-    axis: Incomplete
+class ImageOpsMixin:
 
-    def __init__(self, parts: List[ArrayLike],
-                 axis: List[DelayedArray2]) -> None:
+    def crop(self,
+             space_slice: Tuple[slice, slice] | None = None,
+             chan_idxs: List[int] | None = None,
+             clip: bool = True,
+             wrap: bool = True,
+             pad: int | List[Tuple[int, int]] = 0) -> DelayedImage:
         ...
 
-    def __nice__(self) -> str:
+    def warp(self,
+             transform: ndarray | dict | kwimage.Affine,
+             dsize: Tuple[int, int] | str = 'auto',
+             **warp_kwargs) -> DelayedImage:
         ...
 
-    @property
-    def shape(self) -> List[None | Tuple[int | None, ...]]:
+    def scale(self, scale, dsize: str = ..., **warp_kwargs):
+        ...
+
+    def resize(self, dsize, **warp_kwargs):
+        ...
+
+    def dequantize(self, quantization: Dict[str, Any]) -> DelayedDequantize:
+        ...
+
+    def get_overview(self, overview: int) -> DelayedOverview:
+        ...
+
+    def as_xarray(self) -> DelayedAsXarray:
+        ...
+
+    def get_transform_from(self, src: DelayedOperation) -> kwimage.Affine:
         ...
 
 
-class DelayedChannelConcat2(DelayedConcat2):
-    dsize: Incomplete
+class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
+    dsize: Tuple[int, int] | None
     num_channels: Incomplete
 
     def __init__(self,
-                 parts: List[DelayedArray2],
-                 dsize: Union[Tuple[int, int], None] = None,
-                 jagged: bool = ...) -> None:
+                 parts: List[DelayedArray],
+                 dsize: Tuple[int, int] | None = None) -> None:
         ...
 
     def __nice__(self) -> str:
         ...
 
     @property
-    def channels(self) -> None | kwcoco.FusedChannelSpec:
+    def channels(self) -> None | FusedChannelSpec:
         ...
 
     @property
     def shape(self) -> Tuple[int | None, int | None, int | None]:
         ...
 
-    def finalize(self) -> ArrayLike:
+    def optimize(self) -> DelayedImage:
         ...
-
-    def optimize(self) -> DelayedImage2:
-        ...
-
-    comp: Incomplete
-    start: Incomplete
-    stop: Incomplete
-    codes: Incomplete
 
     def take_channels(
-        self, channels: Union[List[int], slice, channel_spec.FusedChannelSpec]
-    ) -> DelayedArray2:
+        self, channels: List[int] | slice | channel_spec.FusedChannelSpec
+    ) -> DelayedArray:
         ...
 
-    def crop(self,
-             space_slice: Tuple[slice, slice] = None,
-             chan_idxs: List[int] = None) -> DelayedArray2:
-        ...
-
-    def warp(self,
-             transform: Union[ndarray, dict, kwimage.Affine],
-             dsize: Union[Tuple[int, int], str] = 'auto',
-             antialias: bool = True,
-             interpolation: str = 'linear') -> DelayedArray2:
-        ...
-
-    def dequantize(self, quantization: Dict[str, Any]) -> DelayedArray2:
-        ...
-
-    def get_overview(self, overview: int) -> DelayedArray2:
-        ...
-
-    def as_xarray(self) -> DelayedAsXarray2:
-        ...
-
-
-class DelayedArray2(DelayedUnaryOperation2):
-
-    def __init__(self, subdata: DelayedArray2 = None) -> None:
-        ...
-
-    def __nice__(self) -> str:
+    def __getitem__(self, sl):
         ...
 
     @property
-    def shape(self) -> None | Tuple[int | None, ...]:
+    def num_overviews(self) -> int:
+        ...
+
+    def as_xarray(self) -> DelayedAsXarray:
+        ...
+
+    def undo_warps(
+        self,
+        remove: List[str] | None = None,
+        retain: List[str] | None = None,
+        squash_nans: bool = False,
+        return_warps: bool = False
+    ) -> List[DelayedImage] | Tuple[List[DelayedImage] | List[kwimage.Affine]]:
         ...
 
 
-class DelayedImage2(DelayedArray2):
+class DelayedImage(ImageOpsMixin, DelayedArray):
 
-    def __init__(
-            self,
-            subdata: DelayedArray2 = None,
-            dsize: Union[None, Tuple[Union[int, None], Union[int,
-                                                             None]]] = None,
-            channels: Union[None, int,
-                            kwcoco.FusedChannelSpec] = None) -> None:
+    def __init__(self,
+                 subdata: DelayedArray | None = None,
+                 dsize: None | Tuple[int | None, int | None] = None,
+                 channels: None | int | FusedChannelSpec = None) -> None:
         ...
 
     def __nice__(self) -> str:
@@ -162,11 +170,11 @@ class DelayedImage2(DelayedArray2):
         ...
 
     @property
-    def channels(self) -> None | kwcoco.FusedChannelSpec:
+    def channels(self) -> None | FusedChannelSpec:
         ...
 
     @channels.setter
-    def channels(self, channels) -> None | kwcoco.FusedChannelSpec:
+    def channels(self, channels) -> None | FusedChannelSpec:
         ...
 
     @property
@@ -177,97 +185,99 @@ class DelayedImage2(DelayedArray2):
         ...
 
     def take_channels(
-        self, channels: Union[List[int], slice, channel_spec.FusedChannelSpec]
-    ) -> DelayedCrop2:
+        self, channels: List[int] | slice | channel_spec.FusedChannelSpec
+    ) -> DelayedCrop:
         ...
 
-    def crop(self,
-             space_slice: Tuple[slice, slice] = None,
-             chan_idxs: List[int] = None) -> DelayedImage2:
+    def get_transform_from_leaf(self):
         ...
 
-    def warp(self,
-             transform: Union[ndarray, dict, kwimage.Affine],
-             dsize: Union[Tuple[int, int], str] = 'auto',
-             antialias: bool = True,
-             interpolation: str = 'linear') -> DelayedImage2:
+    def evaluate(self) -> DelayedIdentity:
         ...
 
-    def dequantize(self, quantization: Dict[str, Any]) -> DelayedDequantize2:
-        ...
-
-    def get_overview(self, overview: int) -> DelayedOverview2:
-        ...
-
-    def as_xarray(self) -> DelayedAsXarray2:
+    def undo_warp(self,
+                  remove: List[str] | None = None,
+                  retain: List[str] | None = None,
+                  squash_nans: bool = False,
+                  return_warp: bool = False):
         ...
 
 
-class DelayedAsXarray2(DelayedImage2):
+class DelayedAsXarray(DelayedImage):
 
-    def finalize(self) -> ArrayLike:
-        ...
-
-    def optimize(self) -> DelayedImage2:
+    def optimize(self) -> DelayedImage:
         ...
 
 
-class DelayedWarp2(DelayedImage2):
+class DelayedWarp(DelayedImage):
 
     def __init__(self,
-                 subdata: DelayedArray2,
-                 transform: Union[ndarray, dict, kwimage.Affine],
-                 dsize: Union[Tuple[int, int], str] = 'auto',
+                 subdata: DelayedArray,
+                 transform: ndarray | dict | kwimage.Affine,
+                 dsize: Tuple[int, int] | str = 'auto',
                  antialias: bool = True,
-                 interpolation: str = 'linear') -> None:
+                 interpolation: str = 'linear',
+                 border_value: str = ...,
+                 noop_eps: float = 0) -> None:
         ...
 
-    def finalize(self) -> ArrayLike:
+    @property
+    def transform(self) -> kwimage.Affine:
         ...
 
-    def optimize(self) -> DelayedImage2:
-        ...
-
-
-class DelayedDequantize2(DelayedImage2):
-
-    def __init__(self, subdata: DelayedArray2, quantization: Dict) -> None:
-        ...
-
-    def finalize(self) -> ArrayLike:
-        ...
-
-    def optimize(self) -> DelayedImage2:
+    def optimize(self) -> DelayedImage:
         ...
 
 
-class DelayedCrop2(DelayedImage2):
+class DelayedDequantize(DelayedImage):
+
+    def __init__(self, subdata: DelayedArray, quantization: Dict) -> None:
+        ...
+
+    def optimize(self) -> DelayedImage:
+        ...
+
+
+class DelayedCrop(DelayedImage):
     channels: Incomplete
 
     def __init__(self,
-                 subdata: DelayedArray2,
-                 space_slice: Tuple[slice, slice] = None,
-                 chan_idxs: Union[List[int], None] = None) -> None:
+                 subdata: DelayedArray,
+                 space_slice: Tuple[slice, slice] | None = None,
+                 chan_idxs: List[int] | None = None) -> None:
         ...
 
-    def finalize(self) -> ArrayLike:
-        ...
-
-    def optimize(self) -> DelayedImage2:
+    def optimize(self) -> DelayedImage:
         ...
 
 
-class DelayedOverview2(DelayedImage2):
+class DelayedOverview(DelayedImage):
 
-    def __init__(self, subdata: DelayedArray2, overview: int):
+    def __init__(self, subdata: DelayedArray, overview: int):
         ...
 
     @property
     def num_overviews(self) -> int:
         ...
 
-    def finalize(self) -> ArrayLike:
+    def optimize(self) -> DelayedImage:
         ...
 
-    def optimize(self) -> DelayedImage2:
+
+class CoordinateCompatibilityError(ValueError):
+    ...
+
+
+class _InnerAccumSegment:
+
+    def __init__(curr, comp) -> None:
+        ...
+
+    def add_inner(curr, inner, code) -> None:
+        ...
+
+    def get_indexer(curr):
+        ...
+
+    def get_subcomponent(curr, dsize):
         ...

@@ -26,8 +26,11 @@ except AttributeError:
 try:
     from lark import Transformer
 except ImportError:
-    class Transformer:
+    class FakeTransformer:
         pass
+    # TODO: get xdev typetubs to ignore this
+    # probably need some kind of directive.
+    Transformer = FakeTransformer
 
 SENSOR_CHAN_GRAMMAR = ub.codeblock(
     '''
@@ -633,7 +636,7 @@ def _global_sensor_chan_parser():
 
 
 @cache
-def normalize_sensor_chan(spec):
+def normalize_sensor_chan(spec: str):
     """
     Example:
         >>> # xdoctest: +REQUIRES(module:lark)
@@ -661,7 +664,7 @@ def normalize_sensor_chan(spec):
 
 
 @cache
-def concise_sensor_chan(spec):
+def concise_sensor_chan(spec: str):
     """
     Example:
         >>> # xdoctest: +REQUIRES(module:lark)
@@ -680,7 +683,7 @@ def concise_sensor_chan(spec):
 
 
 # @cache
-def sensorchan_concise_parts(spec):
+def sensorchan_concise_parts(spec: str):
     """
     Ignore:
         >>> # xdoctest: +REQUIRES(module:lark)
@@ -697,7 +700,7 @@ def sensorchan_concise_parts(spec):
     return transformed
 
 
-def sensorchan_normalized_parts(spec):
+def sensorchan_normalized_parts(spec: str):
     """
     Ignore:
         >>> # xdoctest: +REQUIRES(module:lark)

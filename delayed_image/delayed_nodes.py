@@ -21,7 +21,41 @@ except Exception:
 # Stacking
 # --------
 
+__docstubs__ = """
+from delayed_image.channel_spec import FusedChannelSpec
+from delayed_image.delayed_leafs import DelayedIdentity
+from delayed_image.delayed_base import DelayedOperation
+"""
+
 TRACE_OPTIMIZE = 0  # TODO: make this a local setting
+
+
+class DelayedArray(DelayedUnaryOperation):
+    """
+    A generic NDArray.
+    """
+    def __init__(self, subdata=None):
+        """
+        Args:
+            subdata (DelayedArray):
+        """
+        super().__init__(subdata=subdata)
+
+    def __nice__(self):
+        """
+        Returns:
+            str
+        """
+        return '{}'.format(self.shape)
+
+    @property
+    def shape(self):
+        """
+        Returns:
+            None | Tuple[int | None, ...]
+        """
+        shape = self.subdata.shape
+        return shape
 
 
 class DelayedStack(DelayedNaryOperation):
@@ -751,9 +785,9 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
                 space into the jagged space.
 
         Returns:
-            List[DelayedImage] | Tuple[List[DelayedImage] | List[Affine]]:
+            List[DelayedImage] | Tuple[List[DelayedImage] | List[kwimage.Affine]]:
                 The List[DelayedImage] are the ``parts`` i.e. the new images with the warping undone.
-                The List[Affine]: is the transforms from ``self`` to each item in ``parts``
+                The List[kwimage.Affine]: is the transforms from ``self`` to each item in ``parts``
 
         Example:
             >>> from delayed_image.delayed_nodes import *  # NOQA
@@ -826,34 +860,6 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
                     retain=retain, squash_nans=squash_nans)
                 unwarped_parts.append(undone_part)
             return unwarped_parts
-
-
-class DelayedArray(DelayedUnaryOperation):
-    """
-    A generic NDArray.
-    """
-    def __init__(self, subdata=None):
-        """
-        Args:
-            subdata (DelayedArray):
-        """
-        super().__init__(subdata=subdata)
-
-    def __nice__(self):
-        """
-        Returns:
-            str
-        """
-        return '{}'.format(self.shape)
-
-    @property
-    def shape(self):
-        """
-        Returns:
-            None | Tuple[int | None, ...]
-        """
-        shape = self.subdata.shape
-        return shape
 
 
 class DelayedImage(ImageOpsMixin, DelayedArray):

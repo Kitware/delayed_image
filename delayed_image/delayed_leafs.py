@@ -14,6 +14,10 @@ try:
 except ImportError:
     from ubelt import identity as profile
 
+__docstubs__ = """
+from delayed_image.channel_spec import FusedChannelSpec
+"""
+
 
 class DelayedImageLeaf(DelayedImage):
 
