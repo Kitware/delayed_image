@@ -578,7 +578,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
             >>>             self = LazyGDalFrameFile(fpath, overview=overview)
             >>>             imdata = self[100:200, 100:200]
             >>>     sec = ti.mean()
-            >>>     imdata = kwimage.draw_header_text(imdata, f'{overview=}\n{self.shape}\n[100:200, 100:200]\n{sec:0.6f}', fit='shrink')
+            >>>     imdata = kwimage.draw_header_text(imdata, f'overview={overview}\n{self.shape}\n[100:200, 100:200]\n{sec:0.6f}', fit='shrink')
             >>>     datas.append(imdata)
             >>> for overview in range(0, 4):
             >>>     import timerit

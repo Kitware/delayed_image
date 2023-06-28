@@ -791,7 +791,7 @@ class FusedChannelSpec(BaseChannelSpec):
             >>> FCS = FusedChannelSpec.coerce
             >>> self = FCS('disparity|rgb|flowx|flowy')
             >>> component_indices = self.component_indices()
-            >>> print('component_indices = {}'.format(ub.repr2(component_indices, nl=1)))
+            >>> print('component_indices = {}'.format(ub.urepr(component_indices, nl=1, _dict_sort_behavior='old')))
             component_indices = {
                 'disparity': (slice(...), slice(...), slice(0, 1, None)),
                 'flowx': (slice(...), slice(...), slice(4, 5, None)),
@@ -868,15 +868,15 @@ class ChannelSpec(BaseChannelSpec):
 
     Example:
         >>> self = ChannelSpec('gray')
-        >>> print('self.info = {}'.format(ub.repr2(self.info, nl=1)))
+        >>> print('self.info = {}'.format(ub.urepr(self.info, nl=1)))
         >>> self = ChannelSpec('rgb')
-        >>> print('self.info = {}'.format(ub.repr2(self.info, nl=1)))
+        >>> print('self.info = {}'.format(ub.urepr(self.info, nl=1)))
         >>> self = ChannelSpec('rgb|disparity')
-        >>> print('self.info = {}'.format(ub.repr2(self.info, nl=1)))
+        >>> print('self.info = {}'.format(ub.urepr(self.info, nl=1)))
         >>> self = ChannelSpec('rgb|disparity,disparity')
-        >>> print('self.info = {}'.format(ub.repr2(self.info, nl=1)))
+        >>> print('self.info = {}'.format(ub.urepr(self.info, nl=1)))
         >>> self = ChannelSpec('rgb,disparity,flowx|flowy')
-        >>> print('self.info = {}'.format(ub.repr2(self.info, nl=1)))
+        >>> print('self.info = {}'.format(ub.urepr(self.info, nl=1)))
 
     Example:
         >>> specs = [
@@ -894,18 +894,18 @@ class ChannelSpec(BaseChannelSpec):
         >>>     print('self = {!r}'.format(self))
         >>>     sizes = self.sizes()
         >>>     print('sizes = {!r}'.format(sizes))
-        >>>     print('self.info = {}'.format(ub.repr2(self.info, nl=1)))
+        >>>     print('self.info = {}'.format(ub.urepr(self.info, nl=1)))
         >>>     #
         >>>     item = self._demo_item((1, 1), rng=0)
         >>>     inputs = self.encode(item)
         >>>     components = self.decode(inputs)
         >>>     input_shapes = ub.map_vals(lambda x: x.shape, inputs)
         >>>     component_shapes = ub.map_vals(lambda x: x.shape, components)
-        >>>     print('item = {}'.format(ub.repr2(item, precision=1)))
-        >>>     print('inputs = {}'.format(ub.repr2(inputs, precision=1)))
-        >>>     print('input_shapes = {}'.format(ub.repr2(input_shapes)))
-        >>>     print('components = {}'.format(ub.repr2(components, precision=1)))
-        >>>     print('component_shapes = {}'.format(ub.repr2(component_shapes, nl=1)))
+        >>>     print('item = {}'.format(ub.urepr(item, precision=1)))
+        >>>     print('inputs = {}'.format(ub.urepr(inputs, precision=1)))
+        >>>     print('input_shapes = {}'.format(ub.urepr(input_shapes)))
+        >>>     print('components = {}'.format(ub.urepr(components, precision=1)))
+        >>>     print('component_shapes = {}'.format(ub.urepr(component_shapes, nl=1)))
 
     """
 
@@ -1342,12 +1342,12 @@ class ChannelSpec(BaseChannelSpec):
             >>> self = ChannelSpec('rgb,disparity,rgb|disparity|flowx|flowy,flowx|flowy')
             >>> fused = self.encode(item)
             >>> input_shapes = ub.map_vals(lambda x: x.shape, fused)
-            >>> print('input_shapes = {}'.format(ub.repr2(input_shapes, nl=1)))
+            >>> print('input_shapes = {}'.format(ub.urepr(input_shapes, nl=1)))
             >>> # Simpler case
             >>> self = ChannelSpec('rgb|disparity')
             >>> fused = self.encode(item)
             >>> input_shapes = ub.map_vals(lambda x: x.shape, fused)
-            >>> print('input_shapes = {}'.format(ub.repr2(input_shapes, nl=1)))
+            >>> print('input_shapes = {}'.format(ub.urepr(input_shapes, nl=1)))
 
         Example:
             >>> # Case where we have to break up early fused data
@@ -1362,7 +1362,7 @@ class ChannelSpec(BaseChannelSpec):
             >>> self = ChannelSpec('rgb,disparity,rgb|disparity,rgb|disparity|flowx|flowy,flowx|flowy,flowx,disparity')
             >>> inputs = self.encode(item)
             >>> input_shapes = ub.map_vals(lambda x: x.shape, inputs)
-            >>> print('input_shapes = {}'.format(ub.repr2(input_shapes, nl=1)))
+            >>> print('input_shapes = {}'.format(ub.urepr(input_shapes, nl=1)))
 
             >>> # xdoctest: +REQUIRES(--bench)
             >>> #self = ChannelSpec('rgb|disparity,flowx|flowy')
@@ -1489,7 +1489,7 @@ class ChannelSpec(BaseChannelSpec):
             >>> inputs = ['flowx', 'flowy', 'disparity']
             >>> self = ChannelSpec('disparity,flowx|flowy')
             >>> component_indices = self.component_indices()
-            >>> print('component_indices = {}'.format(ub.repr2(component_indices, nl=1)))
+            >>> print('component_indices = {}'.format(ub.urepr(component_indices, nl=1)))
             component_indices = {
                 'disparity': ('disparity', (slice(None, None, None), slice(None, None, None), slice(0, 1, None))),
                 'flowx': ('flowx|flowy', (slice(None, None, None), slice(None, None, None), slice(0, 1, None))),

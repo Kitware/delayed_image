@@ -1271,8 +1271,8 @@ class DelayedWarp(DelayedImage):
         >>> warp2 = warp1.warp({'theta': 0.1})
         >>> warp3 = warp2._opt_fuse_warps()
         >>> warp3._validate()
-        >>> print(ub.repr2(warp2.nesting(), nl=-1, sort=0))
-        >>> print(ub.repr2(warp3.nesting(), nl=-1, sort=0))
+        >>> print(ub.urepr(warp2.nesting(), nl=-1, sort=0))
+        >>> print(ub.urepr(warp3.nesting(), nl=-1, sort=0))
     """
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
                  interpolation='linear', border_value='auto', noop_eps=0):
@@ -1665,13 +1665,13 @@ class DelayedWarp(DelayedImage):
             >>> fpath = kwimage.grab_test_image_fpath(overviews=3)
             >>> self = DelayedLoad(fpath, channels='r|g|b').prepare()
             >>> print(f'self={self}')
-            >>> print('self.meta = {}'.format(ub.repr2(self.meta, nl=1)))
+            >>> print('self.meta = {}'.format(ub.urepr(self.meta, nl=1)))
             >>> warp0 = self.warp({'scale': 0.2})
             >>> warp1 = warp0._opt_split_warp_overview()
             >>> warp2 = self.warp({'scale': 0.25})._opt_split_warp_overview()
-            >>> print(ub.repr2(warp0.nesting(), nl=-1, sort=0))
-            >>> print(ub.repr2(warp1.nesting(), nl=-1, sort=0))
-            >>> print(ub.repr2(warp2.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(warp0.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(warp1.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(warp2.nesting(), nl=-1, sort=0))
             >>> warp0_nodes = [d['type'] for d in warp0.as_graph().nodes.values()]
             >>> warp1_nodes = [d['type'] for d in warp1.as_graph().nodes.values()]
             >>> warp2_nodes = [d['type'] for d in warp2.as_graph().nodes.values()]
@@ -1688,8 +1688,8 @@ class DelayedWarp(DelayedImage):
             >>> self = DelayedLoad(fpath, channels='r|g|b').prepare()
             >>> warp0 = self.warp({'scale': 1 / 2 ** 6})
             >>> opt = warp0.optimize()
-            >>> print(ub.repr2(warp0.nesting(), nl=-1, sort=0))
-            >>> print(ub.repr2(opt.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(warp0.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(opt.nesting(), nl=-1, sort=0))
             >>> warp0_nodes = [d['type'] for d in warp0.as_graph().nodes.values()]
             >>> opt_nodes = [d['type'] for d in opt.as_graph().nodes.values()]
             >>> assert warp0_nodes == ['DelayedWarp', 'DelayedLoad']
@@ -2078,8 +2078,8 @@ class DelayedCrop(DelayedImage):
             >>> node2 = node1[10:50, 1:40]
             >>> self = node2
             >>> new_outer = node2._opt_warp_after_crop()
-            >>> print(ub.repr2(node2.nesting(), nl=-1, sort=0))
-            >>> print(ub.repr2(new_outer.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(node2.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(new_outer.nesting(), nl=-1, sort=0))
             >>> final0 = self._finalize()
             >>> final1 = new_outer._finalize()
             >>> # xdoctest: +REQUIRES(--show)
@@ -2098,8 +2098,8 @@ class DelayedCrop(DelayedImage):
             >>> node2 = node1[250:750, 0:500]
             >>> self = node2
             >>> new_outer = node2._opt_warp_after_crop()
-            >>> print(ub.repr2(node2.nesting(), nl=-1, sort=0))
-            >>> print(ub.repr2(new_outer.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(node2.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(new_outer.nesting(), nl=-1, sort=0))
         """
         assert isinstance(self.subdata, DelayedWarp)
         # Inner is the data closer to the leaf (disk), outer is the data closer
@@ -2163,7 +2163,7 @@ class DelayedOverview(DelayedImage):
         >>>     import networkx as nx
         >>>     dimg.write_network_text()
         >>>     dopt.write_network_text()
-        >>> print(ub.repr2(dopt.nesting(), nl=-1, sort=0))
+        >>> print(ub.urepr(dopt.nesting(), nl=-1, sort=0))
         >>> final0 = dimg._finalize()[:]
         >>> final1 = dopt._finalize()[:]
         >>> assert final0.shape == final1.shape
@@ -2294,8 +2294,8 @@ class DelayedOverview(DelayedImage):
             >>> node2 = node1.get_overview(2)
             >>> self = node2
             >>> new_outer = node2.optimize()
-            >>> print(ub.repr2(node2.nesting(), nl=-1, sort=0))
-            >>> print(ub.repr2(new_outer.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(node2.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(new_outer.nesting(), nl=-1, sort=0))
             >>> final0 = self._finalize()
             >>> final1 = new_outer._finalize()
             >>> # xdoctest: +REQUIRES(--show)
@@ -2371,8 +2371,8 @@ class DelayedOverview(DelayedImage):
             >>> node2 = node1.get_overview(2)
             >>> self = node2
             >>> new_outer = node2.optimize()
-            >>> print(ub.repr2(node2.nesting(), nl=-1, sort=0))
-            >>> print(ub.repr2(new_outer.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(node2.nesting(), nl=-1, sort=0))
+            >>> print(ub.urepr(new_outer.nesting(), nl=-1, sort=0))
             >>> final0 = self._finalize()
             >>> final1 = new_outer._finalize()
             >>> # xdoctest: +REQUIRES(--show)
