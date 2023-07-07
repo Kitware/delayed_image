@@ -683,7 +683,7 @@ def forest_str(graph, with_labels=True, sources=None, write=None, ascii_only=Fal
     Examples
     --------
     >>> graph = nx.balanced_tree(r=2, h=3, create_using=nx.DiGraph)
-    >>> print(nx.forest_str(graph))
+    >>> print(forest_str(graph))
     ╙── 0
         ├─╼ 1
         │   ├─╼ 3
@@ -702,12 +702,12 @@ def forest_str(graph, with_labels=True, sources=None, write=None, ascii_only=Fal
 
 
     >>> graph = nx.balanced_tree(r=1, h=2, create_using=nx.Graph)
-    >>> print(nx.forest_str(graph))
+    >>> print(forest_str(graph))
     ╙── 0
         └── 1
             └── 2
 
-    >>> print(nx.forest_str(graph, ascii_only=True))
+    >>> print(forest_str(graph, ascii_only=True))
     +-- 0
         L-- 1
             L-- 2
