@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 * Issue in DelayedLeaf where it did not respect requested kwargs like overviews.
 * Fix an issue in optimize where subchannels were not respected
+* Replaced deprecated `Polygon.bounding_box` call with `Polygon.box`
 
 ### Changed
 * write network text now uses vertical chains by default.

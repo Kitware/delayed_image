@@ -167,7 +167,7 @@ def generate_network_text(
     >>> graph.add_edge('C', 'D')
     >>> graph.add_edge('C', 'E')
     >>> graph.add_edge('C', 'F')
-    >>> nx.write_network_text(graph)
+    >>> write_network_text(graph)
     ╙── 0
         └── 1
             └── 2
@@ -184,7 +184,7 @@ def generate_network_text(
                                                 ├── D
                                                 ├── E
                                                 └── F
-    >>> nx.write_network_text(graph, vertical_chains=True)
+    >>> write_network_text(graph, vertical_chains=True)
     ╙── 0
         │
         1
@@ -474,7 +474,7 @@ def write_network_text(
     Example
     -------
     >>> graph = nx.balanced_tree(r=2, h=2, create_using=nx.DiGraph)
-    >>> nx.write_network_text(graph)
+    >>> write_network_text(graph)
     ╙── 0
         ├─╼ 1
         │   ├─╼ 3
@@ -485,7 +485,7 @@ def write_network_text(
 
     >>> # A near tree with one non-tree edge
     >>> graph.add_edge(5, 1)
-    >>> nx.write_network_text(graph)
+    >>> write_network_text(graph)
     ╙── 0
         ├─╼ 1 ╾ 5
         │   ├─╼ 3
@@ -496,7 +496,7 @@ def write_network_text(
             └─╼ 6
 
     >>> graph = nx.cycle_graph(5)
-    >>> nx.write_network_text(graph)
+    >>> write_network_text(graph)
     ╙── 0
         ├── 1
         │   └── 2
@@ -505,7 +505,7 @@ def write_network_text(
         └──  ...
 
     >>> graph = nx.cycle_graph(5, nx.DiGraph)
-    >>> nx.write_network_text(graph, vertical_chains=True)
+    >>> write_network_text(graph, vertical_chains=True)
     ╙── 0 ╾ 4
         ╽
         1
@@ -517,7 +517,7 @@ def write_network_text(
         4
         └─╼  ...
 
-    >>> nx.write_network_text(graph, vertical_chains=True, ascii_only=True)
+    >>> write_network_text(graph, vertical_chains=True, ascii_only=True)
     +-- 0 <- 4
         !
         1
@@ -530,7 +530,7 @@ def write_network_text(
         L->  ...
 
     >>> graph = nx.generators.barbell_graph(4, 2)
-    >>> nx.write_network_text(graph, vertical_chains=False)
+    >>> write_network_text(graph, vertical_chains=False)
     ╙── 4
         ├── 5
         │   └── 6
@@ -545,7 +545,7 @@ def write_network_text(
             │   │   └── 2 ─ 0, 3
             │   └──  ...
             └──  ...
-    >>> nx.write_network_text(graph, vertical_chains=True)
+    >>> write_network_text(graph, vertical_chains=True)
     ╙── 4
         ├── 5
         │   │
@@ -565,7 +565,7 @@ def write_network_text(
             └──  ...
 
     >>> graph = nx.complete_graph(5, create_using=nx.Graph)
-    >>> nx.write_network_text(graph)
+    >>> write_network_text(graph)
     ╙── 0
         ├── 1
         │   ├── 2 ─ 0
@@ -576,7 +576,7 @@ def write_network_text(
         └──  ...
 
     >>> graph = nx.complete_graph(3, create_using=nx.DiGraph)
-    >>> nx.write_network_text(graph)
+    >>> write_network_text(graph)
     ╙── 0 ╾ 1, 2
         ├─╼ 1 ╾ 2
         │   ├─╼ 2 ╾ 0

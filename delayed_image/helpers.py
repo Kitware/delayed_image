@@ -79,6 +79,7 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
             tf_newleaf_to_newroot - warp that happens after the crop.
 
     Example:
+        >>> from delayed_image.helpers import *  # NOQA
         >>> region_slices = (slice(33, 100), slice(22, 62))
         >>> region_shape = (100, 100, 1)
         >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)
@@ -113,7 +114,7 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     tf_root_to_leaf = tf_leaf_to_root.inv()
     tf_root_to_leaf = tf_root_to_leaf.__array__()
     leaf_region_bounds = root_region_bounds.warp(tf_root_to_leaf)
-    leaf_region_box = leaf_region_bounds.bounding_box().to_ltrb()
+    leaf_region_box = leaf_region_bounds.box().to_ltrb()
 
     # Quantize to a region that is possible to sample from
     leaf_crop_box = leaf_region_box.quantize(inplace=True)
@@ -129,7 +130,7 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     # which has a bit of extra padding on the left, before applying the
     # final transform.
     # subpixel_offset = leaf_region_box.data[0, 0:2]
-    crop_offset = leaf_crop_box.data[0, 0:2]
+    crop_offset = leaf_crop_box.data[0:2]
     root_offset = root_region_bounds.exterior.data.min(axis=0)
 
     # TODO: could optimize this logic
@@ -144,15 +145,15 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
         tf_newleaf_to_leaf
     )
 
-    lt_x, lt_y, rb_x, rb_y = leaf_crop_box.data[0, 0:4]
+    lt_x, lt_y, rb_x, rb_y = leaf_crop_box.data
 
     if 1:
         # Candidate fix
-        root_region_box = root_region_bounds.bounding_box()
-        old_w = root_region_box.width.ravel()[0]
-        old_h = root_region_box.height.ravel()[0]
-        leaf_w = leaf_region_box.width.ravel()[0]
-        leaf_h = leaf_region_box.height.ravel()[0]
+        root_region_box = root_region_bounds.box()
+        old_w = root_region_box.width
+        old_h = root_region_box.height
+        leaf_w = leaf_region_box.width
+        leaf_h = leaf_region_box.height
 
         padw = int(np.ceil(leaf_w / old_w))
         padh = int(np.ceil(leaf_h / old_h))
@@ -217,7 +218,7 @@ def _swap_crop_after_warp(inner_region, outer_transform):
     outer_region = inner_region.warp(outer_transform)
 
     # Transform the region bounds into the sub-image space
-    outer_box = outer_region.bounding_box().to_ltrb()
+    outer_box = outer_region.box().to_ltrb()
 
     # Quantize to a region that is possible to sample from
     outer_crop_box = outer_box.quantize()
@@ -227,7 +228,7 @@ def _swap_crop_after_warp(inner_region, outer_transform):
 
     # Because the new crop might not be perfectly aligned, we might need to
     # nudge it a bit after we crop out its bounds.
-    crop_offset = outer_crop_box.data[0, 0:2]
+    crop_offset = outer_crop_box.data[0:2]
     outer_offset = outer_region.exterior.data.min(axis=0)
 
     # Compute the extra transform that will realign the quantized croped data
@@ -236,7 +237,7 @@ def _swap_crop_after_warp(inner_region, outer_transform):
         offset=crop_offset - outer_offset
     )
 
-    lt_x, lt_y, rb_x, rb_y = outer_crop_box.data[0, 0:4]
+    lt_x, lt_y, rb_x, rb_y = outer_crop_box.data
     outer_crop = (slice(lt_y, rb_y), slice(lt_x, rb_x))
     new_outer_warp = tf_crop_to_box
 
