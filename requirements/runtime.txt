@@ -17,8 +17,4 @@ numpy>=1.19.2  ; python_version < '3.7' and python_version >= '3.6'    # Python 
 
 ubelt>=1.2.3
 
-#xarray>=0.16.0
-#safer>=4.4.1
-#packaging>=21.3
-
 affine>=2.3.0

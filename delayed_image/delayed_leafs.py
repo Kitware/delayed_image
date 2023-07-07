@@ -200,8 +200,10 @@ class DelayedLoad(DelayedImageLeaf):
             >>> print(f'delayed={delayed}')
             >>> delayed.finalize()
         """
-        fpath = kwimage.grab_test_image_fpath(key, dsize=dsize)
-        self = DelayedLoad(fpath, channels=channels)
+        fpath = kwimage.grab_test_image_fpath(key, dsize=dsize,
+                                              overviews=overviews)
+        self = DelayedLoad(fpath, channels=channels, dsize=dsize,
+                           nodata_method=nodata_method)
         return self
 
     @profile

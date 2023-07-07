@@ -345,10 +345,33 @@ class ImageOpsMixin:
 
         Args:
             quantization (Dict[str, Any]):
+                quantization information dictionary to undo.
                 see :func:`delayed_image.helpers.dequantize`
+                Expected keys are:
+                orig_dtype (str)
+                orig_min (float)
+                orig_max (float)
+                quant_min (float)
+                quant_max (float)
+                nodata (None | int)
 
         Returns:
             DelayedDequantize
+
+        Example:
+            >>> from delayed_image.delayed_leafs import DelayedLoad
+            >>> self = DelayedLoad.demo().prepare()
+            >>> quantization = {
+            >>>     'orig_dtype': 'float32',
+            >>>     'orig_min': 0,
+            >>>     'orig_max': 1,
+            >>>     'quant_min': 0,
+            >>>     'quant_max': 255,
+            >>>     'nodata': None,
+            >>> }
+            >>> new = self.dequantize(quantization)
+            >>> assert self.finalize().max() > 1
+            >>> assert new.finalize().max() <= 1
         """
         new = DelayedDequantize(self, quantization)
         return new
@@ -2309,6 +2332,20 @@ class DelayedOverview(DelayedImage):
             >>> kwplot.autompl()
             >>> kwplot.imshow(final0, pnum=(1, 2, 1), fnum=1, title='raw')
             >>> kwplot.imshow(final1, pnum=(1, 2, 2), fnum=1, title='optimized')
+
+        Example:
+            >>> # xdoctest: +REQUIRES(module:osgeo)
+            >>> from delayed_image import *  # NOQA
+            >>> fpath = kwimage.grab_test_image_fpath(overviews=3)
+            >>> node0 = DelayedLoad(fpath, channels='r|g|b').prepare()
+            >>> node1 = node0[:, :, 0:2]
+            >>> node2 = node1.get_overview(2)
+            >>> self = node2
+            >>> new_outer = node2.optimize()
+            >>> node2.write_network_text()
+            >>> new_outer.write_network_text()
+            >>> assert node2.shape[2] == 2
+            >>> assert new_outer.shape[2] == 2
         """
         from delayed_image.helpers import _swap_crop_after_warp
         assert isinstance(self.subdata, DelayedCrop)
@@ -2316,6 +2353,7 @@ class DelayedOverview(DelayedImage):
         # to the user (output).
         outer_overview = self.meta['overview']
         inner_slices = self.subdata.meta['space_slice']
+        chan_idxs = self.subdata.meta['chan_idxs']
 
         sf = 1 / 2 ** outer_overview
         outer_transform = kwimage.Affine.scale(sf)
@@ -2330,7 +2368,7 @@ class DelayedOverview(DelayedImage):
         new = self.subdata.subdata.get_overview(outer_overview)
 
         # Move the crop to the outside
-        new = new.crop(outer_crop)
+        new = new.crop(outer_crop, chan_idxs=chan_idxs)
 
         if not np.all(np.isclose(np.eye(3), new_outer_warp)):
             # we might have to apply an additional warp at the end.
