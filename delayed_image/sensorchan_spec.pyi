@@ -10,7 +10,6 @@ class FakeTransformer:
     ...
 
 
-# Transformer = FakeTransformer
 SENSOR_CHAN_GRAMMAR: Incomplete
 
 

@@ -7,7 +7,6 @@ from numpy.typing import ArrayLike
 import ubelt as ub
 from _typeshed import Incomplete
 from collections.abc import Generator
-from typing import Any
 
 
 class DelayedOperation(ub.NiceRepr):
@@ -31,13 +30,15 @@ class DelayedOperation(ub.NiceRepr):
     def print_graph(self,
                     fields: str = ...,
                     with_labels: bool = ...,
-                    rich: str = ...) -> None:
+                    rich: str = ...,
+                    vertical_chains: bool = ...) -> None:
         ...
 
     def write_network_text(self,
                            fields: str = ...,
                            with_labels: bool = ...,
-                           rich: str = ...) -> None:
+                           rich: str = ...,
+                           vertical_chains: bool = ...) -> None:
         ...
 
     @property

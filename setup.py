@@ -252,4 +252,5 @@ if __name__ == "__main__":
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
     ]
+    setupkw["package_data"] = {"delayed_image": ["py.typed", "*.pyi"]}
     setup(**setupkw)

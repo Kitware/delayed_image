@@ -4,11 +4,9 @@ import kwimage
 from numpy import ndarray
 from typing import Dict
 from typing import Any
-import kwimage
 from _typeshed import Incomplete
 from delayed_image import channel_spec
 from delayed_image.delayed_base import DelayedNaryOperation, DelayedUnaryOperation
-from typing import Any
 
 from delayed_image.channel_spec import FusedChannelSpec
 from delayed_image.delayed_leafs import DelayedIdentity

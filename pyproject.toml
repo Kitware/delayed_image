@@ -17,6 +17,7 @@ version = "{mod_dpath}/__init__.py::__version__"
 author = "Jon Crall"
 author_email = "jon.crall@kitware.com"
 description = "The delayed_image module"
+typed = true
 license = "Apache 2"
 dev_status = "planning"
 
