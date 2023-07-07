@@ -18,7 +18,7 @@ do everything in the right order yourself.
 
 Note: GDAL is optional, but recommended. Precompiled GDAL wheels are available
 on Kitware's `large image wheel repository <https://girder.github.io/large_image_wheels/>`__.
-Use ``pip install gdal -f https://girder.github.io/large_image_wheels/`` 
+Use ``pip install gdal -f https://girder.github.io/large_image_wheels/``
 to install GDAL from this server. Track status of official GDAL wheels `here
 <https://github.com/OSGeo/gdal/issues/3060>`__.
 
@@ -54,7 +54,7 @@ Quick Start
     kwplot.autompl()
     kwplot.imshow(delayed.finalize())
     kwimage.imwrite('foo.png', delayed.finalize())
-    
+
 .. image:: https://i.imgur.com/lsWLkPx.png
 
 See `the quickstart jupyter notebook <examples/quickstart.ipynb/>`__ for more details.
@@ -89,29 +89,47 @@ Example of delayed loading:
     >>> dimg = dimg[1:200, 2:200]
     >>> dimg.write_network_text()
     ╙── Crop dsize=(128,130),space_slice=(slice(1,131,None),slice(2,130,None))
-        └─╼ Crop dsize=(130,131),space_slice=(slice(0,131,None),slice(1,131,None))
-            └─╼ Warp dsize=(131,131),transform={scale=2.1000}
-                └─╼ Warp dsize=(62,62),transform={scale=1.1000}
-                    └─╼ Warp dsize=(56,56),transform={scale=1.1000}
-                        └─╼ Warp dsize=(50,50),transform={scale=0.5000}
-                            └─╼ Crop dsize=(99,100),space_slice=(slice(0,100,None),slice(1,100,None))
-                                └─╼ Warp dsize=(100,100),transform={scale=0.5000}
-                                    └─╼ Crop dsize=(199,200),space_slice=(slice(0,200,None),slice(1,200,None))
-                                        └─╼ Warp dsize=(200,200),transform={scale=0.5000}
-                                            └─╼ Crop dsize=(399,400),space_slice=(slice(0,400,None),slice(1,400,None))
-                                                └─╼ Warp dsize=(621,621),transform={scale=1.1000}
-                                                    └─╼ Warp dsize=(564,564),transform={scale=1.1000}
-                                                        └─╼ Dequantize dsize=(512,512),quantization={quant_max=255,nodata=0}
-                                                            └─╼ Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
+        ╽
+        Crop dsize=(130,131),space_slice=(slice(0,131,None),slice(1,131,None))
+        ╽
+        Warp dsize=(131,131),transform={scale=2.1000}
+        ╽
+        Warp dsize=(62,62),transform={scale=1.1000}
+        ╽
+        Warp dsize=(56,56),transform={scale=1.1000}
+        ╽
+        Warp dsize=(50,50),transform={scale=0.5000}
+        ╽
+        Crop dsize=(99,100),space_slice=(slice(0,100,None),slice(1,100,None))
+        ╽
+        Warp dsize=(100,100),transform={scale=0.5000}
+        ╽
+        Crop dsize=(199,200),space_slice=(slice(0,200,None),slice(1,200,None))
+        ╽
+        Warp dsize=(200,200),transform={scale=0.5000}
+        ╽
+        Crop dsize=(399,400),space_slice=(slice(0,400,None),slice(1,400,None))
+        ╽
+        Warp dsize=(621,621),transform={scale=1.1000}
+        ╽
+        Warp dsize=(564,564),transform={scale=1.1000}
+        ╽
+        Dequantize dsize=(512,512),quantization={quant_max=255,nodata=0}
+        ╽
+        Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
 
     >>> # Optimize the chain
     >>> dopt = dimg.optimize()
     >>> dopt.write_network_text()
-    ╙── Warp dsize=(128,130),transform={offset=(-0.6...,-1.0...),scale=1.5373}
-        └─╼ Dequantize dsize=(80,83),quantization={quant_max=255,nodata=0}
-            └─╼ Crop dsize=(80,83),space_slice=(slice(0,83,None),slice(3,83,None))
-                └─╼ Overview dsize=(128,128),overview=2
-                    └─╼ Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
+    ╙── Warp dsize=(128,130),transform={offset=(-0.6115,-1.0000),scale=1.5373}
+        ╽
+        Dequantize dsize=(80,83),quantization={quant_max=255,nodata=0}
+        ╽
+        Crop dsize=(80,83),space_slice=(slice(0,83,None),slice(3,83,None))
+        ╽
+        Overview dsize=(128,128),overview=2
+        ╽
+        Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
 
     #
     >>> final0 = dimg.finalize(optimize=False)
@@ -123,7 +141,7 @@ Example of delayed loading:
     >>> kwplot.imshow(final0, pnum=(1, 2, 1), fnum=1, title='raw')
     >>> kwplot.imshow(final1, pnum=(1, 2, 2), fnum=1, title='optimized')
 
- 
+
 .. image:: https://i.imgur.com/3SGvxtC.png
 
 
@@ -148,7 +166,7 @@ underlying operation graph we can undo the scale component while keeping the
 crop component, which results in loading the corresponding parts of the image
 inside the cropped area, but does not do any resampling. The images on disk can
 differ in more than just resolution, they could also be offset, skewed or
-rotated, and this unwarping procedure will still work. 
+rotated, and this unwarping procedure will still work.
 
 The following image illustrates an extreme example of this were we simulate a
 low resolution red band (R), a medium but rotated resolution green band (G),
@@ -193,7 +211,7 @@ each channel, and then use them to select a single channel.
     fpath = kwimage.grab_test_image_fpath(overviews=3)
 
     # When you create a delayed image, you can enrich the image with
-    # information about what channels it contains by specifying the 
+    # information about what channels it contains by specifying the
     # channels attribute.
     delayed = DelayedLoad(fpath, channels='red|green|blue').prepare()
 
@@ -213,7 +231,7 @@ spec, but this is where it currently lives.
 
 The full sensor channel spec has a formal grammar defined in this package.
 
- .. code:: 
+ .. code::
 
     // SENSOR_CHAN_GRAMMAR
     ?start: stream

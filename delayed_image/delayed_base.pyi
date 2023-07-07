@@ -1,4 +1,5 @@
 from typing import Dict
+from typing import List
 import networkx
 from typing import Tuple
 from typing import Any
@@ -6,10 +7,9 @@ from numpy.typing import ArrayLike
 import ubelt as ub
 from _typeshed import Incomplete
 from collections.abc import Generator
-from typing import Any
 
 
-class DelayedOperation2(ub.NiceRepr):
+class DelayedOperation(ub.NiceRepr):
     meta: Incomplete
 
     def __init__(self) -> None:
@@ -21,10 +21,24 @@ class DelayedOperation2(ub.NiceRepr):
     def nesting(self) -> Dict[str, dict]:
         ...
 
-    def as_graph(self) -> networkx.DiGraph:
+    def as_graph(self, fields: str | List[str] = 'auto') -> networkx.DiGraph:
         ...
 
-    def write_network_text(self, with_labels: bool = ...) -> None:
+    def leafs(self) -> Generator[Tuple[DelayedOperation], None, None]:
+        ...
+
+    def print_graph(self,
+                    fields: str = ...,
+                    with_labels: bool = ...,
+                    rich: str = ...,
+                    vertical_chains: bool = ...) -> None:
+        ...
+
+    def write_network_text(self,
+                           fields: str = ...,
+                           with_labels: bool = ...,
+                           rich: str = ...,
+                           vertical_chains: bool = ...) -> None:
         ...
 
     @property
@@ -34,14 +48,20 @@ class DelayedOperation2(ub.NiceRepr):
     def children(self) -> Generator[Any, None, None]:
         ...
 
-    def finalize(self) -> ArrayLike:
+    def prepare(self) -> DelayedOperation:
         ...
 
-    def optimize(self) -> DelayedOperation2:
+    def finalize(self,
+                 prepare: bool = True,
+                 optimize: bool = True,
+                 **kwargs) -> ArrayLike:
+        ...
+
+    def optimize(self) -> DelayedOperation:
         ...
 
 
-class DelayedNaryOperation2(DelayedOperation2):
+class DelayedNaryOperation(DelayedOperation):
     parts: Incomplete
 
     def __init__(self, parts) -> None:
@@ -51,7 +71,7 @@ class DelayedNaryOperation2(DelayedOperation2):
         ...
 
 
-class DelayedUnaryOperation2(DelayedOperation2):
+class DelayedUnaryOperation(DelayedOperation):
     subdata: Incomplete
 
     def __init__(self, subdata) -> None:

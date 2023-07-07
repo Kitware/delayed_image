@@ -61,7 +61,8 @@ stages:
   - echo "Installing helpers"
   - pip install setuptools>=0.8 setuptools_scm wheel build -U
   - pip install tomli pkginfo
-  - export WHEEL_FPATH=$(python -c "import pathlib; print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
+  - export WHEEL_FPATH=$(python -c "import pathlib; 
+    print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
     chr(47)))")
   - export MOD_VERSION=$(python -c "from pkginfo import Wheel; print(Wheel('$WHEEL_FPATH').version)")
   - pip install -r requirements/gdal.txt
@@ -87,7 +88,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
+    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 .test_full-loose_template: &test_full-loose_template
   <<: *common_test_template
@@ -110,7 +111,8 @@ stages:
   - echo "Installing helpers"
   - pip install setuptools>=0.8 setuptools_scm wheel build -U
   - pip install tomli pkginfo
-  - export WHEEL_FPATH=$(python -c "import pathlib; print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
+  - export WHEEL_FPATH=$(python -c "import pathlib; 
+    print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
     chr(47)))")
   - export MOD_VERSION=$(python -c "from pkginfo import Wheel; print(Wheel('$WHEEL_FPATH').version)")
   - pip install -r requirements/gdal.txt
@@ -136,7 +138,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
+    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 .test_minimal-strict_template: &test_minimal-strict_template
   <<: *common_test_template
@@ -159,7 +161,8 @@ stages:
   - echo "Installing helpers"
   - pip install setuptools>=0.8 setuptools_scm wheel build -U
   - pip install tomli pkginfo
-  - export WHEEL_FPATH=$(python -c "import pathlib; print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
+  - export WHEEL_FPATH=$(python -c "import pathlib; 
+    print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
     chr(47)))")
   - export MOD_VERSION=$(python -c "from pkginfo import Wheel; print(Wheel('$WHEEL_FPATH').version)")
   - pip install -r requirements/gdal.txt
@@ -185,7 +188,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
+    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 .test_full-strict_template: &test_full-strict_template
   <<: *common_test_template
@@ -208,7 +211,8 @@ stages:
   - echo "Installing helpers"
   - pip install setuptools>=0.8 setuptools_scm wheel build -U
   - pip install tomli pkginfo
-  - export WHEEL_FPATH=$(python -c "import pathlib; print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
+  - export WHEEL_FPATH=$(python -c "import pathlib; 
+    print(str(sorted(pathlib.Path('dist').glob('delayed_image*.whl'))[-1]).replace(chr(92),
     chr(47)))")
   - export MOD_VERSION=$(python -c "from pkginfo import Wheel; print(Wheel('$WHEEL_FPATH').version)")
   - pip install -r requirements/gdal.txt
@@ -234,7 +238,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
+    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --cov="delayed_image" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 build/cp36-linux-x86_64:
   <<: *build_template
@@ -351,6 +355,29 @@ test/full-strict/cp310-linux-x86_64:
   image: python:3.10
   needs:
   - build/cp310-linux-x86_64
+build/cp311-linux-x86_64:
+  <<: *build_template
+  image: python:3.11
+test/minimal-loose/cp311-linux-x86_64:
+  <<: *test_minimal-loose_template
+  image: python:3.11
+  needs:
+  - build/cp311-linux-x86_64
+test/full-loose/cp311-linux-x86_64:
+  <<: *test_full-loose_template
+  image: python:3.11
+  needs:
+  - build/cp311-linux-x86_64
+test/minimal-strict/cp311-linux-x86_64:
+  <<: *test_minimal-strict_template
+  image: python:3.11
+  needs:
+  - build/cp311-linux-x86_64
+test/full-strict/cp311-linux-x86_64:
+  <<: *test_full-strict_template
+  image: python:3.11
+  needs:
+  - build/cp311-linux-x86_64
 gpgsign/wheels:
   <<: *common_template
   image: python:3.8
@@ -377,6 +404,8 @@ gpgsign/wheels:
   - job: build/cp39-linux-x86_64
     artifacts: true
   - job: build/cp310-linux-x86_64
+    artifacts: true
+  - job: build/cp311-linux-x86_64
     artifacts: true
   script:
   - ls dist

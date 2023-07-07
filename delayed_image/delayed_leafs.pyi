@@ -1,28 +1,31 @@
-from typing import Union
+import kwimage
 from os import PathLike
-import kwcoco
 from typing import Tuple
-from numpy.typing import ArrayLike
-from typing import List
 from _typeshed import Incomplete
-from delayed_image.delayed_nodes import DelayedImage2
+from delayed_image.delayed_nodes import DelayedImage
+
+from delayed_image.channel_spec import FusedChannelSpec
+
+__docstubs__: str
 
 
-class DelayedImageLeaf2(DelayedImage2):
+class DelayedImageLeaf(DelayedImage):
+
+    def get_transform_from_leaf(self) -> kwimage.Affine:
+        ...
 
     def optimize(self):
         ...
 
 
-class DelayedLoad2(DelayedImageLeaf2):
+class DelayedLoad(DelayedImageLeaf):
     lazy_ref: Incomplete
 
     def __init__(self,
-                 fpath: Union[str, PathLike],
-                 channels: Union[int, str, kwcoco.FusedChannelSpec,
-                                 None] = None,
-                 dsize: Tuple[int, int] = None,
-                 nodata_method: Union[str, None] = None) -> None:
+                 fpath: str | PathLike,
+                 channels: int | str | FusedChannelSpec | None = None,
+                 dsize: Tuple[int, int] | None = None,
+                 nodata_method: str | None = None) -> None:
         ...
 
     @property
@@ -30,50 +33,31 @@ class DelayedLoad2(DelayedImageLeaf2):
         ...
 
     @classmethod
-    def demo(DelayedLoad2,
-             key: str = ...,
-             dsize: Incomplete | None = ...,
-             channels: Incomplete | None = ...):
+    def demo(DelayedLoad,
+             key: str = 'astro',
+             channels: str | None = None,
+             dsize: None | Tuple[int, int] = None,
+             nodata_method: str | None = None,
+             overviews: None | int = None) -> DelayedLoad:
         ...
 
-    def prepare(self):
-        ...
-
-    def finalize(self) -> ArrayLike:
+    def prepare(self) -> DelayedLoad:
         ...
 
 
-class DelayedNans2(DelayedImageLeaf2):
+class DelayedNans(DelayedImageLeaf):
 
     def __init__(self,
                  dsize: Incomplete | None = ...,
                  channels: Incomplete | None = ...) -> None:
         ...
 
-    def finalize(self) -> ArrayLike:
-        ...
 
-    def crop(self,
-             region_slices: Incomplete | None = ...,
-             chan_idxs: List[int] = None) -> DelayedImage2:
-        ...
-
-    def warp(self,
-             transform,
-             dsize: Incomplete | None = ...,
-             antialias: bool = ...,
-             interpolation: str = ...) -> DelayedImage2:
-        ...
-
-
-class DelayedIdentity2(DelayedImageLeaf2):
+class DelayedIdentity(DelayedImageLeaf):
     data: Incomplete
 
     def __init__(self,
                  data,
                  channels: Incomplete | None = ...,
                  dsize: Incomplete | None = ...) -> None:
-        ...
-
-    def finalize(self) -> ArrayLike:
         ...

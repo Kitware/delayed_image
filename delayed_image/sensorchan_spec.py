@@ -26,8 +26,11 @@ except AttributeError:
 try:
     from lark import Transformer
 except ImportError:
-    class Transformer:
+    class FakeTransformer:
         pass
+    # TODO: get xdev typetubs to ignore this
+    # probably need some kind of directive.
+    Transformer = FakeTransformer
 
 SENSOR_CHAN_GRAMMAR = ub.codeblock(
     '''
@@ -132,7 +135,7 @@ class SensorChanSpec(ub.NiceRepr):
         >>> streams = self.streams()
         >>> print(s1)
         >>> print(s2)
-        >>> print('streams = {}'.format(ub.repr2(streams, sv=1, nl=1)))
+        >>> print('streams = {}'.format(ub.urepr(streams, sv=1, nl=1)))
         L8:BGR,S2:BGR,WV:BGR,S2:nir,L8:land.0|land.1|land.2|land.3
         (L8,S2,WV):BGR,L8:land:4,S2:nir
         streams = [
@@ -497,14 +500,14 @@ class SensorChanTransformer(Transformer):
         for spec in cases:
             print('')
             print('=====')
-            print('spec = {}'.format(ub.repr2(spec, nl=1)))
+            print('spec = {}'.format(ub.urepr(spec, nl=1)))
             print('-----')
             for kwargs in ub.named_product(basis):
                 sensor_channel_parser = _global_sensor_chan_parser()
                 tree = sensor_channel_parser.parse(spec)
                 transformed = SensorChanTransformer(**kwargs).transform(tree)
                 print('')
-                print('kwargs = {}'.format(ub.repr2(kwargs, nl=0)))
+                print('kwargs = {}'.format(ub.urepr(kwargs, nl=0)))
                 print(f'transformed={transformed}')
             print('')
             print('=====')
@@ -633,7 +636,7 @@ def _global_sensor_chan_parser():
 
 
 @cache
-def normalize_sensor_chan(spec):
+def normalize_sensor_chan(spec: str):
     """
     Example:
         >>> # xdoctest: +REQUIRES(module:lark)
@@ -661,7 +664,7 @@ def normalize_sensor_chan(spec):
 
 
 @cache
-def concise_sensor_chan(spec):
+def concise_sensor_chan(spec: str):
     """
     Example:
         >>> # xdoctest: +REQUIRES(module:lark)
@@ -680,7 +683,7 @@ def concise_sensor_chan(spec):
 
 
 # @cache
-def sensorchan_concise_parts(spec):
+def sensorchan_concise_parts(spec: str):
     """
     Ignore:
         >>> # xdoctest: +REQUIRES(module:lark)
@@ -697,7 +700,7 @@ def sensorchan_concise_parts(spec):
     return transformed
 
 
-def sensorchan_normalized_parts(spec):
+def sensorchan_normalized_parts(spec: str):
     """
     Ignore:
         >>> # xdoctest: +REQUIRES(module:lark)

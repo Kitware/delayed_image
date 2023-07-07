@@ -14,6 +14,10 @@ try:
 except ImportError:
     from ubelt import identity as profile
 
+__docstubs__ = """
+from delayed_image.channel_spec import FusedChannelSpec
+"""
+
 
 class DelayedImageLeaf(DelayedImage):
 
@@ -196,8 +200,10 @@ class DelayedLoad(DelayedImageLeaf):
             >>> print(f'delayed={delayed}')
             >>> delayed.finalize()
         """
-        fpath = kwimage.grab_test_image_fpath(key, dsize=dsize)
-        self = DelayedLoad(fpath, channels=channels)
+        fpath = kwimage.grab_test_image_fpath(key, dsize=dsize,
+                                              overviews=overviews)
+        self = DelayedLoad(fpath, channels=channels, dsize=dsize,
+                           nodata_method=nodata_method)
         return self
 
     @profile

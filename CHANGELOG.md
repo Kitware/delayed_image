@@ -5,7 +5,18 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.2.7 - Unreleased
+## Version 0.2.8 - Unreleased
+
+### Fixed
+* Issue in DelayedLeaf where it did not respect requested kwargs like overviews.
+* Fix an issue in optimize where subchannels were not respected
+* Replaced deprecated `Polygon.bounding_box` call with `Polygon.box`
+
+### Changed
+* write network text now uses vertical chains by default.
+
+
+## Version 0.2.7 - Released 2023-05-02
 
 ### Fixed
 * path sanitize now works better on windows

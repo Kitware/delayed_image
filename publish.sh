@@ -469,15 +469,9 @@ if [[ "$DO_UPLOAD" == "True" ]]; then
 
     for WHEEL_FPATH in "${WHEEL_PATHS[@]}"
     do
-        if [ "$DO_GPG" == "True" ]; then
-            twine upload --username "$TWINE_USERNAME" "--password=$TWINE_PASSWORD"  \
-                --repository-url "$TWINE_REPOSITORY_URL" \
-                --sign "$WHEEL_FPATH".asc "$WHEEL_FPATH" --skip-existing --verbose || { echo 'failed to twine upload' ; exit 1; }
-        else
-            twine upload --username "$TWINE_USERNAME" "--password=$TWINE_PASSWORD" \
-                --repository-url "$TWINE_REPOSITORY_URL" \
-                "$WHEEL_FPATH" --skip-existing --verbose || { echo 'failed to twine upload' ; exit 1; }
-        fi
+        twine upload --username "$TWINE_USERNAME" "--password=$TWINE_PASSWORD" \
+            --repository-url "$TWINE_REPOSITORY_URL" \
+            "$WHEEL_FPATH" --skip-existing --verbose || { echo 'failed to twine upload' ; exit 1; }
     done
     echo """
         !!! FINISH: LIVE RUN !!!
