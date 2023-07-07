@@ -30,29 +30,47 @@ Example:
     >>> dimg = dimg[1:200, 2:200]
     >>> dimg.write_network_text()
     ╙── Crop dsize=(128,130),space_slice=(slice(1,131,None),slice(2,130,None))
-        └─╼ Crop dsize=(130,131),space_slice=(slice(0,131,None),slice(1,131,None))
-            └─╼ Warp dsize=(131,131),transform={scale=2.1000}
-                └─╼ Warp dsize=(62,62),transform={scale=1.1000}
-                    └─╼ Warp dsize=(56,56),transform={scale=1.1000}
-                        └─╼ Warp dsize=(50,50),transform={scale=0.5000}
-                            └─╼ Crop dsize=(99,100),space_slice=(slice(0,100,None),slice(1,100,None))
-                                └─╼ Warp dsize=(100,100),transform={scale=0.5000}
-                                    └─╼ Crop dsize=(199,200),space_slice=(slice(0,200,None),slice(1,200,None))
-                                        └─╼ Warp dsize=(200,200),transform={scale=0.5000}
-                                            └─╼ Crop dsize=(399,400),space_slice=(slice(0,400,None),slice(1,400,None))
-                                                └─╼ Warp dsize=(621,621),transform={scale=1.1000}
-                                                    └─╼ Warp dsize=(564,564),transform={scale=1.1000}
-                                                        └─╼ Dequantize dsize=(512,512),quantization={quant_max=255,nodata=0}
-                                                            └─╼ Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
+        ╽
+        Crop dsize=(130,131),space_slice=(slice(0,131,None),slice(1,131,None))
+        ╽
+        Warp dsize=(131,131),transform={scale=2.1000}
+        ╽
+        Warp dsize=(62,62),transform={scale=1.1000}
+        ╽
+        Warp dsize=(56,56),transform={scale=1.1000}
+        ╽
+        Warp dsize=(50,50),transform={scale=0.5000}
+        ╽
+        Crop dsize=(99,100),space_slice=(slice(0,100,None),slice(1,100,None))
+        ╽
+        Warp dsize=(100,100),transform={scale=0.5000}
+        ╽
+        Crop dsize=(199,200),space_slice=(slice(0,200,None),slice(1,200,None))
+        ╽
+        Warp dsize=(200,200),transform={scale=0.5000}
+        ╽
+        Crop dsize=(399,400),space_slice=(slice(0,400,None),slice(1,400,None))
+        ╽
+        Warp dsize=(621,621),transform={scale=1.1000}
+        ╽
+        Warp dsize=(564,564),transform={scale=1.1000}
+        ╽
+        Dequantize dsize=(512,512),quantization={quant_max=255,nodata=0}
+        ╽
+        Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
 
     >>> # Optimize the chain
     >>> dopt = dimg.optimize()
     >>> dopt.write_network_text()
-    ╙── Warp dsize=(128,130),transform={offset=(-0.6...,-1.0...),scale=1.5373}
-        └─╼ Dequantize dsize=(80,83),quantization={quant_max=255,nodata=0}
-            └─╼ Crop dsize=(80,83),space_slice=(slice(0,83,None),slice(3,83,None))
-                └─╼ Overview dsize=(128,128),overview=2
-                    └─╼ Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
+    ╙── Warp dsize=(128,130),transform={offset=(-0.6115,-1.0000),scale=1.5373}
+        ╽
+        Dequantize dsize=(80,83),quantization={quant_max=255,nodata=0}
+        ╽
+        Crop dsize=(80,83),space_slice=(slice(0,83,None),slice(3,83,None))
+        ╽
+        Overview dsize=(128,128),overview=2
+        ╽
+        Load channels=r|g|b,dsize=(512,512),num_overviews=3,fname=astro_overviews=3.tif
 
     >>> final0 = dimg.finalize(optimize=False)
     >>> final1 = dopt.finalize()
@@ -84,11 +102,11 @@ Example:
     >>> delayed.write_network_text()
     >>> # Get the transform that would bring us back to the leaf
     >>> tf_root_from_leaf = delayed.get_transform_from_leaf()
-    >>> print('tf_root_from_leaf =\n{}'.format(ub.repr2(tf_root_from_leaf, nl=1)))
+    >>> print('tf_root_from_leaf =\n{}'.format(ub.urepr(tf_root_from_leaf, nl=1)))
     >>> undo_all = tf_root_from_leaf.inv()
-    >>> print('undo_all =\n{}'.format(ub.repr2(undo_all, nl=1)))
+    >>> print('undo_all =\n{}'.format(ub.urepr(undo_all, nl=1)))
     >>> undo_scale = kwimage.Affine.coerce(ub.dict_diff(undo_all.concise(), ['offset']))
-    >>> print('undo_scale =\n{}'.format(ub.repr2(undo_scale, nl=1)))
+    >>> print('undo_scale =\n{}'.format(ub.urepr(undo_scale, nl=1)))
     >>> print('Undone All')
     >>> undone_all = delayed.warp(undo_all).optimize()
     >>> undone_all.write_network_text()
@@ -201,9 +219,9 @@ Example:
     >>>     tf_leaf_from_root = tf_root_from_leaf.inv()
     >>>     undo_all = tf_leaf_from_root
     >>>     undo_scale = kwimage.Affine.coerce(ub.dict_diff(undo_all.concise(), ['offset', 'theta']))
-    >>>     print('tf_root_from_leaf = {}'.format(ub.repr2(tf_root_from_leaf.concise(), nl=1)))
-    >>>     print('undo_all = {}'.format(ub.repr2(undo_all.concise(), nl=1)))
-    >>>     print('undo_scale = {}'.format(ub.repr2(undo_scale.concise(), nl=1)))
+    >>>     print('tf_root_from_leaf = {}'.format(ub.urepr(tf_root_from_leaf.concise(), nl=1)))
+    >>>     print('undo_all = {}'.format(ub.urepr(undo_all.concise(), nl=1)))
+    >>>     print('undo_scale = {}'.format(ub.urepr(undo_scale.concise(), nl=1)))
     >>>     print('Undone All')
     >>>     undone_all = chosen_band.warp(undo_all, interpolation='lanczos').optimize()
     >>>     undone_all.write_network_text()

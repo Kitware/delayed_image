@@ -98,7 +98,7 @@ class DelayedOperation(ub.NiceRepr):
                 sub_meta.pop('noop_eps', None)
             if 'fpath' in sub_meta:
                 sub_meta['fname'] = ub.Path(sub_meta.pop('fpath')).name
-            param_key = ub.repr2(sub_meta, sort=0, compact=1, nl=0, precision=4)
+            param_key = ub.urepr(sub_meta, sort=0, compact=1, nl=0, precision=4)
             short_type = item.__class__.__name__.replace('Delayed', '')
             node_data['label'] = f'{short_type} {param_key}'
         return graph
@@ -237,15 +237,15 @@ class DelayedOperation(ub.NiceRepr):
                 stack.append((node_id, child))
         return graph
 
-    def print_graph(self, fields='auto', with_labels=True, rich='auto'):
+    def print_graph(self, fields='auto', with_labels=True, rich='auto', vertical_chains=True):
         """
         Alias for write_network_text
         """
-        self.write_network_text(fields=fields, with_labels=with_labels, rich=rich)
+        self.write_network_text(fields=fields, with_labels=with_labels, rich=rich, vertical_chains=vertical_chains)
 
-    def write_network_text(self, fields='auto', with_labels=True, rich='auto'):
+    def write_network_text(self, fields='auto', with_labels=True, rich='auto', vertical_chains=True):
         # TODO: remove once this is merged into networkx itself
-        from delayed_image.helpers import write_network_text
+        from delayed_image.util.util_network_text import write_network_text
         graph = self.as_graph(fields=fields)
         path = None
         end = '\n'
@@ -254,7 +254,7 @@ class DelayedOperation(ub.NiceRepr):
         if rich:
             path = rich_mod.print
             end = ''
-        write_network_text(graph, with_labels=with_labels, path=path, end=end)
+        write_network_text(graph, with_labels=with_labels, path=path, end=end, vertical_chains=vertical_chains)
 
     @property
     def shape(self):
