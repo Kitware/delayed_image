@@ -1225,10 +1225,10 @@ class ChannelSpec(BaseChannelSpec):
         return new
 
     def issubset(self, other):
-        raise NotImplementedError
+        raise NotImplementedError('Implemention of subset for a general channel spec is unclear. The fused implemenation does exist')
 
     def issuperset(self, other):
-        raise NotImplementedError
+        raise NotImplementedError('Implemention of superset for a general channel spec is unclear. The fused implemenation does exist')
 
     def numel(self):
         """
