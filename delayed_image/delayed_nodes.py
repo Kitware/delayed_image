@@ -1137,6 +1137,9 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
 
     @profile
     def _opt_push_under_concat(self):
+        """
+        Push this node under its child node if it is a concatenation operation
+        """
         assert isinstance(self.subdata, DelayedChannelConcat)
         kwargs = ub.compatible(self.meta, self.__class__.__init__)
         new = self.subdata._push_operation_under(self.__class__, kwargs)

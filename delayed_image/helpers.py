@@ -388,3 +388,8 @@ def quantize_float01(imdata, old_min=0, old_max=1, quantize_dtype=np.int16):
         new_imdata = None
 
     return new_imdata, quantization
+
+
+class mkslice:
+    def __class_getitem__(self, index):
+        return index
