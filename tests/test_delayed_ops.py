@@ -120,6 +120,8 @@ def test_static_operation_optimize_single_chain():
         """ Helper to build slices """
         def __class_getitem__(self, index):
             return index
+        def __getitem__(self, index):
+            return index
 
     # A typical operation tree might be constructed like so
     delayed = base
@@ -134,7 +136,7 @@ def test_static_operation_optimize_single_chain():
     delayed = delayed.warp(kwimage.Affine.random(rng=0))
     delayed = delayed.warp(kwimage.Affine.random(rng=1))
     delayed = delayed.warp(kwimage.Affine.random(rng=2))
-    delayed = delayed.crop(mkslice[0:32, 0:64], clip=False, wrap=False)
+    delayed = delayed.crop(mkslice()[0:32, 0:64], clip=False, wrap=False)
 
     # We can display the tree of operations as is like
     delayed.print_graph()
