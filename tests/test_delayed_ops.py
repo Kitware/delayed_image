@@ -127,7 +127,7 @@ def test_static_operation_optimize_single_chain():
     delayed = base
     delayed = delayed.get_overview(1)
     delayed = delayed.scale(0.4)
-    delayed = delayed.crop(mkslice[0:1024, 0:1024], chan_idxs=[0, 2], clip=False, wrap=False)
+    delayed = delayed.crop(mkslice()[0:1024, 0:1024], chan_idxs=[0, 2], clip=False, wrap=False)
     delayed = delayed.dequantize({
         'orig_min': 0, 'orig_max': 1,
         'quant_min': 0, 'quant_max': 255,
