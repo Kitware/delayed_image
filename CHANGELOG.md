@@ -5,7 +5,14 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.2.8 - Unreleased
+## Version 0.2.9 - Unreleased
+
+### Fixed
+
+* Issue #3 bug in optimize.
+
+
+## Version 0.2.8 - Released 2023-07-07
 
 ### Fixed
 * Issue in DelayedLeaf where it did not respect requested kwargs like overviews.

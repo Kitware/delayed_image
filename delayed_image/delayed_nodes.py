@@ -1130,14 +1130,17 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
         Returns:
             DelayedIdentity
         """
-        from delayed_image.delayed_leafs import DelayedIdentity
         final = self.finalize()
-        new = DelayedIdentity(final, dsize=self.dsize, channels=self.channels)
+        new = delayed_leafs.DelayedIdentity(final, dsize=self.dsize,
+                                            channels=self.channels)
         return new
 
     @profile
     def _opt_push_under_concat(self):
-        assert isinstance(self.subdata, DelayedChannelConcat)
+        """
+        Push this node under its child node if it is a concatenation operation
+        """
+        assert isinstance2(self.subdata, DelayedChannelConcat)
         kwargs = ub.compatible(self.meta, self.__class__.__init__)
         new = self.subdata._push_operation_under(self.__class__, kwargs)
         return new
@@ -1235,7 +1238,7 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
                 # hack the return undo_warp
                 w, h = undone_part.dsize
                 undo_warp = kwimage.Affine.scale((1 / w, 1 / h)) @ undo_warp
-            if isinstance(undone_part, delayed_leafs.DelayedNans):
+            if isinstance2(undone_part, delayed_leafs.DelayedNans):
                 undone_part = undone_part[0:1, 0:1].optimize()
         if return_warp:
             return undone_part, undo_warp
@@ -1460,7 +1463,7 @@ class DelayedWarp(DelayedImage):
         """
         new = copy.copy(self)
         new.subdata = self.subdata.optimize()
-        if isinstance(new.subdata, DelayedWarp):
+        if isinstance2(new.subdata, DelayedWarp):
             new = new._opt_fuse_warps()
 
         # Check if the transform is close enough to identity to be considered
@@ -1474,7 +1477,7 @@ class DelayedWarp(DelayedImage):
             new = new.subdata
             if TRACE_OPTIMIZE:
                 new._opt_logs.append('Contract identity warp')
-        elif isinstance(new.subdata, DelayedChannelConcat):
+        elif isinstance2(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
         elif hasattr(new.subdata, '_optimized_warp'):
             # The subdata knows how to optimize itself wrt a warp
@@ -1499,7 +1502,7 @@ class DelayedWarp(DelayedImage):
         """
         Combine two consecutive warps into a single operation.
         """
-        assert isinstance(self.subdata, DelayedWarp)
+        assert isinstance2(self.subdata, DelayedWarp)
         inner_data = self.subdata.subdata
         tf1 = self.subdata.meta['transform']
         tf2 = self.meta['transform']
@@ -1517,7 +1520,7 @@ class DelayedWarp(DelayedImage):
     @profile
     def _opt_absorb_overview(self):
         """
-        Remove the overview if we can get a higher resolution without it
+        Remove any deeper overviews that would be undone by this warp.
 
         Given this warp node, if it has a scale component could undo an
         overview (i.e. the scale factor is greater than 2), we want to:
@@ -1526,6 +1529,13 @@ class DelayedWarp(DelayedImage):
             2. remove that overview and that scale factor from this warp
             3. modify any intermediate nodes that will be changed by having the
                deeper overview removed.
+
+        NOTE:
+            This optimization is currently the most dubious one in the code,
+            and is likely where some of the bugs are coming from.  Help wanted.
+
+        CommandLine:
+           xdoctest -m delayed_image.delayed_nodes DelayedWarp._opt_absorb_overview
 
         Example:
             >>> # xdoctest: +REQUIRES(module:osgeo)
@@ -1557,6 +1567,8 @@ class DelayedWarp(DelayedImage):
             >>> opt_data = [d for n, d in opt.as_graph().nodes(data=True)]
             >>> assert 'DelayedOverview' in [d['type'] for d in opt_data]
         """
+        DEBUG = 0
+
         # Check if there is a strict downsampling component
         transform = self.meta['transform']
         params = transform.decompose()
@@ -1569,24 +1581,33 @@ class DelayedWarp(DelayedImage):
         # Lookahead to see if there is a nearby overview operation that can be
         # absorbed, remember the chain of operations between the warp and the
         # overview, as it will need to be modified.
+
+        # !!! FIXME !!!
+        # The number of nodes we lookahead is hard coded based on reasonable
+        # cases we expect in the real world. A correct implementation would not
+        # depend on a hard coded number like this. However, this optimization
+        # may be able to be completely refactored to avoid this approach all
+        # together.
+        LOOKAHEAD_NUMBER = 4
+
         parent = self
         subdata = None
         chain = []
         num_dcrops = 0
-        for i in range(4):
+        for i in range(LOOKAHEAD_NUMBER):
             subdata = parent.subdata
             if subdata is None:
                 break
-            elif isinstance(subdata, DelayedWarp):
+            elif isinstance2(subdata, DelayedWarp):
                 subdata = None
                 break
-            elif isinstance(subdata, DelayedOverview):
+            elif isinstance2(subdata, DelayedOverview):
                 # We found an overview node
                 overview = subdata
                 break
-            elif isinstance(subdata, DelayedDequantize):
+            elif isinstance2(subdata, DelayedDequantize):
                 pass
-            elif isinstance(subdata, DelayedCrop):
+            elif isinstance2(subdata, DelayedCrop):
                 num_dcrops += 1
             else:
                 subdata = None
@@ -1600,7 +1621,15 @@ class DelayedWarp(DelayedImage):
             return self
 
         if num_dcrops > 1:
+            # The following logic does not work there is more than a single
+            # crop between the warp and the overview. Punt and just return.
+            # Might be better to fuse the crops.
             return self
+
+        if DEBUG:
+            print('---------')
+            print('ORIG:')
+            self.print_graph()
 
         # At this point we have some chain:
         # [Warp, Something, ..., Overview]
@@ -1614,12 +1643,16 @@ class DelayedWarp(DelayedImage):
         # Handle any nodes between the warp and the overview.
         # This should be at most one quantization and one crop operation,
         # but we may generalize that in the future.
+
+        if DEBUG:
+            print('chain = {}'.format(ub.urepr(chain, nl=1)))
+
         if not chain:
             # The overview is directly after this warp
             new_head = mimic_overview.subdata
             if TRACE_OPTIMIZE:
                 new_head._opt_logs.extend(mimic_overview._opt_logs)
-                new_head._opt_logs.append('absorb_neighbor')
+                new_head._opt_logs.append('_opt_absorb_overview:absorb_neighbor')
         else:
             # Copy the chain so this does not mutate the input
             chain = [copy.copy(n) for n in chain]
@@ -1632,20 +1665,46 @@ class DelayedWarp(DelayedImage):
             # Check if the tail of the chain is a crop.
             if hasattr(tail, '_opt_warp_after_crop'):
                 # This modifies the tail so it is now a warp followed by a
-                # crop. Note that the warp may be different than the mimiced
+                # crop. Note that the warp may be different than the mimicked
                 # overview, so use this new transform instead.
                 # (Actually, I think this can't make the new crop non integral,
                 # so it probably wont matter)
+                if DEBUG:
+                    print('HAS CROP OP')
+                    print('Tail')
+                    tail.print_graph()
                 modified_tail = tail._opt_warp_after_crop()
-                new_chain_dsize = modified_tail.meta['dsize']
+                if DEBUG:
+                    print('Modified Tail')
+                    modified_tail.print_graph()
+                    print('modified_tail = {}'.format(ub.urepr(modified_tail, nl=1)))
+
+                # Previous code used the "modified tail" to grab the new dsize
+                # that will be applied to the rest of the chain. However, the
+                # modified tail corresponds to the warp we are going to remove.
+                # We need to grab it from the modified crop instead, which is
+                # going to be the child of the modified tail.
+
+                # Thus we comment out this line:
+                # new_chain_dsize = modified_tail.meta['dsize']
+
+                # And use this as the fixed way to grab the dsize.  Tests pass,
+                # but I'm leaving this note in here in case this change causes
+                # unforeseen issues.
+                new_chain_dsize = modified_tail.subdata.meta['dsize']
+
                 tf1 = modified_tail.meta['transform']
                 # Remove the modified warp
                 tail_parent = chain[-2] if len(chain) > 1 else self
                 new_tail = modified_tail.subdata
+
+                if DEBUG:
+                    print('tail_parent = {}'.format(ub.urepr(tail_parent, nl=1)))
+                    print('new_tail = {}'.format(ub.urepr(new_tail, nl=1)))
                 if TRACE_OPTIMIZE:
                     new_tail._opt_logs.extend(modified_tail._opt_logs)
                     new_tail._opt_logs.extend(tail_parent.subdata._opt_logs)
-                    new_tail._opt_logs.append('modify-tail')
+                    new_tail._opt_logs.append('_opt_absorb_overview:modify-tail')
                 tail_parent.subdata = new_tail
                 chain[-1] = new_tail
                 for notcrop in chain[:-1]:
@@ -1653,24 +1712,28 @@ class DelayedWarp(DelayedImage):
             else:
                 # The chain does not contain a crop operation, we can safely
                 # remove it. Finally remove the overview transform entirely
+                if DEBUG:
+                    print('NO CROP OP')
                 tail.subdata = mimic_overview.subdata
                 new_chain_dsize = mimic_overview.subdata.meta['dsize']
                 for notcrop in chain:
                     notcrop.meta['dsize'] = new_chain_dsize
                 if TRACE_OPTIMIZE:
                     tail._opt_logs.extend(mimic_overview._opt_logs)
-                    tail._opt_logs.append('safe-to-remove')
+                    tail._opt_logs.append('_opt_absorb_overview:safe-to-remove')
 
             # The dsize within the chain might be wrong due to our
             # modification. I **think** its ok to just directly set it to the
             # new dsize as it should only be operations that do not change the
-            # dsize, but it would be nice to find a more ellegant
+            # dsize, but it would be nice to find a more elegant
             # implementation.
+            if DEBUG:
+                print(f'new_chain_dsize={new_chain_dsize}')
             for notcrop in chain[:-1]:
                 notcrop.meta['dsize'] = new_chain_dsize
             new_head = chain[0]
             if TRACE_OPTIMIZE:
-                new_head._opt_logs.append('absorb_chain')
+                new_head._opt_logs.append('_opt_absorb_overview:absorb_chain')
 
         warp_meta = ub.dict_isect(self.meta, self._algo_keys)
         tf2 = self.meta['transform']
@@ -1678,7 +1741,12 @@ class DelayedWarp(DelayedImage):
         new_transform = tf2 @ tf1
         new = self.__class__(new_head, new_transform, dsize=dsize, **warp_meta)
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('_opt_absorb_overview')
+            new._opt_logs.append('_opt_absorb_overview:finish')
+
+        if DEBUG:
+            print('NEW:')
+            new.print_graph()
+            print('---------')
         return new
 
     @profile
@@ -1816,15 +1884,15 @@ class DelayedDequantize(DelayedImage):
         new = copy.copy(self)
         new.subdata = self.subdata.optimize()
 
-        if isinstance(new.subdata, DelayedDequantize):
+        if isinstance2(new.subdata, DelayedDequantize):
             raise AssertionError('Dequantization is only allowed once')
 
-        if isinstance(new.subdata, DelayedWarp):
+        if isinstance2(new.subdata, DelayedWarp):
             # Swap order so quantize is before the warp
             new = new._opt_dequant_before_other()
             new = new.optimize()
 
-        if isinstance(new.subdata, DelayedChannelConcat):
+        if isinstance2(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
         return new
 
@@ -1961,22 +2029,22 @@ class DelayedCrop(DelayedImage):
         """
         new = copy.copy(self)
         new.subdata = self.subdata.optimize()
-        if isinstance(new.subdata, DelayedCrop):
+        if isinstance2(new.subdata, DelayedCrop):
             new = new._opt_fuse_crops()
 
         if hasattr(new.subdata, '_optimized_crop'):
             # The subdata knows how to optimize itself wrt this node
             crop_kwargs = ub.dict_isect(self.meta, {'space_slice', 'chan_idxs'})
             new = new.subdata._optimized_crop(**crop_kwargs).optimize()
-        if isinstance(new.subdata, DelayedWarp):
+        if isinstance2(new.subdata, DelayedWarp):
             new = new._opt_warp_after_crop()
             new = new.optimize()
-        elif isinstance(new.subdata, DelayedDequantize):
+        elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_crop()
             new = new.optimize()
 
-        if isinstance(new.subdata, DelayedChannelConcat):
-            if isinstance(new, DelayedCrop):
+        if isinstance2(new.subdata, DelayedChannelConcat):
+            if isinstance2(new, DelayedCrop):
                 # We have to be careful if there we have band selection
                 chan_idxs = new.meta.get('chan_idxs', None)
                 space_slice = new.meta.get('space_slice', None)
@@ -2051,7 +2119,7 @@ class DelayedCrop(DelayedImage):
             >>> self._validate()
             >>> crop1._validate()
         """
-        assert isinstance(self.subdata, DelayedCrop)
+        assert isinstance2(self.subdata, DelayedCrop)
         # Inner is the data closer to the leaf (disk), outer is the data closer
         # to the user (output).
         inner_data = self.subdata.subdata
@@ -2130,7 +2198,7 @@ class DelayedCrop(DelayedImage):
             >>> print(ub.urepr(node2.nesting(), nl=-1, sort=0))
             >>> print(ub.urepr(new_outer.nesting(), nl=-1, sort=0))
         """
-        assert isinstance(self.subdata, DelayedWarp)
+        assert isinstance2(self.subdata, DelayedWarp)
         # Inner is the data closer to the leaf (disk), outer is the data closer
         # to the user (output).
         outer_slices = self.meta['space_slice']
@@ -2159,7 +2227,7 @@ class DelayedCrop(DelayedImage):
     @profile
     def _opt_dequant_after_crop(self):
         # Swap order so dequantize is after the crop
-        assert isinstance(self.subdata, DelayedDequantize)
+        assert isinstance2(self.subdata, DelayedDequantize)
         quantization = self.subdata.meta['quantization']
         new = copy.copy(self)
         new.subdata = self.subdata.subdata  # Remove the dequantization
@@ -2272,21 +2340,21 @@ class DelayedOverview(DelayedImage):
         """
         new = copy.copy(self)
         new.subdata = self.subdata.optimize()
-        if isinstance(new.subdata, DelayedOverview):
+        if isinstance2(new.subdata, DelayedOverview):
             new = new._opt_fuse_overview()
 
         if new.meta['overview'] == 0:
             new = new.subdata
-        elif isinstance(new.subdata, DelayedCrop):
+        elif isinstance2(new.subdata, DelayedCrop):
             new = new._opt_crop_after_overview()
             new = new.optimize()
-        elif isinstance(new.subdata, DelayedWarp):
+        elif isinstance2(new.subdata, DelayedWarp):
             new = new._opt_warp_after_overview()
             new = new.optimize()
-        elif isinstance(new.subdata, DelayedDequantize):
+        elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_overview()
             new = new.optimize()
-        if isinstance(new.subdata, DelayedChannelConcat):
+        if isinstance2(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
         return new
 
@@ -2348,7 +2416,7 @@ class DelayedOverview(DelayedImage):
             >>> assert new_outer.shape[2] == 2
         """
         from delayed_image.helpers import _swap_crop_after_warp
-        assert isinstance(self.subdata, DelayedCrop)
+        assert isinstance2(self.subdata, DelayedCrop)
         # Inner is the data closer to the leaf (disk), outer is the data closer
         # to the user (output).
         outer_overview = self.meta['overview']
@@ -2379,7 +2447,7 @@ class DelayedOverview(DelayedImage):
 
     @profile
     def _opt_fuse_overview(self):
-        assert isinstance(self.subdata, DelayedOverview)
+        assert isinstance2(self.subdata, DelayedOverview)
         outer_overview = self.meta['overview']
         inner_overrview = self.subdata.meta['overview']
         new_overview = inner_overrview + outer_overview
@@ -2391,7 +2459,7 @@ class DelayedOverview(DelayedImage):
     @profile
     def _opt_dequant_after_overview(self):
         # Swap order so dequantize is after the crop
-        assert isinstance(self.subdata, DelayedDequantize)
+        assert isinstance2(self.subdata, DelayedDequantize)
         quantization = self.subdata.meta['quantization']
         new = copy.copy(self)
         new.subdata = self.subdata.subdata  # Remove the dequantization
@@ -2425,7 +2493,7 @@ class DelayedOverview(DelayedImage):
             >>> kwplot.imshow(final0, pnum=(1, 2, 1), fnum=1, title='raw')
             >>> kwplot.imshow(final1, pnum=(1, 2, 2), fnum=1, title='optimized')
         """
-        assert isinstance(self.subdata, DelayedWarp)
+        assert isinstance2(self.subdata, DelayedWarp)
         outer_overview = self.meta['overview']
         inner_transform = self.subdata.meta['transform']
         outer_transform = self._transform_from_subdata()
@@ -2547,3 +2615,33 @@ class _InnerAccumSegment:  # (ub.NiceRepr):
             else:
                 sub_comp = comp.take_channels(sub_idxs)
         return sub_comp
+
+
+def isinstance2(inst, cls):
+    """
+    In production regular isinstance works fine, but when debugging in IPython
+    reloading classes will causes it to break, so we special case it here.
+
+    Args:
+        item (object): instance to check
+        cls (type): class to check against
+
+    Returns:
+        bool
+
+    Ignore:
+        from delayed_image.delayed_nodes import *  # NOQA
+        from delayed_image.delayed_leafs import DelayedNans
+
+        inst = DelayedNans()
+        cls = DelayedImage
+        isinstance2(inst, cls)
+        isinstance2(inst, DelayedWarp)
+    """
+    import sys
+    USE_REAL_ISINSTANCE = 'IPython' not in sys.modules
+    if USE_REAL_ISINSTANCE:
+        return isinstance(inst, cls)
+    else:
+        return any(inst_cls.__name__ == cls.__name__
+                   for inst_cls in inst.__class__.__mro__)
