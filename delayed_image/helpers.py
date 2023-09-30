@@ -156,8 +156,18 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
         leaf_h = leaf_region_box.height
 
         # TODO: test the case where old_w or old_h are zero
-        padw = int(np.ceil(leaf_w / old_w))
-        padh = int(np.ceil(leaf_h / old_h))
+
+        if old_w == 0:
+            # Attempt to work around issue #4
+            # Not sure what the consequences of this are
+            padw = 0
+        else:
+            padw = int(np.ceil(leaf_w / old_w))
+
+        if old_h == 0:
+            padh = 0
+        else:
+            padh = int(np.ceil(leaf_h / old_h))
     else:
         padw, padh = 1, 1
     # padw, padh = 0, 0

@@ -89,6 +89,10 @@ def test_issue4():
 
         Error
 
+    Note:
+        The issue seems to be that the crop is ouside the bounds of the image,
+        so we just need to ensure the divide by zero doesn't happen.
+
     """
     from delayed_image import DelayedChannelConcat
     import delayed_image
@@ -115,4 +119,6 @@ def test_issue4():
     delayed_crop = delayed_crop.prepare()
 
     delayed_crop.write_network_text()
-    delayed_crop = delayed_crop.optimize()
+    optimized = delayed_crop.optimize()
+    optimized.write_network_text()
+    assert optimized.dsize == (225, 225)
