@@ -109,7 +109,7 @@ def test_issue4():
                                    [ 0.00000000e+00,  9.99169700e-01,  2.91038305e-11],
                                    [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]]))
     delayed_frame = concat.warp(mat)
-    delayed_frame.write_network_text()
+    delayed_frame.print_graph()
 
     requested_space_slice = (slice(-21.0, 204.0, None), slice(219, 444.0, None))
     space_pad = [(0, 0), (0, 0)]
@@ -118,7 +118,141 @@ def test_issue4():
                                       pad=space_pad)
     delayed_crop = delayed_crop.prepare()
 
-    delayed_crop.write_network_text()
+    delayed_crop.print_graph()
     optimized = delayed_crop.optimize()
-    optimized.write_network_text()
+    optimized.print_graph()
     assert optimized.dsize == (225, 225)
+
+
+def test_clipped_negative_slice():
+    import delayed_image
+    from delayed_image.helpers import mkslice
+    base = delayed_image.DelayedLoad.demo(dsize=(256, 256))
+    slices = mkslice[-10:216, 0:256]
+    cropped = base.crop(slices)
+    assert cropped.dsize == (256, 0)
+    assert cropped.optimize().dsize == (256, 0)
+
+
+def test_oob_crop_after_load():
+    import delayed_image
+    import ubelt as ub
+    from delayed_image.helpers import mkslice
+    base = delayed_image.DelayedLoad.demo(dsize=(256, 256))
+    slices = mkslice[300:500, 400:500]
+
+    pad = [(0, 0), (0, 0)]
+    variants = {}
+    variants['v1'] = base.crop(slices)
+    variants['v2'] = base.crop(slices, wrap=False, clip=False)
+    variants['v3'] = base.crop(slices, wrap=False, clip=False, pad=pad)
+
+    outputs = {}
+    for key, orig in variants.items():
+        print('----------')
+        print('key = {}'.format(ub.urepr(key, nl=1)))
+        orig.print_graph()
+        orig.prepare()
+        opt = orig.optimize()
+        opt.print_graph()
+        outputs[key] = opt
+        print('----------')
+
+    assert outputs['v1'].dsize == (0, 0)
+    assert outputs['v2'].dsize == (100, 200)
+    assert outputs['v3'].dsize == (100, 200)
+
+
+def test_oob_crop_after_warp():
+    """
+    Like test_oob_crop_after_load, but adds in a warp before the slices that
+    triggered errors the previous test did not.
+    """
+    import delayed_image
+    from delayed_image.helpers import mkslice
+    base = delayed_image.DelayedLoad.demo(dsize=(256, 256))
+    base = base.warp({'scale': 1.01})
+    slices = mkslice[300:500, 400:500]
+
+    pad = [(0, 0), (0, 0)]
+    variants = {}
+    variants['v1'] = base.crop(slices)
+    variants['v2'] = base.crop(slices, wrap=False, clip=False)
+    variants['v3'] = base.crop(slices, wrap=False, clip=False, pad=pad)
+
+    import ubelt as ub
+    errors = []
+    outputs = {}
+    for key, orig in variants.items():
+        print('----------')
+        print('key = {}'.format(ub.urepr(key, nl=1)))
+        orig.print_graph()
+        orig.prepare()
+        try:
+            opt = orig.optimize()
+        except Exception as ex:
+            print('ex = {}'.format(ub.urepr(ex, nl=1)))
+            errors.append((key, ex))
+            ...
+        opt.print_graph()
+        outputs[key] = opt
+        print('----------')
+    print('errors = {}'.format(ub.urepr(errors, nl=1)))
+
+    assert outputs['v1'].dsize == (0, 0)
+    assert outputs['v2'].dsize == (100, 200)
+    assert outputs['v3'].dsize == (100, 200)
+
+
+def test_oob_crop_after_warp_with_overviews():
+    """
+    Like test_oob_crop_after_load, but adds in a warp before the slices that
+    triggered errors the previous test did not.
+    """
+    import delayed_image
+    from delayed_image.helpers import mkslice
+    base = delayed_image.DelayedLoad.demo(dsize=(256, 256), overviews=3)
+    base = base.warp({'scale': 0.1})
+    slices = mkslice[300:500, 400:500]
+
+    pad = [(0, 0), (0, 0)]
+    variants = {}
+    variants['v1'] = base.crop(slices)
+    variants['v2'] = base.crop(slices, wrap=False, clip=False)
+    variants['v3'] = base.crop(slices, wrap=False, clip=False, pad=pad)
+
+    import ubelt as ub
+    errors = []
+    outputs = {}
+    for key, orig in variants.items():
+        print('----------')
+        print('key = {}'.format(ub.urepr(key, nl=1)))
+        orig.print_graph()
+        orig.prepare()
+        try:
+            opt = orig.optimize()
+        except Exception as ex:
+            print('ex = {}'.format(ub.urepr(ex, nl=1)))
+            errors.append((key, ex))
+            ...
+        opt.print_graph()
+        outputs[key] = opt
+        print('----------')
+    print('errors = {}'.format(ub.urepr(errors, nl=1)))
+
+    assert outputs['v1'].dsize == (0, 0)
+    assert outputs['v2'].dsize == (100, 200)
+    assert outputs['v3'].dsize == (100, 200)
+
+
+def test_both_total_negative_slice():
+    import delayed_image
+    base = delayed_image.DelayedLoad.demo(dsize=(128, 128), overviews=3)
+    base = base.warp({'scale': 2.0})
+    slices = (slice(-173, -60, None), slice(-123, -10, None))
+    pad = [(0, 0), (0, 0)]
+    crop = base.crop(slices, wrap=False, clip=False, pad=pad)
+    crop.print_graph()
+    opt = crop.optimize()
+    assert crop.dsize == opt.dsize
+    opt.print_graph()
