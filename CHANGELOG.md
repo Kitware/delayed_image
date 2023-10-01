@@ -5,7 +5,13 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.2.9 - Unreleased
+## Version 0.2.10 - Unreleased
+
+### Fixed
+* Issue #4 bug having to do with zero sized crops.
+
+
+## Version 0.2.9 - Released 2023-09-22
 
 ### Fixed
 

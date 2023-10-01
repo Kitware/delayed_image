@@ -156,8 +156,21 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
         leaf_h = leaf_region_box.height
 
         # TODO: test the case where old_w or old_h are zero
-        padw = int(np.ceil(leaf_w / old_w))
-        padh = int(np.ceil(leaf_h / old_h))
+        # Attempt to work around issue #4
+        # Not sure what the consequences of handing the issue this way are but
+        # it seems to work.
+        ZERO_WORKAROUND = 1
+
+        if ZERO_WORKAROUND and old_w == 0:
+            padw = 0
+        else:
+            padw = int(np.ceil(leaf_w / old_w))
+
+        if ZERO_WORKAROUND and old_h == 0:
+            padh = 0
+        else:
+            padh = int(np.ceil(leaf_h / old_h))
+
     else:
         padw, padh = 1, 1
     # padw, padh = 0, 0
@@ -390,6 +403,26 @@ def quantize_float01(imdata, old_min=0, old_max=1, quantize_dtype=np.int16):
     return new_imdata, quantization
 
 
-class mkslice:
+class mkslice_cls:
+    """
+    Helper to make slice syntax easier to construct
+
+    Example:
+        >>> from delayed_image.helpers import mkslice_cls
+        >>> m = mkslice_cls()
+        >>> m[0:3]
+        slice(0, 3, None)
+        >>> m[0:3, 0:5]
+        (slice(0, 3, None), slice(0, 5, None))
+        >>> m()[0:3, 0:5]
+        (slice(0, 3, None), slice(0, 5, None))
+    """
     def __class_getitem__(self, index):
+        # Doesnt exist in older Python versions
         return index
+    def __getitem__(self, index):
+        return index
+    def __call__(self):
+        return self
+
+mkslice = mkslice_cls()
