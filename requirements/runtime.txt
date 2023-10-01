@@ -1,5 +1,5 @@
 kwarray>=0.6.7
-kwimage>=0.9.20
+kwimage>=0.9.21
 
 # xdev availpkg networkx --request_min=2.2.0
 # xdev availpkg imageio
@@ -9,7 +9,8 @@ networkx>=2.6.2         ; python_version < '3.8'   and python_version >= '3.7'  
 networkx>=2.2.0,<=2.5.1 ; python_version < '3.7.0' and python_version >= '3.6.0'  # Python 3.6
 
 # 1.19.2 is the tensorflow minimum
-numpy>=1.23.2  ; python_version < '4.0'  and python_version >= '3.11'  # Python 3.11
+numpy>=1.26.0  ; python_version < '4.0'  and python_version >= '3.12'    # Python 3.12+
+numpy>=1.23.2  ; python_version < '3.12' and python_version >= '3.11'    # Python 3.11
 numpy>=1.21.6  ; python_version < '3.11' and python_version >= '3.10'  # Python 3.10
 numpy>=1.19.3  ; python_version < '3.10' and python_version >= '3.9'   # Python 3.9
 numpy>=1.19.2  ; python_version < '3.9' and python_version >= '3.8'    # Python 3.8
