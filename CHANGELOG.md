@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.2.11 - Unreleased
 
+### Added
+* Add `DelayedNodata` which is currently unused, but should eventually replace
+  DelayedNans in most circumstances
+
 
 ## Version 0.2.10 - Released 2023-10-01
 

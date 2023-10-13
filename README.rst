@@ -3,6 +3,17 @@ The delayed_image Module
 
 |Pypi| |PypiDownloads| |ReadTheDocs|
 
+
++------------------+-------------------------------------------------------------+
+| Read the docs    | https://delayed-image.readthedocs.io                        |
++------------------+-------------------------------------------------------------+
+| Gitlab (main)    | https://gitlab.kitware.com/computer-vision/delayed-image    |
++------------------+-------------------------------------------------------------+
+| Github (mirror)  | https://github.com/Kitware/delayed-image                    |
++------------------+-------------------------------------------------------------+
+| Pypi             | https://pypi.org/project/delayed-image                      |
++------------------+-------------------------------------------------------------+
+
 The delayed image module lets you describe (a tree of) image operations, but
 waits to execute them until the user calls ``finalize``. This allows for a
 sequence of operations to be optimized before it is executed, which means

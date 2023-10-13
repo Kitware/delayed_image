@@ -292,7 +292,7 @@ class DelayedNans(DelayedImageLeaf):
         delayed = self.crop(region_slices)
 
     Example:
-        >>> from delayed_image import *  # NOQA
+        >>> from delayed_image.delayed_leafs import *  # NOQA
         >>> dsize = (307, 311)
         >>> c1 = DelayedNans(dsize=dsize, channels='foo')
         >>> c2 = DelayedLoad.demo('astro', dsize=dsize, channels='R|G|B').prepare()
@@ -302,6 +302,7 @@ class DelayedNans(DelayedImageLeaf):
     """
     def __init__(self, dsize=None, channels=None):
         super().__init__(channels=channels, dsize=dsize)
+        self._kwargs = {}
 
     @profile
     def _finalize(self):
@@ -336,7 +337,7 @@ class DelayedNans(DelayedImageLeaf):
         new_width = box.width.ravel()[0]
         new_height = box.height.ravel()[0]
         new_dsize = (new_width, new_height)
-        new = self.__class__(new_dsize, channels=channels)
+        new = self.__class__(new_dsize, channels=channels, **self._kwargs)
         if TRACE_OPTIMIZE:
             new._opt_logs.append('Nans._optimized_crop')
         return new
@@ -348,10 +349,47 @@ class DelayedNans(DelayedImageLeaf):
             DelayedImage
         """
         # Warping does nothing to nans, except maybe changing the dsize
-        new = self.__class__(dsize, channels=self.channels)
+        new = self.__class__(dsize, channels=self.channels, **self._kwargs)
         if TRACE_OPTIMIZE:
             new._opt_logs.append('Nans._optimized_warp')
         return new
+
+
+class DelayedNodata(DelayedNans):
+    """
+    Constructs nan or masked array depending on what is needed
+
+    Example:
+        >>> from delayed_image.delayed_leafs import *  # NOQA
+        >>> dsize = (307, 311)
+        >>> self1 = DelayedNodata(dsize=dsize, channels='foo', nodata_method='float')
+        >>> self2 = DelayedNodata(dsize=dsize, channels='foo', nodata_method='ma')
+        >>> im1 = self1.finalize()
+        >>> im2 = self2.finalize()
+        >>> assert im1.dtype.kind == 'f'
+        >>> assert not hasattr(im1, 'mask')
+        >>> assert hasattr(im2, 'mask')
+    """
+    def __init__(self, dsize=None, channels=None, nodata_method=None):
+        super().__init__(channels=channels, dsize=dsize)
+        self.nodata_method = nodata_method
+        self._kwargs['nodata_method'] = nodata_method
+
+    @profile
+    def _finalize(self):
+        """
+        Returns:
+            ArrayLike
+        """
+        shape = self.shape
+        if self.nodata_method == 'ma':
+            # TODO: dtype should probably depend on what it will be combined
+            # with?
+            wrapped = np.empty(shape, dtype=np.uint8)
+            final = np.ma.array(wrapped, dtype=np.uint8, mask=True)
+        elif self.nodata_method == 'float':
+            final = np.full(shape, fill_value=np.nan)
+        return final
 
 
 class DelayedIdentity(DelayedImageLeaf):
