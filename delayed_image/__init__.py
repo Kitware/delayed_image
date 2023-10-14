@@ -286,7 +286,8 @@ from delayed_image.delayed_base import (DelayedNaryOperation,
 from delayed_image.delayed_leafs import (DelayedIdentity,
                                          DelayedImageLeaf,
                                          DelayedLoad,
-                                         DelayedNans, )
+                                         DelayedNans,
+                                         DelayedNodata, )
 from delayed_image.delayed_nodes import (DelayedArray,
                                          DelayedAsXarray,
                                          DelayedChannelConcat,
@@ -304,8 +305,8 @@ __all__ = ['DelayedArray', 'DelayedAsXarray', 'DelayedChannelConcat',
            'DelayedConcat', 'DelayedCrop', 'DelayedDequantize',
            'DelayedFrameStack', 'DelayedIdentity', 'DelayedImage',
            'DelayedImageLeaf', 'DelayedLoad', 'DelayedNans',
-           'DelayedNaryOperation', 'DelayedOperation', 'DelayedOverview',
-           'DelayedStack', 'DelayedUnaryOperation', 'DelayedWarp',
-           'ImageOpsMixin', 'delayed_base', 'delayed_leafs', 'delayed_nodes',
-           'helpers', 'FusedSensorChanSpec', 'ChannelSpec', 'FusedChannelSpec',
-           'SensorChanSpec']
+           'DelayedNodata', 'DelayedNaryOperation', 'DelayedOperation',
+           'DelayedOverview', 'DelayedStack', 'DelayedUnaryOperation',
+           'DelayedWarp', 'ImageOpsMixin', 'delayed_base', 'delayed_leafs',
+           'delayed_nodes', 'helpers', 'FusedSensorChanSpec', 'ChannelSpec',
+           'FusedChannelSpec', 'SensorChanSpec']

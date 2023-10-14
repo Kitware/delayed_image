@@ -279,6 +279,9 @@ class DelayedLoad(DelayedImageLeaf):
             pre_final = kwarray.atleast_nd(pre_final, 3)
             return pre_final
         else:
+            # Need to ensure that if any metadata changed, we modify the
+            # underlying lazy ref.
+            self.lazy_ref.nodata_method = self.meta.get('nodata_method', None)
             return self.lazy_ref
 
 
@@ -293,6 +296,7 @@ class DelayedNans(DelayedImageLeaf):
 
     Example:
         >>> from delayed_image.delayed_leafs import *  # NOQA
+        >>> from delayed_image import DelayedChannelConcat
         >>> dsize = (307, 311)
         >>> c1 = DelayedNans(dsize=dsize, channels='foo')
         >>> c2 = DelayedLoad.demo('astro', dsize=dsize, channels='R|G|B').prepare()
@@ -370,9 +374,9 @@ class DelayedNodata(DelayedNans):
         >>> assert not hasattr(im1, 'mask')
         >>> assert hasattr(im2, 'mask')
     """
-    def __init__(self, dsize=None, channels=None, nodata_method=None):
+    def __init__(self, dsize=None, channels=None, nodata_method='float'):
         super().__init__(channels=channels, dsize=dsize)
-        self.nodata_method = nodata_method
+        self.meta['nodata_method'] = nodata_method
         self._kwargs['nodata_method'] = nodata_method
 
     @profile
@@ -382,13 +386,16 @@ class DelayedNodata(DelayedNans):
             ArrayLike
         """
         shape = self.shape
-        if self.nodata_method == 'ma':
+        nodata_method = self.meta['nodata_method']
+        if nodata_method == 'ma':
             # TODO: dtype should probably depend on what it will be combined
             # with?
             wrapped = np.empty(shape, dtype=np.uint8)
             final = np.ma.array(wrapped, dtype=np.uint8, mask=True)
-        elif self.nodata_method == 'float':
+        elif nodata_method is None or nodata_method in {'float', 'nan'}:
             final = np.full(shape, fill_value=np.nan)
+        else:
+            raise KeyError(nodata_method)
         return final
 
 
