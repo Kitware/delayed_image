@@ -15,6 +15,10 @@ write_network_text = util_network_text.write_network_text
 
 
 def _auto_dsize(transform, sub_dsize):
+    """
+    Returns:
+        Tuple[int, int]
+    """
     sub_w, sub_h = sub_dsize
     sub_bounds = kwimage.Coords(
         np.array([[0,     0], [sub_w, 0],
@@ -25,6 +29,24 @@ def _auto_dsize(transform, sub_dsize):
     max_x = int(max_xy[0])
     max_y = int(max_xy[1])
     dsize = (max_x, max_y)
+    return dsize
+
+
+def _ensure_valid_dsize(dsize):
+    """
+    Ensure dsize members are ints or Nones
+
+    Returns:
+        None | Tuple[int | None, int | None]
+    """
+    if dsize is not None:
+        if ub.iterable(dsize):
+            w, h = dsize
+            if w is not None:
+                w = int(w)
+            if h is not None:
+                h = int(h)
+            dsize = (w, h)
     return dsize
 
 

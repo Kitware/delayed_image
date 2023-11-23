@@ -1407,6 +1407,9 @@ class DelayedWarp(DelayedImage):
         # whatever reason.
         border_value = border_value[0:4]
 
+        from delayed_image.helpers import _ensure_valid_dsize
+        dsize = _ensure_valid_dsize(dsize)
+
         M = np.asarray(transform)
         final = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                     interpolation=interpolation,
@@ -1964,8 +1967,6 @@ class DelayedCrop(DelayedImage):
             slice_box = kwimage.Boxes.from_slice(
                 space_slice, space_dims, wrap=True, clip=True)
             space_slice = slice_box.to_slices()[0]
-            # width = slice_box.width.ravel()[0]
-            # height = slice_box.height.ravel()[0]
             space_slice, _pad = kwarray.embed_slice(space_slice, space_dims)
             sl_y, sl_x = space_slice[0:2]
             width = sl_x.stop - sl_x.start
