@@ -50,6 +50,16 @@ def _ensure_valid_dsize(dsize):
     return dsize
 
 
+def _ensure_valid_shape(shape):
+    """
+    Ensure dsize members are ints or Nones
+
+    Returns:
+        Tuple[int, ...]
+    """
+    return tuple(int(s) for s in shape)
+
+
 def _largest_shape(shapes):
     """
     Finds maximum over all shapes

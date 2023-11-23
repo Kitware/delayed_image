@@ -315,6 +315,8 @@ class DelayedNans(DelayedImageLeaf):
             ArrayLike
         """
         shape = self.shape
+        from delayed_image.helpers import _ensure_valid_shape
+        shape = _ensure_valid_shape(shape)
         final = np.full(shape, fill_value=np.nan)
         return final
 
@@ -386,6 +388,8 @@ class DelayedNodata(DelayedNans):
             ArrayLike
         """
         shape = self.shape
+        from delayed_image.helpers import _ensure_valid_shape
+        shape = _ensure_valid_shape(shape)
         nodata_method = self.meta['nodata_method']
         if nodata_method == 'ma':
             # TODO: dtype should probably depend on what it will be combined
