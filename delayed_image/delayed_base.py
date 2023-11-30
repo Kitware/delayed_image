@@ -237,13 +237,34 @@ class DelayedOperation(ub.NiceRepr):
                 stack.append((node_id, child))
         return graph
 
-    def print_graph(self, fields='auto', with_labels=True, rich='auto', vertical_chains=True):
+    def print_graph(self, fields='auto', with_labels=True, rich='auto',
+                    vertical_chains=True):
         """
         Alias for write_network_text
-        """
-        self.write_network_text(fields=fields, with_labels=with_labels, rich=rich, vertical_chains=vertical_chains)
 
-    def write_network_text(self, fields='auto', with_labels=True, rich='auto', vertical_chains=True):
+        Args:
+            fields (str | List[str]):
+                Add the specified fields as labels. If 'auto' then does
+                somthing "reasonable". If 'all' then shows everything.
+                TODO: only implemented for "auto" and "all", implement general
+                field selection (PR Wanted).
+
+            with_labels (bool): set to false for no label data
+
+            rich (bool | str): defaults to 'auto'
+
+            vertical_chains (bool):
+                Defaults to True. Set to false to save vertical space at the
+                cost of horizontal space.
+        """
+        self.write_network_text(fields=fields, with_labels=with_labels,
+                                rich=rich, vertical_chains=vertical_chains)
+
+    def write_network_text(self, fields='auto', with_labels=True, rich='auto',
+                           vertical_chains=True):
+        """
+        Alias for :func:`DelayedOperation.print_graph`
+        """
         # TODO: remove once this is merged into networkx itself
         from delayed_image.util.util_network_text import write_network_text
         graph = self.as_graph(fields=fields)
@@ -254,7 +275,8 @@ class DelayedOperation(ub.NiceRepr):
         if rich:
             path = rich_mod.print
             end = ''
-        write_network_text(graph, with_labels=with_labels, path=path, end=end, vertical_chains=vertical_chains)
+        write_network_text(graph, with_labels=with_labels, path=path, end=end,
+                           vertical_chains=vertical_chains)
 
     @property
     def shape(self):

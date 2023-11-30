@@ -11,7 +11,6 @@ def demo():
 
     # Lets say you have some image. Maybe it is a very large image, but maybe not.
     # Either way, you have a path to it.
-    import kwimage
     fpath = kwimage.grab_test_image_fpath('amazon')
     print(f'fpath={fpath}')
 
@@ -38,4 +37,3 @@ def demo():
 
     # Some operations do need to know  we need to know
     delayed.prepare()
-
