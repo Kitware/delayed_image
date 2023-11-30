@@ -5,7 +5,10 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.2.11 - Unreleased
+## Version 0.2.12 - Unreleased
+
+
+## Version 0.2.11 - Released 2023-11-30
 
 ### Added
 * Add `DelayedNodata` which is currently unused, but should eventually replace

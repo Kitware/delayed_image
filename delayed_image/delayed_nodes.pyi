@@ -279,3 +279,7 @@ class _InnerAccumSegment:
 
     def get_subcomponent(curr, dsize):
         ...
+
+
+def isinstance2(inst, cls: type) -> bool:
+    ...
