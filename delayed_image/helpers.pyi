@@ -16,3 +16,18 @@ def quantize_float01(imdata,
                      old_max: int = ...,
                      quantize_dtype=...):
     ...
+
+
+class mkslice_cls:
+
+    def __class_getitem__(self, index):
+        ...
+
+    def __getitem__(self, index):
+        ...
+
+    def __call__(self):
+        ...
+
+
+mkslice: Incomplete

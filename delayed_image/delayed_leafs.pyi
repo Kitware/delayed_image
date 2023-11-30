@@ -53,6 +53,15 @@ class DelayedNans(DelayedImageLeaf):
         ...
 
 
+class DelayedNodata(DelayedNans):
+
+    def __init__(self,
+                 dsize: Incomplete | None = ...,
+                 channels: Incomplete | None = ...,
+                 nodata_method: str = ...) -> None:
+        ...
+
+
 class DelayedIdentity(DelayedImageLeaf):
     data: Incomplete
 
