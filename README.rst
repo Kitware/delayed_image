@@ -1,7 +1,8 @@
-The delayed_image Module
-========================
+Delayed Image
+=============
 
-|Pypi| |PypiDownloads| |ReadTheDocs|
+
+|GitlabCIPipeline| |GitlabCICoverage| |Pypi| |PypiDownloads| |ReadTheDocs|
 
 
 +------------------+-------------------------------------------------------------+
@@ -320,3 +321,9 @@ grouping.
 
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/delayed_image/badge/?version=latest
     :target: http://delayed_image.readthedocs.io/en/latest/
+
+.. |GitlabCIPipeline| image:: https://gitlab.kitware.com/computer-vision/delayed_image/badges/main/pipeline.svg
+   :target: https://gitlab.kitware.com/computer-vision/delayed_image/-/jobs
+
+.. |GitlabCICoverage| image:: https://gitlab.kitware.com/computer-vision/delayed_image/badges/main/coverage.svg
+    :target: https://gitlab.kitware.com/computer-vision/delayed_image/commits/main
