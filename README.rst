@@ -1,7 +1,6 @@
 Delayed Image
 =============
 
-
 |GitlabCIPipeline| |GitlabCICoverage| |Pypi| |PypiDownloads| |ReadTheDocs|
 
 

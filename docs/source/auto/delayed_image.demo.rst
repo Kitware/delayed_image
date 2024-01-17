@@ -5,3 +5,4 @@ delayed\_image.demo module
    :members:
    :undoc-members:
    :show-inheritance:
+   :private-members:
