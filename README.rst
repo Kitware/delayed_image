@@ -7,9 +7,9 @@ Delayed Image
 +------------------+-------------------------------------------------------------+
 | Read the docs    | https://delayed-image.readthedocs.io                        |
 +------------------+-------------------------------------------------------------+
-| Gitlab (main)    | https://gitlab.kitware.com/computer-vision/delayed-image    |
+| Gitlab (main)    | https://gitlab.kitware.com/computer-vision/delayed_image    |
 +------------------+-------------------------------------------------------------+
-| Github (mirror)  | https://github.com/Kitware/delayed-image                    |
+| Github (mirror)  | https://github.com/Kitware/delayed_image                    |
 +------------------+-------------------------------------------------------------+
 | Pypi             | https://pypi.org/project/delayed-image                      |
 +------------------+-------------------------------------------------------------+
