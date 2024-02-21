@@ -230,6 +230,12 @@ class BaseChannelSpec(ub.NiceRepr):
 
     def late_fuse(self, other):
         """
+        Args:
+            other (ChannelSpec | FusedChannelSpec): spec to late-fuse with.
+
+        Returns:
+            ChannelSpec: fused spec
+
         Example:
             >>> import delayed_image
             >>> a = delayed_image.ChannelSpec.coerce('A|B|C,edf')
@@ -247,11 +253,15 @@ class BaseChannelSpec(ub.NiceRepr):
             A|B|C,edf,A12
             A|B|C,edf,A12,rgb
         """
+        if isinstance(other, str):
+            other_spec = str
+        else:
+            other_spec = other.spec
         if not self.spec:
             return other
-        if not other.spec:
+        if not other_spec:
             return self
-        return ChannelSpec.coerce(self.spec + ',' + other.spec)
+        return ChannelSpec.coerce(self.spec + ',' + other_spec)
 
     def __add__(self, other):
         """
