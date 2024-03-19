@@ -1,7 +1,7 @@
 import kwimage
 import ubelt as ub
 import numpy as np
-from .util import util_network_text
+from delayed_image.util import util_network_text
 
 
 try:
