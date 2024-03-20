@@ -580,6 +580,8 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
         new_parts = [part.optimize() for part in self.parts]
         kw = ub.dict_isect(self.meta, ['dsize'])
         new = self.__class__(new_parts, **kw)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('optimize DelayedChannelConcat')
         return new
 
     @profile
@@ -757,7 +759,10 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
     def _push_operation_under(self, op, kwargs):
         # Note: we can't do this with a crop that has band selection
         # But spatial operations should be ok.
-        return self.__class__([op(p, **kwargs) for p in self.parts])
+        new = self.__class__([op(p, **kwargs) for p in self.parts])
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append(f'_push_operation_under {op}')
+        return new
 
     def _validate(self):
         """
@@ -1143,6 +1148,8 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
         assert isinstance2(self.subdata, DelayedChannelConcat)
         kwargs = ub.compatible(self.meta, self.__class__.__init__)
         new = self.subdata._push_operation_under(self.__class__, kwargs)
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('_opt_push_under_concat')
         return new
 
     def undo_warp(self, remove=None, retain=None, squash_nans=False, return_warp=False):
@@ -1288,7 +1295,10 @@ class DelayedAsXarray(DelayedImage):
         Returns:
             DelayedImage
         """
-        return self.subdata.optimize().as_xarray()
+        new = self.subdata.optimize().as_xarray()
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('optimize DelayedAsXarray')
+        return new
 
 
 class DelayedWarp(DelayedImage):
@@ -1495,6 +1505,8 @@ class DelayedWarp(DelayedImage):
                 new = new.optimize()
             else:
                 new = new._opt_absorb_overview()
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('optimize DelayedWarp')
         return new
 
     def _transform_from_subdata(self):
@@ -1506,6 +1518,12 @@ class DelayedWarp(DelayedImage):
         Combine two consecutive warps into a single operation.
         """
         assert isinstance2(self.subdata, DelayedWarp)
+
+        DEBUG = 0
+        if DEBUG:
+            print('before fuse warps')
+            self.print_graph()
+
         inner_data = self.subdata.subdata
         tf1 = self.subdata.meta['transform']
         tf2 = self.meta['transform']
@@ -1517,7 +1535,11 @@ class DelayedWarp(DelayedImage):
         new = self.__class__(inner_data, new_transform, dsize=dsize,
                              **common_meta)
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('Fused warps')
+            new._opt_logs.append('Fuse warps')
+
+        if DEBUG:
+            print('after fuse warps')
+            new.print_graph()
         return new
 
     @profile
@@ -1813,6 +1835,8 @@ class DelayedWarp(DelayedImage):
         # But only use as many downs as we have overviews
         num_downs = min(num_overviews, num_downs_possible)
         if num_downs == 0:
+            if TRACE_OPTIMIZE:
+                self._opt_logs.append('cannot _opt_split_warp_overview')
             return self
 
         # Given the overview, find the residual to reconstruct the original
@@ -1827,11 +1851,23 @@ class DelayedWarp(DelayedImage):
         overview = inner_data.get_overview(num_downs)
         if new_transform.isclose_identity():
             new = overview
+            if new.dsize != dsize:
+                # The warp must have had an implicit crop
+                implicit_crop = (slice(0, dsize[1]), slice(0, dsize[0]))
+                new = new.crop(implicit_crop, clip=False, wrap=False)
+                if TRACE_OPTIMIZE:
+                    new._opt_logs.append('Rewrite power of 2 warp as overview with crop')
+                new = new.optimize()
+            else:
+                if TRACE_OPTIMIZE:
+                    new._opt_logs.append('Rewrite power of 2 warp as overview')
         else:
             common_meta = ub.dict_isect(self.meta, self._algo_keys)
             new = overview.warp(new_transform, dsize=dsize, **common_meta)
+            if TRACE_OPTIMIZE:
+                new._opt_logs.append('Factor out overview from warp')
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('Split overviews')
+            new._opt_logs.append('_opt_split_warp_overview')
         return new
 
 
@@ -1897,6 +1933,8 @@ class DelayedDequantize(DelayedImage):
 
         if isinstance2(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('optimize DelayedDequantize')
         return new
 
     @profile
@@ -2067,7 +2105,8 @@ class DelayedCrop(DelayedImage):
                     new._opt_logs.extend(_new_logs)
             else:
                 new = new._opt_push_under_concat().optimize()
-
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('optimize crop')
         return new
 
     @profile
@@ -2120,7 +2159,10 @@ class DelayedCrop(DelayedImage):
             >>> self._validate()
             >>> crop1._validate()
         """
-        assert isinstance2(self.subdata, DelayedCrop)
+        assert isinstance2(self.subdata, DelayedCrop), (
+            'can only call this method on two sequential crops'
+        )
+        # self.print_graph()
         # Inner is the data closer to the leaf (disk), outer is the data closer
         # to the user (output).
         inner_data = self.subdata.subdata
@@ -2151,7 +2193,7 @@ class DelayedCrop(DelayedImage):
         new_crop = (slice(new_ystart, new_ystop), slice(new_xstart, new_xstop))
         new = self.__class__(inner_data, new_crop, new_chan_idxs)
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('fuse crops')
+            new._opt_logs.append('Fuse crops')
         return new
 
     @profile
@@ -2289,8 +2331,6 @@ class DelayedOverview(DelayedImage):
             ub.cmd('gdalinfo foo.tif', verbose=3)
         """
         # The rounding operation for gdal overviews is ceiling
-        def iceil(x):
-            return int(np.ceil(x))
         w = iceil(sf * w)
         h = iceil(sf * h)
         self.meta['dsize'] = (w, h)
@@ -2357,6 +2397,8 @@ class DelayedOverview(DelayedImage):
             new = new.optimize()
         if isinstance2(new.subdata, DelayedChannelConcat):
             new = new._opt_push_under_concat().optimize()
+        if TRACE_OPTIMIZE:
+            new._opt_logs.append('optimize overview')
         return new
 
     def _transform_from_subdata(self):
@@ -2533,7 +2575,6 @@ class CoordinateCompatibilityError(ValueError):
     Error when trying to perform operations on data in different coordinate
     systems.
     """
-    pass
 
 
 class _InnerAccumSegment:  # (ub.NiceRepr):
@@ -2646,3 +2687,7 @@ def isinstance2(inst, cls):
     else:
         return any(inst_cls.__name__ == cls.__name__
                    for inst_cls in inst.__class__.__mro__)
+
+
+def iceil(x):
+    return int(np.ceil(x))

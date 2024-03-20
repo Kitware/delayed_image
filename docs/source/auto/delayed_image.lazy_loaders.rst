@@ -5,3 +5,4 @@ delayed\_image.lazy\_loaders module
    :members:
    :undoc-members:
    :show-inheritance:
+   :private-members:

@@ -5,7 +5,14 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.2.12 - Unreleased
+## Version 0.2.13 - Unreleased
+
+### Fixed
+
+* Fixed issue where optimizing an implicitly cropped warp and overview would drop the implicit crop.
+
+
+## Version 0.2.12 - Released 2023-11-30
 
 
 ## Version 0.2.11 - Released 2023-11-30

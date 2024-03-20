@@ -1,5 +1,36 @@
 r"""
-The delayed image module.
+Delayed Image
+=============
+
++------------------+-------------------------------------------------------------+
+| Read the docs    | https://delayed-image.readthedocs.io                        |
++------------------+-------------------------------------------------------------+
+| Gitlab (main)    | https://gitlab.kitware.com/computer-vision/delayed-image    |
++------------------+-------------------------------------------------------------+
+| Github (mirror)  | https://github.com/Kitware/delayed-image                    |
++------------------+-------------------------------------------------------------+
+| Pypi             | https://pypi.org/project/delayed-image                      |
++------------------+-------------------------------------------------------------+
+
+The delayed image module lets you describe (a tree of) image operations, but
+waits to execute them until the user calls ``finalize``. This allows for a
+sequence of operations to be optimized before it is executed, which means
+faster execution and fewer quantization artifacts.
+
+The optimization logic can also leverage image formats that contain builtin
+tiling or overviews using the GDAL library. Formats that contain tiles allow
+delayed image to read only a subset of the image, if only a small part is
+cropped to it.  Overviews allow delayed image to load pre-downscaled images if
+it detects a scaling operation. This is **much** faster than the naive way of
+accomplishing these operations, and **much** easier than having to remember to
+do everything in the right order yourself.
+
+Note: GDAL is optional, but recommended. Precompiled GDAL wheels are available
+on Kitware's `large image wheel repository <https://girder.github.io/large_image_wheels/>`__.
+Use ``pip install gdal -f https://girder.github.io/large_image_wheels/``
+to install GDAL from this server. Track status of official GDAL wheels `here
+<https://github.com/OSGeo/gdal/issues/3060>`__.
+
 
 TODO:
     The optimize logic could likley be better expressed as some sort of
@@ -252,7 +283,7 @@ Example:
 """
 
 
-__version__ = '0.2.12'
+__version__ = '0.2.13'
 __author__ = 'Jon Crall'
 __author_email__ = 'jon.crall@kitware.com'
 

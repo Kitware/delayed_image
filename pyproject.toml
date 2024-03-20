@@ -19,6 +19,7 @@ author_email = "jon.crall@kitware.com"
 description = "The delayed_image module"
 typed = true
 license = "Apache 2"
+render_doc_images = 1
 dev_status = "planning"
 
 [tool.pytest.ini_options]

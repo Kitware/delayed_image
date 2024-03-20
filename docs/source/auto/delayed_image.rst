@@ -1,6 +1,14 @@
 delayed\_image package
 ======================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   delayed_image.util
+
 Submodules
 ----------
 
@@ -23,3 +31,4 @@ Module contents
    :members:
    :undoc-members:
    :show-inheritance:
+   :private-members:

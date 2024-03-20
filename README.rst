@@ -1,15 +1,15 @@
-The delayed_image Module
-========================
+Delayed Image
+=============
 
-|Pypi| |PypiDownloads| |ReadTheDocs|
+|GitlabCIPipeline| |GitlabCICoverage| |Pypi| |PypiDownloads| |ReadTheDocs|
 
 
 +------------------+-------------------------------------------------------------+
 | Read the docs    | https://delayed-image.readthedocs.io                        |
 +------------------+-------------------------------------------------------------+
-| Gitlab (main)    | https://gitlab.kitware.com/computer-vision/delayed-image    |
+| Gitlab (main)    | https://gitlab.kitware.com/computer-vision/delayed_image    |
 +------------------+-------------------------------------------------------------+
-| Github (mirror)  | https://github.com/Kitware/delayed-image                    |
+| Github (mirror)  | https://github.com/Kitware/delayed_image                    |
 +------------------+-------------------------------------------------------------+
 | Pypi             | https://pypi.org/project/delayed-image                      |
 +------------------+-------------------------------------------------------------+
@@ -320,3 +320,9 @@ grouping.
 
 .. |ReadTheDocs| image:: https://readthedocs.org/projects/delayed_image/badge/?version=latest
     :target: http://delayed_image.readthedocs.io/en/latest/
+
+.. |GitlabCIPipeline| image:: https://gitlab.kitware.com/computer-vision/delayed_image/badges/main/pipeline.svg
+   :target: https://gitlab.kitware.com/computer-vision/delayed_image/-/jobs
+
+.. |GitlabCICoverage| image:: https://gitlab.kitware.com/computer-vision/delayed_image/badges/main/coverage.svg
+    :target: https://gitlab.kitware.com/computer-vision/delayed_image/commits/main

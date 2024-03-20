@@ -32,6 +32,8 @@ class DelayedImageLeaf(DelayedImage):
 
     @profile
     def optimize(self):
+        if TRACE_OPTIMIZE:
+            self._opt_logs.append('optimize DelayedImageLeaf')
         return self
 
 

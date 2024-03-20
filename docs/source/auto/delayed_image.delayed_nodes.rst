@@ -5,3 +5,4 @@ delayed\_image.delayed\_nodes module
    :members:
    :undoc-members:
    :show-inheritance:
+   :private-members:

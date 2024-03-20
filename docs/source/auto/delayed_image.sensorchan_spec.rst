@@ -5,3 +5,4 @@ delayed\_image.sensorchan\_spec module
    :members:
    :undoc-members:
    :show-inheritance:
+   :private-members:
