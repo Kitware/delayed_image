@@ -2,13 +2,13 @@ import kwarray
 import kwimage
 import numpy as np
 
-try:
-    from xdev import profile
-except ImportError:
-    from ubelt import identity as profile
+# try:
+#     from xdev import profile
+# except ImportError:
+#     from ubelt import identity as profile
 
 
-@profile
+# @profile
 def test_shuffle_delayed_operations():
     """
     CommandLine:

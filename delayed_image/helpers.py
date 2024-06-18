@@ -88,7 +88,7 @@ def _largest_shape(shapes):
     return largest
 
 
-@profile
+# @profile
 def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     r"""
     Given a warp followed by a crop, compute the corresponding crop followed by
@@ -219,7 +219,7 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     return leaf_crop_slices, tf_newleaf_to_newroot
 
 
-@profile
+# @profile
 def _swap_crop_after_warp(inner_region, outer_transform):
     r"""
     Given a crop followed by a warp (usually an overview), compute the
