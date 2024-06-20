@@ -7,14 +7,13 @@ import ubelt as ub
 import numpy as np
 import kwimage
 from os.path import join, exists
-
 from collections import OrderedDict
 
-try:
-    import xdev
-    profile = xdev.profile
-except Exception:
-    profile = ub.identity
+# try:
+#     import xdev
+#     profile = xdev.profile
+# except Exception:
+#     profile = ub.identity
 
 
 class CacheDict(OrderedDict):
@@ -26,14 +25,10 @@ class CacheDict(OrderedDict):
         >>> c[1] = 1
         >>> c[2] = 2
         >>> c[3] = 3
-        >>> c
-        CacheDict([(2, 2), (3, 3)])
-        >>> c[2]
-        2
+        >>> assert c == CacheDict([(2, 2), (3, 3)])
+        >>> assert c[2] == 2
         >>> c[4] = 4
-        >>> c
-        CacheDict([(2, 2), (4, 4)])
-        >>>
+        >>> assert c == CacheDict([(2, 2), (4, 4)])
 
     References:
         https://gist.github.com/davesteele/44793cd0348f59f8fadd49d7799bd306
@@ -99,12 +94,16 @@ def _have_spectral():
     else:
         return spectral is not None
 
+try:
+    complex_ = np.complex
+except AttributeError:
+    complex_ = np.complex128
 
 _GDAL_DTYPE_LUT = {
     1: np.uint8,     2: np.uint16,
     3: np.int16,     4: np.uint32,      5: np.int32,
-    6: np.float32,   7: np.float64,     8: np.complex_,
-    9: np.complex_,  10: np.complex64,  11: np.complex128
+    6: np.float32,   7: np.float64,     8: complex_,
+    9: complex_,    10: np.complex64,  11: np.complex128
 }
 
 
@@ -147,7 +146,7 @@ class LazySpectralFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    @profile
+    # @profile
     def __getitem__(self, index):
         ds = self._ds
 
@@ -255,7 +254,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    @profile
+    # @profile
     def __getitem__(self, index):
         ds = self._ds
         width = ds.width
@@ -329,7 +328,7 @@ def _demo_geoimg_with_nodata():
     imdata[-100:] = nodata
     imdata[0:200:, -200:-180] = nodata
 
-    kwimage.imwrite(geo_fpath, imdata, backend='gdal', nodata=-9999, crs=crs, transform=transform)
+    kwimage.imwrite(geo_fpath, imdata, backend='gdal', nodata_value=-9999, crs=crs, transform=transform)
     return geo_fpath
 
 
@@ -390,7 +389,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         """
         return _have_gdal()
 
-    @profile
+    # @profile
     def _reload_cache(self):
         gdal = _import_gdal()
         # from osgeo import gdal
@@ -507,7 +506,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    @profile
+    # @profile
     def __getitem__(self, index):
         r"""
         References:

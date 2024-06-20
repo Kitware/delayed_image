@@ -29,6 +29,11 @@ def test_optimize_crop_without_clip_reproduction():
     """
     import delayed_image
     import kwimage
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip()
     fpath = kwimage.grab_test_image_fpath(overviews=3, dsize=(4032, 3024))
     base = delayed_image.DelayedLoad(fpath, channels='r|g|b').prepare()
     space_slice = (slice(1596.0, 3024), slice(1512.5, 3176.5))
@@ -58,6 +63,11 @@ def test_optimize_crop_without_clip_simplified():
     """
     import delayed_image
     import kwimage
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip()
     fpath = kwimage.grab_test_image_fpath(overviews=0, dsize=(416, 416))
     base = delayed_image.DelayedLoad(fpath, channels='r|g|b').prepare()
     space_slice = (slice(0, 357), slice(0, 416))
@@ -78,6 +88,11 @@ def test_optimize_crop_without_clip_minimal():
     """
     import delayed_image
     import kwimage
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip()
     fpath = kwimage.grab_test_image_fpath(overviews=3, dsize=(4032, 3024))
     base = delayed_image.DelayedLoad(fpath, channels='r|g|b').prepare()
     delayed = base

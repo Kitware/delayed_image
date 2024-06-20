@@ -2,13 +2,13 @@ import kwarray
 import kwimage
 import numpy as np
 
-try:
-    from xdev import profile
-except ImportError:
-    from ubelt import identity as profile
+# try:
+#     from xdev import profile
+# except ImportError:
+#     from ubelt import identity as profile
 
 
-@profile
+# @profile
 def test_shuffle_delayed_operations():
     """
     CommandLine:
@@ -100,6 +100,12 @@ def test_static_operation_optimize_single_chain():
 
     from delayed_image.delayed_leafs import DelayedLoad
     import kwimage
+
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip()
 
     # Grab a test image that contains 3 precomputed overviews
     fpath = kwimage.grab_test_image_fpath(overviews=3)
