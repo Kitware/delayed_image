@@ -328,7 +328,7 @@ def _demo_geoimg_with_nodata():
     imdata[-100:] = nodata
     imdata[0:200:, -200:-180] = nodata
 
-    kwimage.imwrite(geo_fpath, imdata, backend='gdal', nodata=-9999, crs=crs, transform=transform)
+    kwimage.imwrite(geo_fpath, imdata, backend='gdal', nodata_value=-9999, crs=crs, transform=transform)
     return geo_fpath
 
 

@@ -101,6 +101,12 @@ def test_static_operation_optimize_single_chain():
     from delayed_image.delayed_leafs import DelayedLoad
     import kwimage
 
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip()
+
     # Grab a test image that contains 3 precomputed overviews
     fpath = kwimage.grab_test_image_fpath(overviews=3)
 

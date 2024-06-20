@@ -6,6 +6,11 @@ def test_subchannel_select_with_overviews_case1():
     caused it in production.
     """
     import delayed_image
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip('test has overviews')
 
     leaf = delayed_image.DelayedLoad.demo(channels='r|g|b', overviews=3)
     leaf.prepare()
@@ -54,6 +59,11 @@ def test_subchannel_select_with_overviews_case2():
     This reproduces a bug in version < 0.2.8 with a minimal example
     """
     import delayed_image
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip('test has overviews')
 
     leaf = delayed_image.DelayedLoad.demo(channels='r|g|b', overviews=3)
     leaf.prepare()

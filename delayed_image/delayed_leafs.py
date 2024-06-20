@@ -99,7 +99,7 @@ class DelayedLoad(DelayedImageLeaf):
         >>> poly.fill(data, np.nan)
         >>> data_uint16, quantization = quantize_float01(data)
         >>> nodata = quantization['nodata']
-        >>> kwimage.imwrite(fpath, data_uint16, nodata=nodata, backend='gdal', overviews=3)
+        >>> kwimage.imwrite(fpath, data_uint16, nodata_value=nodata, backend='gdal', overviews=3)
         >>> # Test loading the data
         >>> self = DelayedLoad(fpath, channels='r|g|b', nodata_method='float').prepare()
         >>> node0 = self

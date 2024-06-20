@@ -60,6 +60,7 @@ Example:
     >>> dimg = dimg[0:200, 1:200]
     >>> dimg = dimg[1:200, 2:200]
     >>> dimg.write_network_text()
+    >>> # xdoctest: +IGNORE_WANT("numpy2.0 changed the pattern")
     ╙── Crop dsize=(128,130),space_slice=(slice(1,131,None),slice(2,130,None))
         ╽
         Crop dsize=(130,131),space_slice=(slice(0,131,None),slice(1,131,None))

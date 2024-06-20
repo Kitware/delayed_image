@@ -99,6 +99,12 @@ def test_issue4():
     import kwimage
     import numpy as np
 
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip('test uses overviews. needs osgeo.gdal')
+
     r = delayed_image.DelayedLoad.demo(channels='r', overviews=6, dsize=(219, 219))
     g = delayed_image.DelayedLoad.demo(channels='g', overviews=6, dsize=(219, 219))
     b = delayed_image.DelayedLoad.demo(channels='b', overviews=6, dsize=(219, 219))
@@ -211,6 +217,13 @@ def test_oob_crop_after_warp_with_overviews():
     """
     import delayed_image
     from delayed_image.helpers import mkslice
+
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip('test uses overviews. needs osgeo.gdal')
+
     base = delayed_image.DelayedLoad.demo(dsize=(256, 256), overviews=3)
     base = base.warp({'scale': 0.1})
     slices = mkslice[300:500, 400:500]
@@ -247,6 +260,11 @@ def test_oob_crop_after_warp_with_overviews():
 
 def test_both_total_negative_slice():
     import delayed_image
+    try:
+        import osgeo
+    except ImportError:
+        import pytest
+        pytest.skip('test uses overviews. needs osgeo.gdal')
     base = delayed_image.DelayedLoad.demo(dsize=(128, 128), overviews=3)
     base = base.warp({'scale': 2.0})
     slices = (slice(-173, -60, None), slice(-123, -10, None))
