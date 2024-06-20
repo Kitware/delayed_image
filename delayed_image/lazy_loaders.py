@@ -7,7 +7,6 @@ import ubelt as ub
 import numpy as np
 import kwimage
 from os.path import join, exists
-
 from collections import OrderedDict
 
 # try:
@@ -26,14 +25,10 @@ class CacheDict(OrderedDict):
         >>> c[1] = 1
         >>> c[2] = 2
         >>> c[3] = 3
-        >>> c
-        CacheDict([(2, 2), (3, 3)])
-        >>> c[2]
-        2
+        >>> assert c == CacheDict([(2, 2), (3, 3)])
+        >>> assert c[2] == 2
         >>> c[4] = 4
-        >>> c
-        CacheDict([(2, 2), (4, 4)])
-        >>>
+        >>> assert c == CacheDict([(2, 2), (4, 4)])
 
     References:
         https://gist.github.com/davesteele/44793cd0348f59f8fadd49d7799bd306
@@ -99,12 +94,16 @@ def _have_spectral():
     else:
         return spectral is not None
 
+try:
+    complex_ = np.complex
+except AttributeError:
+    complex_ = np.complex128
 
 _GDAL_DTYPE_LUT = {
     1: np.uint8,     2: np.uint16,
     3: np.int16,     4: np.uint32,      5: np.int32,
-    6: np.float32,   7: np.float64,     8: np.complex_,
-    9: np.complex_,  10: np.complex64,  11: np.complex128
+    6: np.float32,   7: np.float64,     8: complex_,
+    9: complex_,    10: np.complex64,  11: np.complex128
 }
 
 

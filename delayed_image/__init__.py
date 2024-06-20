@@ -283,7 +283,7 @@ Example:
 """
 
 
-__version__ = '0.2.14'
+__version__ = '0.3.0'
 __author__ = 'Jon Crall'
 __author_email__ = 'jon.crall@kitware.com'
 
