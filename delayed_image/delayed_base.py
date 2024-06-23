@@ -9,10 +9,10 @@ try:
 except Exception:
     rich_mod = None
 
-# try:
-#     from xdev import profile
-# except ImportError:
-#     profile = ub.identity
+try:
+    from line_profiler import profile
+except ImportError:
+    profile = ub.identity
 
 
 # from kwcoco.util.util_monkey import Reloadable  # NOQA
@@ -30,7 +30,7 @@ class DelayedOperation(ub.NiceRepr):
         """
         return '{}'.format(self.shape)
 
-    # @profile
+    @profile
     def nesting(self):
         """
         Returns:
@@ -103,7 +103,7 @@ class DelayedOperation(ub.NiceRepr):
             node_data['label'] = f'{short_type} {param_key}'
         return graph
 
-    # @profile
+    @profile
     def _traverse(self):
         """
         A flat list of all descendent nodes and their parents
@@ -122,7 +122,7 @@ class DelayedOperation(ub.NiceRepr):
             for child in item.children():
                 stack.append((item, child))
 
-    # @profile
+    @profile
     def leafs(self):
         """
         Iterates over all leafs in the tree.
@@ -144,7 +144,7 @@ class DelayedOperation(ub.NiceRepr):
 
     _leafs = leafs
 
-    # @profile
+    @profile
     def _leaf_paths(self):
         """
         Builds all independent paths to leafs.
@@ -202,7 +202,7 @@ class DelayedOperation(ub.NiceRepr):
                         prev = part
                 yield leaf, part
 
-    # @profile
+    @profile
     def _traversed_graph(self):
         """
         A flat list of all descendent nodes and their parents
@@ -321,7 +321,7 @@ class DelayedOperation(ub.NiceRepr):
         """
         raise NotImplementedError
 
-    # @profile
+    @profile
     def finalize(self, prepare=True, optimize=True, **kwargs):
         """
         Evaluate the operation tree in full.
@@ -375,7 +375,7 @@ class DelayedOperation(ub.NiceRepr):
         """
         raise NotImplementedError
 
-    # @profile
+    @profile
     def _set_nested_params(self, **kwargs):
         """
         Hack to override nested params on all warps for things like

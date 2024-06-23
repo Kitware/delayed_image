@@ -5,8 +5,7 @@ from delayed_image.util import util_network_text
 
 
 try:
-    import xdev
-    profile = xdev.profile
+    from line_profiler import profile
 except Exception:
     profile = ub.identity
 

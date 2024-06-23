@@ -9,11 +9,10 @@ import kwimage
 from os.path import join, exists
 from collections import OrderedDict
 
-# try:
-#     import xdev
-#     profile = xdev.profile
-# except Exception:
-#     profile = ub.identity
+try:
+    from line_profiler import profile
+except Exception:
+    profile = ub.identity
 
 
 class CacheDict(OrderedDict):
@@ -146,7 +145,7 @@ class LazySpectralFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    # @profile
+    @profile
     def __getitem__(self, index):
         ds = self._ds
 
@@ -254,7 +253,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    # @profile
+    @profile
     def __getitem__(self, index):
         ds = self._ds
         width = ds.width
@@ -389,7 +388,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         """
         return _have_gdal()
 
-    # @profile
+    @profile
     def _reload_cache(self):
         gdal = _import_gdal()
         # from osgeo import gdal
@@ -506,7 +505,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    # @profile
+    @profile
     def __getitem__(self, index):
         r"""
         References:
