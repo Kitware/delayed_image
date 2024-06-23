@@ -666,6 +666,9 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             request_codes = None
         else:
             channels = channel_spec.FusedChannelSpec.coerce(channels)
+            if current_channels == channels:
+                # If the request is equal to what we already have then skip this.
+                return self
             # Computer subindex integer mapping
             request_codes = channels.as_list()
             top_codes = current_channels.as_oset()
@@ -1001,6 +1004,7 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
         space_slice = (sl_y, sl_x)
         return self.crop(space_slice, chan_idxs)
 
+    @profile
     def take_channels(self, channels):
         """
         This method returns a subset of the vision data with only the

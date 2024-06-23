@@ -10,6 +10,11 @@ from os.path import join, exists
 from collections import OrderedDict
 
 try:
+    from functools import cache
+except ImportError:
+    from ubelt import memoize as cache
+
+try:
     from line_profiler import profile
 except Exception:
     profile = ub.identity
@@ -56,7 +61,7 @@ class CacheDict(OrderedDict):
 GLOBAL_GDAL_CACHE = None
 
 
-@ub.memoize
+@cache
 def _import_gdal():
     from osgeo import gdal
     if getattr(gdal, '_UserHasSpecifiedIfUsingExceptions', lambda: False)():
@@ -64,7 +69,7 @@ def _import_gdal():
     return gdal
 
 
-@ub.memoize
+@cache
 def _have_gdal():
     try:
         gdal = _import_gdal()
@@ -74,7 +79,7 @@ def _have_gdal():
         return gdal is not None
 
 
-@ub.memoize
+@cache
 def _have_rasterio():
     try:
         import rasterio
@@ -84,7 +89,7 @@ def _have_rasterio():
         return rasterio is not None
 
 
-@ub.memoize
+@cache
 def _have_spectral():
     try:
         import spectral

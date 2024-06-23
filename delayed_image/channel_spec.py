@@ -696,7 +696,8 @@ class FusedChannelSpec(BaseChannelSpec):
     def as_set(self):
         return set(self.normalize().parsed)
 
-    # TODO: deprecate "as" methods in favor of "to" methods
+    # TODO: deprecate "as" methods in favor of "to" methods?
+    # Or are the as method prefered?
     to_set = as_set
     to_oset = as_oset
     to_list = as_list
@@ -748,14 +749,19 @@ class FusedChannelSpec(BaseChannelSpec):
             >>> FCS = FusedChannelSpec.coerce
             >>> self = FCS('rgb|disparity|flowx|flowy')
             >>> other = FCS('r|b|XX')
-            >>> self.intersection(other)
+            >>> assert self.intersection(other) == FCS('r|b')
         """
         try:
-            other_norm = ub.oset(other.normalize().parsed)
+            _other_norm = other.normalize()
+            _other_parsed = _other_norm.parsed
         except Exception:
-            other_norm = other
-        self_norm = ub.oset(self.normalize().parsed)
-        new_parsed = list(self_norm & other_norm)
+            _other_parsed = other
+        _self_norm = self.normalize()
+        _self_parsed = _self_norm.parsed
+        _other_parsed_set = set(_other_parsed)
+        new_parsed = [c for c in _self_parsed if c in _other_parsed_set]
+        # Note: the previous oset implementation is concise, but too slow.
+        # new_parsed = list(ub.oset(_self_parsed) & ub.oset(_other_parsed))
         new = self.__class__(new_parsed, _is_normalized=True)
         return new
 
@@ -766,7 +772,7 @@ class FusedChannelSpec(BaseChannelSpec):
             >>> FCS = FusedChannelSpec.coerce
             >>> self = FCS('rgb|disparity|flowx|flowy')
             >>> other = FCS('r|b|XX')
-            >>> self.union(other)
+            >>> assert self.union(other) == FCS('r|g|b|disparity|flowx|flowy|XX')
         """
         try:
             other_norm = ub.oset(other.normalize().parsed)
