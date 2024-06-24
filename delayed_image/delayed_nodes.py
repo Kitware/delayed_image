@@ -1664,8 +1664,14 @@ class DelayedWarp(DelayedImage):
 
         # Check if there is a strict downsampling component
         transform = self.meta['transform']
-        params = transform.decompose()
-        sx, sy = params['scale']
+
+        # Old Slow Code:
+        # params = transform.decompose()
+        # sx, sy = params['scale']
+        # New Optimized Code:
+        from delayed_image.helpers import _decompose_scale
+        sx, sy = _decompose_scale(transform)
+
         eps = 1e-8
         twoish = (2 - eps)
         if sx < twoish and sy < twoish:
