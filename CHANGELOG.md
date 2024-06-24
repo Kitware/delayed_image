@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## Version 0.3.1 - Unreleased
 
 ### Changed:
+* Added the `lazy` keyword argument to `crop` and `warp`, which will attempt to avoid overhead of creating a new layer if the operation is a no-op.
 * Minor speed improvements
 * Can now specify `num_overviews` to DelayedLoad to bypass metadata preparation.
 

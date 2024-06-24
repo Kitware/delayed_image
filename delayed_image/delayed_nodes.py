@@ -165,7 +165,7 @@ class ImageOpsMixin:
 
             lazy (bool):
                 if True, we check if the slice is equal to the image extent and
-                do nothing if possible.
+                do nothing if possible. (Introduced in 0.3.1)
 
         Returns:
             DelayedImage
@@ -353,7 +353,7 @@ class ImageOpsMixin:
 
             lazy (bool):
                 if True, we check if the operation would be a noop and return
-                the original object instead.
+                the original object instead. (Introduced in 0.3.1)
 
         Returns:
             DelayedImage
@@ -387,6 +387,7 @@ class ImageOpsMixin:
     def scale(self, scale, dsize='auto', **warp_kwargs):
         """
         An alias for self.warp({"scale": scale}, ...)
+        Backend is simply a call to :func:`ImageOpsMixin.warp`.
         """
         transform = {'scale': scale}
         return self.warp(transform, dsize=dsize, **warp_kwargs)
@@ -394,6 +395,7 @@ class ImageOpsMixin:
     def resize(self, dsize, **warp_kwargs):
         """
         Resize an image to a specific width/height by scaling it.
+        Backend is simply a call to :func:`ImageOpsMixin.warp`.
         """
         old_dsize = np.array(self.dsize)
         new_dsize = np.array(dsize)
