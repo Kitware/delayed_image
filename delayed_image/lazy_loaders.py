@@ -9,11 +9,15 @@ import kwimage
 from os.path import join, exists
 from collections import OrderedDict
 
-# try:
-#     import xdev
-#     profile = xdev.profile
-# except Exception:
-#     profile = ub.identity
+try:
+    from functools import cache
+except ImportError:
+    from ubelt import memoize as cache
+
+try:
+    from line_profiler import profile
+except Exception:
+    profile = ub.identity
 
 
 class CacheDict(OrderedDict):
@@ -54,10 +58,11 @@ class CacheDict(OrderedDict):
 
 # Only can use this cache if we assume we are in readonly mode
 # GLOBAL_GDAL_CACHE = CacheDict(cache_len=32)
+# GLOBAL_GDAL_CACHE = CacheDict(cache_len=100_000)
 GLOBAL_GDAL_CACHE = None
 
 
-@ub.memoize
+@cache
 def _import_gdal():
     from osgeo import gdal
     if getattr(gdal, '_UserHasSpecifiedIfUsingExceptions', lambda: False)():
@@ -65,7 +70,7 @@ def _import_gdal():
     return gdal
 
 
-@ub.memoize
+@cache
 def _have_gdal():
     try:
         gdal = _import_gdal()
@@ -75,7 +80,7 @@ def _have_gdal():
         return gdal is not None
 
 
-@ub.memoize
+@cache
 def _have_rasterio():
     try:
         import rasterio
@@ -85,7 +90,7 @@ def _have_rasterio():
         return rasterio is not None
 
 
-@ub.memoize
+@cache
 def _have_spectral():
     try:
         import spectral
@@ -146,7 +151,7 @@ class LazySpectralFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    # @profile
+    @profile
     def __getitem__(self, index):
         ds = self._ds
 
@@ -254,7 +259,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    # @profile
+    @profile
     def __getitem__(self, index):
         ds = self._ds
         width = ds.width
@@ -389,7 +394,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         """
         return _have_gdal()
 
-    # @profile
+    @profile
     def _reload_cache(self):
         gdal = _import_gdal()
         # from osgeo import gdal
@@ -506,7 +511,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         from os.path import basename
         return '.../' + basename(self.fpath)
 
-    # @profile
+    @profile
     def __getitem__(self, index):
         r"""
         References:
@@ -607,8 +612,6 @@ class LazyGDalFrameFile(ub.NiceRepr):
             INTERLEAVE = ds.GetMetadata('IMAGE_STRUCTURE').get('INTERLEAVE', '')
             if INTERLEAVE == 'BAND':
                 if len(ds.GetSubDatasets()) > 0:
-                    import xdev
-                    xdev.embed()
                     raise NotImplementedError('Cannot handle interleaved files yet')
 
         if not ub.iterable(index):

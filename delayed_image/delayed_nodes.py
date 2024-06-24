@@ -12,10 +12,10 @@ from delayed_image.delayed_base import DelayedNaryOperation, DelayedUnaryOperati
 from delayed_image import delayed_leafs
 
 
-# try:
-#     from xdev import profile
-# except Exception:
-#     from ubelt import identity as profile
+try:
+    from line_profiler import profile
+except Exception:
+    from ubelt import identity as profile
 
 # --------
 # Stacking
@@ -137,8 +137,9 @@ class DelayedFrameStack(DelayedStack):
 
 class ImageOpsMixin:
 
-    # @profile
-    def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True, pad=0):
+    @profile
+    def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True,
+             pad=0, lazy=False):
         """
         Crops an image along integer pixel coordinates.
 
@@ -161,6 +162,10 @@ class ImageOpsMixin:
 
             pad (int | List[Tuple[int, int]]):
                 if specified, applies extra padding
+
+            lazy (bool):
+                if True, we check if the slice is equal to the image extent and
+                do nothing if possible. (Introduced in 0.3.1)
 
         Returns:
             DelayedImage
@@ -240,7 +245,37 @@ class ImageOpsMixin:
             >>> canvas = kwimage.fill_nans_with_checkers(canvas)
             >>> kwplot.imshow(canvas, title='Negative Slicing: Cropped Images With clip=False wrap=False', doclf=1, fnum=2)
             >>> kwplot.show_if_requested()
+
+        Example:
+            >>> # Test lazy case
+            >>> from delayed_image import DelayedLoad
+            >>> self = DelayedLoad.demo().prepare()
+            >>> w, h = self.dsize[0:2]
+            >>> space_slice1 = (slice(0, h), slice(0, w)) # entire image
+            >>> space_slice2 = (slice(None), slice(None)) # entire image
+            >>> space_slice3 = (slice(0, w // 2), slice(1, h)) # subimage
+            >>> result1 = self.crop(space_slice1, lazy=True)
+            >>> result2 = self.crop(space_slice2, lazy=True)
+            >>> result3 = self.crop(space_slice3, lazy=True)
+            >>> assert result1 is self
+            >>> assert result2 is self
+            >>> assert result3 is not self
         """
+        if lazy:
+            # If we are in lazy mode and we can detect the crop wont do
+            # anything then skip it.
+            w, h = self.dsize
+            sl_y, sl_x = space_slice
+            is_noop = (
+                (sl_y.start is None or sl_y.start == 0) and
+                (sl_y.stop is None or sl_y.stop == h) and
+                (sl_x.start is None or sl_x.start == 0) and
+                (sl_x.stop is None or sl_x.stop == w) and
+                (not pad)
+            )
+            if is_noop:
+                return self
+
         if not clip or not wrap or pad:
             if clip or wrap:
                 raise NotImplementedError(
@@ -258,7 +293,7 @@ class ImageOpsMixin:
             new = DelayedCrop(self, space_slice, chan_idxs)
         return new
 
-    # @profile
+    @profile
     def _padded_crop(self, space_slice, pad=0):
         """
         Does the type of padded crop we want, but inefficiently using a warp.
@@ -283,7 +318,7 @@ class ImageOpsMixin:
             new = new.warp(pad_warp, dsize=dsize)
         return new
 
-    def warp(self, transform, dsize='auto', **warp_kwargs):
+    def warp(self, transform, dsize='auto', lazy=False, **warp_kwargs):
         """
         Applys an affine transformation to the image. See :class:`DelayedWarp`.
 
@@ -316,15 +351,43 @@ class ImageOpsMixin:
                 scale, rotation, translation, shear) less than this value,
                 the warp node can be optimized away. Defaults to 0.
 
+            lazy (bool):
+                if True, we check if the operation would be a noop and return
+                the original object instead. (Introduced in 0.3.1)
+
         Returns:
             DelayedImage
+
+        Example:
+            >>> from delayed_image import DelayedLoad
+            >>> self = DelayedLoad.demo().prepare()
+            >>> new = self.warp({'scale': 1 / 2})
+            >>> assert self.dsize
+
+        Example:
+            >>> # Test with lazy
+            >>> from delayed_image import DelayedLoad
+            >>> self = DelayedLoad.demo().prepare()
+            >>> result1 = self.warp({'scale': 1}, lazy=True)
+            >>> result2 = self.warp(None, lazy=True)
+            >>> result3 = self.warp(np.eye(3), lazy=True)
+            >>> assert self is result1
+            >>> assert self is result2
+            >>> assert self is result3
         """
+        if lazy:
+            if transform is None:
+                return self
+            transform = kwimage.Affine.coerce(transform)
+            if transform.isclose_identity():
+                return self
         new = DelayedWarp(self, transform, dsize=dsize, **warp_kwargs)
         return new
 
     def scale(self, scale, dsize='auto', **warp_kwargs):
         """
         An alias for self.warp({"scale": scale}, ...)
+        Backend is simply a call to :func:`ImageOpsMixin.warp`.
         """
         transform = {'scale': scale}
         return self.warp(transform, dsize=dsize, **warp_kwargs)
@@ -332,6 +395,7 @@ class ImageOpsMixin:
     def resize(self, dsize, **warp_kwargs):
         """
         Resize an image to a specific width/height by scaling it.
+        Backend is simply a call to :func:`ImageOpsMixin.warp`.
         """
         old_dsize = np.array(self.dsize)
         new_dsize = np.array(dsize)
@@ -571,7 +635,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             final = np.concatenate(stack, axis=2)
         return final
 
-    # @profile
+    @profile
     def optimize(self):
         """
         Returns:
@@ -584,7 +648,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             new._opt_logs.append('optimize DelayedChannelConcat')
         return new
 
-    # @profile
+    @profile
     def take_channels(self, channels):
         """
         This method returns a subset of the vision data with only the
@@ -666,6 +730,9 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             request_codes = None
         else:
             channels = channel_spec.FusedChannelSpec.coerce(channels)
+            if current_channels == channels:
+                # If the request is equal to what we already have then skip this.
+                return self
             # Computer subindex integer mapping
             request_codes = channels.as_list()
             top_codes = current_channels.as_oset()
@@ -1001,6 +1068,7 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
         space_slice = (sl_y, sl_x)
         return self.crop(space_slice, chan_idxs)
 
+    @profile
     def take_channels(self, channels):
         """
         This method returns a subset of the vision data with only the
@@ -1140,7 +1208,7 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
                                             channels=self.channels)
         return new
 
-    # @profile
+    @profile
     def _opt_push_under_concat(self):
         """
         Push this node under its child node if it is a concatenation operation
@@ -1289,7 +1357,7 @@ class DelayedAsXarray(DelayedImage):
         final = xr.DataArray(subfinal, dims=('y', 'x', 'c'), coords=coords)
         return final
 
-    # @profile
+    @profile
     def optimize(self):
         """
         Returns:
@@ -1430,7 +1498,7 @@ class DelayedWarp(DelayedImage):
         final = kwarray.atleast_nd(final, 3, front=False)
         return final
 
-    # @profile
+    @profile
     def optimize(self):
         """
         Returns:
@@ -1512,7 +1580,7 @@ class DelayedWarp(DelayedImage):
     def _transform_from_subdata(self):
         return self.transform
 
-    # @profile
+    @profile
     def _opt_fuse_warps(self):
         """
         Combine two consecutive warps into a single operation.
@@ -1542,7 +1610,7 @@ class DelayedWarp(DelayedImage):
             new.print_graph()
         return new
 
-    # @profile
+    @profile
     def _opt_absorb_overview(self):
         """
         Remove any deeper overviews that would be undone by this warp.
@@ -1596,8 +1664,14 @@ class DelayedWarp(DelayedImage):
 
         # Check if there is a strict downsampling component
         transform = self.meta['transform']
-        params = transform.decompose()
-        sx, sy = params['scale']
+
+        # Old Slow Code:
+        # params = transform.decompose()
+        # sx, sy = params['scale']
+        # New Optimized Code:
+        from delayed_image.helpers import _decompose_scale
+        sx, sy = _decompose_scale(transform)
+
         eps = 1e-8
         twoish = (2 - eps)
         if sx < twoish and sy < twoish:
@@ -1774,7 +1848,7 @@ class DelayedWarp(DelayedImage):
             print('---------')
         return new
 
-    # @profile
+    @profile
     def _opt_split_warp_overview(self):
         """
         Split this node into a warp and an overview if possible
@@ -1902,7 +1976,7 @@ class DelayedDequantize(DelayedImage):
             final = dequantize(final, quantization)
         return final
 
-    # @profile
+    @profile
     def optimize(self):
         """
 
@@ -1937,7 +2011,7 @@ class DelayedDequantize(DelayedImage):
             new._opt_logs.append('optimize DelayedDequantize')
         return new
 
-    # @profile
+    @profile
     def _opt_dequant_before_other(self):
         quantization = self.meta['quantization']
         new = copy.copy(self.subdata)
@@ -1984,7 +2058,7 @@ class DelayedCrop(DelayedImage):
         >>> assert final.shape == (16, 16, 2)
     """
 
-    # @profile
+    @profile
     def __init__(self, subdata, space_slice=None, chan_idxs=None):
         """
         Args:
@@ -2048,7 +2122,7 @@ class DelayedCrop(DelayedImage):
         self_from_subdata = kwimage.Affine.translate(offset)
         return self_from_subdata
 
-    # @profile
+    @profile
     def optimize(self):
         """
         Returns:
@@ -2109,7 +2183,7 @@ class DelayedCrop(DelayedImage):
             new._opt_logs.append('optimize crop')
         return new
 
-    # @profile
+    @profile
     def _opt_fuse_crops(self):
         """
         Combine two consecutive crops into a single operation.
@@ -2196,7 +2270,7 @@ class DelayedCrop(DelayedImage):
             new._opt_logs.append('Fuse crops')
         return new
 
-    # @profile
+    @profile
     def _opt_warp_after_crop(self):
         """
         If the child node is a warp, move it after the crop.
@@ -2267,7 +2341,7 @@ class DelayedCrop(DelayedImage):
             new_outer._opt_logs.append('_opt_warp_after_crop')
         return new_outer
 
-    # @profile
+    @profile
     def _opt_dequant_after_crop(self):
         # Swap order so dequantize is after the crop
         assert isinstance2(self.subdata, DelayedDequantize)
@@ -2373,7 +2447,7 @@ class DelayedOverview(DelayedImage):
         )
         return final
 
-    # @profile
+    @profile
     def optimize(self):
         """
         Returns:
@@ -2405,7 +2479,7 @@ class DelayedOverview(DelayedImage):
         scale = 1 / 2 ** self.meta['overview']
         return kwimage.Affine.scale(scale)
 
-    # @profile
+    @profile
     def _opt_overview_as_warp(self):
         """
         Sometimes it is beneficial to replace an overview with a warp as an
@@ -2419,7 +2493,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_overview_as_warp')
         return new
 
-    # @profile
+    @profile
     def _opt_crop_after_overview(self):
         """
         Given an outer overview and an inner crop, switch places. We want the
@@ -2488,7 +2562,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_crop_after_overview')
         return new
 
-    # @profile
+    @profile
     def _opt_fuse_overview(self):
         assert isinstance2(self.subdata, DelayedOverview)
         outer_overview = self.meta['overview']
@@ -2499,7 +2573,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_fuse_overview')
         return new
 
-    # @profile
+    @profile
     def _opt_dequant_after_overview(self):
         # Swap order so dequantize is after the crop
         assert isinstance2(self.subdata, DelayedDequantize)
@@ -2511,7 +2585,7 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_dequant_after_overview')
         return new
 
-    # @profile
+    @profile
     def _opt_warp_after_overview(self):
         """
         Given an warp followed by an overview, move the warp to the outer scope

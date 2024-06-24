@@ -359,6 +359,9 @@ class SensorChanSpec(ub.NiceRepr):
         Args:
             sensor (str): the name of the sensor to match
 
+        Returns:
+            FusedSensorChanSpec: matching part of the spec
+
         Example:
             >>> # xdoctest: +REQUIRES(module:lark)
             >>> import delayed_image
@@ -372,10 +375,11 @@ class SensorChanSpec(ub.NiceRepr):
             >>> print(self.matching_sensor('S3'))
             S3:
         """
-        matching_streams = []
-        for s in self.streams():
-            if s.sensor.spec == sensor:
-                matching_streams.append(s)
+        # matching_streams = []
+        # for s in self.streams():
+        #     if s.sensor.spec == sensor:
+        #         matching_streams.append(s)
+        matching_streams = [s for s in self.streams() if s.sensor.spec == sensor]
         new = sum(matching_streams)
         if new == 0:
             import delayed_image

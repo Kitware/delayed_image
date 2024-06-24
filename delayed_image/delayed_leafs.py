@@ -9,10 +9,10 @@ import warnings
 from delayed_image.delayed_nodes import DelayedImage, TRACE_OPTIMIZE
 # from delayed_image.delayed_nodes import DelayedArray
 
-# try:
-#     from xdev import profile
-# except ImportError:
-#     from ubelt import identity as profile
+try:
+    from line_profiler import profile
+except ImportError:
+    from ubelt import identity as profile
 
 __docstubs__ = """
 from delayed_image.channel_spec import FusedChannelSpec
@@ -30,7 +30,7 @@ class DelayedImageLeaf(DelayedImage):
         """
         return kwimage.Affine.eye()
 
-    # @profile
+    @profile
     def optimize(self):
         if TRACE_OPTIMIZE:
             self._opt_logs.append('optimize DelayedImageLeaf')
@@ -127,7 +127,7 @@ class DelayedLoad(DelayedImageLeaf):
         >>> stack2 = kwimage.stack_images([stack1, data6], axis=1)
         >>> kwplot.imshow(stack2)
     """
-    def __init__(self, fpath, channels=None, dsize=None, nodata_method=None):
+    def __init__(self, fpath, channels=None, dsize=None, nodata_method=None, num_overviews=None):
         """
         Args:
             fpath (str | PathLike):
@@ -142,10 +142,14 @@ class DelayedLoad(DelayedImageLeaf):
             nodata_method (str | None):
                 How to handle nodata values in the file itself.
                 Can be "auto", "float", or "ma".
+
+            num_overviews (int | None):
+                number of overviews if known a-priori
         """
         super().__init__(channels=channels, dsize=dsize)
         self.meta['fpath'] = fpath
         self.meta['nodata_method'] = nodata_method
+        self.meta['num_overviews'] = num_overviews
         self.lazy_ref = None
 
     @property
@@ -208,14 +212,13 @@ class DelayedLoad(DelayedImageLeaf):
                            nodata_method=nodata_method)
         return self
 
-    # @profile
+    @profile
     def _load_reference(self):
-        nodata_method = self.meta.get('nodata_method', None)
         if self.lazy_ref is None:
             from delayed_image import lazy_loaders
             using_gdal = lazy_loaders.LazyGDalFrameFile.available()
+            nodata_method = self.meta.get('nodata_method', None)
             if using_gdal:
-                # the nodata arg here isn't named that great
                 self.lazy_ref = lazy_loaders.LazyGDalFrameFile(
                     self.fpath, nodata_method=nodata_method)
             else:
@@ -224,7 +227,7 @@ class DelayedLoad(DelayedImageLeaf):
                 self.lazy_ref = NotImplemented
         return self
 
-    # @profile
+    @profile
     def prepare(self):
         """
         If metadata is missing, perform minimal IO operations in order to
@@ -237,8 +240,25 @@ class DelayedLoad(DelayedImageLeaf):
         self._load_metadata()
         return self
 
-    # @profile
+    @profile
     def _load_metadata(self):
+        """
+        Ignore:
+            We want to be able to skip the reference load if the metadata is
+            already setup.
+
+            import kwimage
+            from delayed_image.delayed_leafs import *  # NOQA
+            dsize = (32, 32)
+            channels = 'red|green|blue'
+            fpath = kwimage.grab_test_image_fpath('astro', dsize=dsize)
+            self = DelayedLoad(fpath, channels=channels, dsize=dsize, num_overviews=1)
+            xdev.profile_now(self._load_metadata)()
+
+        """
+        required_meta_keys = ('dsize', 'num_channels', 'num_overviews')
+        if all(self.meta[k] is not None for k in required_meta_keys):
+            return self
         self._load_reference()
         if self.lazy_ref is NotImplemented:
             shape = kwimage.load_image_shape(self.fpath)
@@ -256,7 +276,7 @@ class DelayedLoad(DelayedImageLeaf):
         self.meta['num_overviews'] = num_overviews
         return self
 
-    # @profile
+    @profile
     def _finalize(self):
         """
         Returns:
@@ -286,6 +306,31 @@ class DelayedLoad(DelayedImageLeaf):
             self.lazy_ref.nodata_method = self.meta.get('nodata_method', None)
             return self.lazy_ref
 
+    # Reimplementations of existing properties with specialized logic for speed
+    # @property
+    # def num_channels(self):
+    #     """
+    #     Returns:
+    #         None | int
+    #     """
+    #     return self.meta.get('num_channels', None)
+
+    # @property
+    # def dsize(self):
+    #     """
+    #     Returns:
+    #         None | Tuple[int | None, int | None]
+    #     """
+    #     return self.meta.get('dsize', None)
+
+    # @property
+    # def channels(self):
+    #     """
+    #     Returns:
+    #         None | FusedChannelSpec
+    #     """
+    #     return self.meta.get('channels', None)
+
 
 class DelayedNans(DelayedImageLeaf):
     """
@@ -310,7 +355,7 @@ class DelayedNans(DelayedImageLeaf):
         super().__init__(channels=channels, dsize=dsize)
         self._kwargs = {}
 
-    # @profile
+    @profile
     def _finalize(self):
         """
         Returns:
@@ -322,7 +367,7 @@ class DelayedNans(DelayedImageLeaf):
         final = np.full(shape, fill_value=np.nan)
         return final
 
-    # @profile
+    @profile
     def _optimized_crop(self, space_slice=None, chan_idxs=None):
         """
         Crops an image along integer pixel coordinates.
@@ -350,7 +395,7 @@ class DelayedNans(DelayedImageLeaf):
             new._opt_logs.append('Nans._optimized_crop')
         return new
 
-    # @profile
+    @profile
     def _optimized_warp(self, transform, dsize=None, **warp_kwargs):
         """
         Returns:
@@ -383,7 +428,7 @@ class DelayedNodata(DelayedNans):
         self.meta['nodata_method'] = nodata_method
         self._kwargs['nodata_method'] = nodata_method
 
-    # @profile
+    @profile
     def _finalize(self):
         """
         Returns:

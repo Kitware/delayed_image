@@ -1,12 +1,12 @@
 import kwimage
 import ubelt as ub
 import numpy as np
+import math
 from delayed_image.util import util_network_text
 
 
 try:
-    import xdev
-    profile = xdev.profile
+    from line_profiler import profile
 except Exception:
     profile = ub.identity
 
@@ -88,7 +88,7 @@ def _largest_shape(shapes):
     return largest
 
 
-# @profile
+@profile
 def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     r"""
     Given a warp followed by a crop, compute the corresponding crop followed by
@@ -146,7 +146,7 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     tf_root_to_leaf = tf_leaf_to_root.inv()
     tf_root_to_leaf = tf_root_to_leaf.__array__()
     leaf_region_bounds = root_region_bounds.warp(tf_root_to_leaf)
-    leaf_region_box = leaf_region_bounds.box().to_ltrb()
+    leaf_region_box = leaf_region_bounds.box().to_ltrb(copy=False)
 
     # Quantize to a region that is possible to sample from
     leaf_crop_box = leaf_region_box.quantize(inplace=True)
@@ -219,7 +219,7 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     return leaf_crop_slices, tf_newleaf_to_newroot
 
 
-# @profile
+@profile
 def _swap_crop_after_warp(inner_region, outer_transform):
     r"""
     Given a crop followed by a warp (usually an overview), compute the
@@ -264,7 +264,7 @@ def _swap_crop_after_warp(inner_region, outer_transform):
     outer_region = inner_region.warp(outer_transform)
 
     # Transform the region bounds into the sub-image space
-    outer_box = outer_region.box().to_ltrb()
+    outer_box = outer_region.box().to_ltrb(copy=False)
 
     # Quantize to a region that is possible to sample from
     outer_crop_box = outer_box.quantize()
@@ -458,3 +458,29 @@ class mkslice_cls:
         return self
 
 mkslice = mkslice_cls()
+
+
+@profile
+def _decompose_scale(self):
+    """
+    Scale only decomposition. Experimental method that is faster than
+    decompose when only scale is needed.
+
+    Args:
+        self (kwimage.Affine): affine matrix to decompose
+    """
+    if self.matrix is None:
+        return (1., 1.)
+    a11, a12, _, a21, a22 = self.matrix.ravel()[0:5]
+    # (a11, a12), (a21, a22) = self.matrix[0:2, 0:2]
+    sx = math.sqrt(a11 * a11 + a21 * a21)
+    theta = math.atan2(a21, a11)
+    sin_t = math.sin(theta)
+    cos_t = math.cos(theta)
+    msy = a12 * cos_t + a22 * sin_t
+    if abs(cos_t) < abs(sin_t):
+        sy = (msy * cos_t - a12) / sin_t
+    else:
+        sy = (a22 - msy * sin_t) / cos_t
+    scale = (sx, sy)
+    return scale
