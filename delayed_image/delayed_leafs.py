@@ -217,8 +217,8 @@ class DelayedLoad(DelayedImageLeaf):
         if self.lazy_ref is None:
             from delayed_image import lazy_loaders
             using_gdal = lazy_loaders.LazyGDalFrameFile.available()
+            nodata_method = self.meta.get('nodata_method', None)
             if using_gdal:
-                nodata_method = self.meta.get('nodata_method', None)
                 self.lazy_ref = lazy_loaders.LazyGDalFrameFile(
                     self.fpath, nodata_method=nodata_method)
             else:

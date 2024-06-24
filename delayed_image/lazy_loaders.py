@@ -58,8 +58,8 @@ class CacheDict(OrderedDict):
 
 # Only can use this cache if we assume we are in readonly mode
 # GLOBAL_GDAL_CACHE = CacheDict(cache_len=32)
-GLOBAL_GDAL_CACHE = CacheDict(cache_len=100_000)
-# GLOBAL_GDAL_CACHE = None
+# GLOBAL_GDAL_CACHE = CacheDict(cache_len=100_000)
+GLOBAL_GDAL_CACHE = None
 
 
 @cache
