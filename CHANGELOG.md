@@ -5,7 +5,10 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.3.1 - Unreleased
+## Version 0.3.2 - Unreleased
+
+
+## Version 0.3.1 - Released 2024-06-24
 
 ### Changed:
 * Added the `lazy` keyword argument to `crop` and `warp`, which will attempt to avoid overhead of creating a new layer if the operation is a no-op.
