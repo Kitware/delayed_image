@@ -138,7 +138,8 @@ class DelayedFrameStack(DelayedStack):
 class ImageOpsMixin:
 
     @profile
-    def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True, pad=0):
+    def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True,
+             pad=0, lazy=False):
         """
         Crops an image along integer pixel coordinates.
 
@@ -161,6 +162,10 @@ class ImageOpsMixin:
 
             pad (int | List[Tuple[int, int]]):
                 if specified, applies extra padding
+
+            lazy (bool):
+                if True, we check if the slice is equal to the image extent and
+                do nothing if possible.
 
         Returns:
             DelayedImage
@@ -240,7 +245,37 @@ class ImageOpsMixin:
             >>> canvas = kwimage.fill_nans_with_checkers(canvas)
             >>> kwplot.imshow(canvas, title='Negative Slicing: Cropped Images With clip=False wrap=False', doclf=1, fnum=2)
             >>> kwplot.show_if_requested()
+
+        Example:
+            >>> # Test lazy case
+            >>> from delayed_image import DelayedLoad
+            >>> self = DelayedLoad.demo().prepare()
+            >>> w, h = self.dsize[0:2]
+            >>> space_slice1 = (slice(0, h), slice(0, w)) # entire image
+            >>> space_slice2 = (slice(None), slice(None)) # entire image
+            >>> space_slice3 = (slice(0, w // 2), slice(1, h)) # subimage
+            >>> result1 = self.crop(space_slice1, lazy=True)
+            >>> result2 = self.crop(space_slice2, lazy=True)
+            >>> result3 = self.crop(space_slice3, lazy=True)
+            >>> assert result1 is self
+            >>> assert result2 is self
+            >>> assert result3 is not self
         """
+        if lazy:
+            # If we are in lazy mode and we can detect the crop wont do
+            # anything then skip it.
+            w, h = self.dsize
+            sl_y, sl_x = space_slice
+            is_noop = (
+                (sl_y.start is None or sl_y.start == 0) and
+                (sl_y.stop is None or sl_y.stop == h) and
+                (sl_x.start is None or sl_x.start == 0) and
+                (sl_x.stop is None or sl_x.stop == w) and
+                (not pad)
+            )
+            if is_noop:
+                return self
+
         if not clip or not wrap or pad:
             if clip or wrap:
                 raise NotImplementedError(
@@ -283,7 +318,7 @@ class ImageOpsMixin:
             new = new.warp(pad_warp, dsize=dsize)
         return new
 
-    def warp(self, transform, dsize='auto', **warp_kwargs):
+    def warp(self, transform, dsize='auto', lazy=False, **warp_kwargs):
         """
         Applys an affine transformation to the image. See :class:`DelayedWarp`.
 
@@ -316,9 +351,36 @@ class ImageOpsMixin:
                 scale, rotation, translation, shear) less than this value,
                 the warp node can be optimized away. Defaults to 0.
 
+            lazy (bool):
+                if True, we check if the operation would be a noop and return
+                the original object instead.
+
         Returns:
             DelayedImage
+
+        Example:
+            >>> from delayed_image import DelayedLoad
+            >>> self = DelayedLoad.demo().prepare()
+            >>> new = self.warp({'scale': 1 / 2})
+            >>> assert self.dsize
+
+        Example:
+            >>> # Test with lazy
+            >>> from delayed_image import DelayedLoad
+            >>> self = DelayedLoad.demo().prepare()
+            >>> result1 = self.warp({'scale': 1}, lazy=True)
+            >>> result2 = self.warp(None, lazy=True)
+            >>> result3 = self.warp(np.eye(3), lazy=True)
+            >>> assert self is result1
+            >>> assert self is result2
+            >>> assert self is result3
         """
+        if lazy:
+            if transform is None:
+                return self
+            transform = kwimage.Affine.coerce(transform)
+            if transform.isclose_identity():
+                return self
         new = DelayedWarp(self, transform, dsize=dsize, **warp_kwargs)
         return new
 
