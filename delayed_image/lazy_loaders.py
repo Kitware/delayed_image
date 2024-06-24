@@ -612,8 +612,6 @@ class LazyGDalFrameFile(ub.NiceRepr):
             INTERLEAVE = ds.GetMetadata('IMAGE_STRUCTURE').get('INTERLEAVE', '')
             if INTERLEAVE == 'BAND':
                 if len(ds.GetSubDatasets()) > 0:
-                    import xdev
-                    xdev.embed()
                     raise NotImplementedError('Cannot handle interleaved files yet')
 
         if not ub.iterable(index):
