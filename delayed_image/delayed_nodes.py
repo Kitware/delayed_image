@@ -8,7 +8,7 @@ import numpy as np
 import ubelt as ub
 import warnings
 from delayed_image import channel_spec
-from delayed_image.delayed_base import DelayedNaryOperation, DelayedUnaryOperation
+from delayed_image import delayed_base
 from delayed_image import delayed_leafs
 
 
@@ -30,38 +30,23 @@ from delayed_image.delayed_base import DelayedOperation
 TRACE_OPTIMIZE = 0  # TODO: make this a local setting
 
 
-class DelayedArray(DelayedUnaryOperation):
+class DelayedArray(delayed_base.DelayedUnaryOperation):
     """
     A generic NDArray.
+
+    Args:
+        subdata (DelayedArray):
     """
-    def __init__(self, subdata=None):
-        """
-        Args:
-            subdata (DelayedArray):
-        """
-        super().__init__(subdata=subdata)
-
-    def __nice__(self):
-        """
-        Returns:
-            str
-        """
-        return '{}'.format(self.shape)
-
-    @property
-    def shape(self):
-        """
-        Returns:
-            None | Tuple[int | None, ...]
-        """
-        shape = self.subdata.shape
-        return shape
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_base.DelayedUnaryOperation.__slots__
 
 
-class DelayedStack(DelayedNaryOperation):
+class DelayedStack(delayed_base.DelayedNaryOperation):
     """
     Stacks multiple arrays together.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_base.DelayedNaryOperation.__slots__
 
     def __init__(self, parts, axis):
         """
@@ -73,27 +58,13 @@ class DelayedStack(DelayedNaryOperation):
         super().__init__(parts=parts)
         self.meta['axis'] = axis
 
-    def __nice__(self):
-        """
-        Returns:
-            str
-        """
-        return '{}'.format(self.shape)
 
-    @property
-    def shape(self):
-        """
-        Returns:
-            None | Tuple[int | None, ...]
-        """
-        shape = self.subdata.shape
-        return shape
-
-
-class DelayedConcat(DelayedNaryOperation):
+class DelayedConcat(delayed_base.DelayedNaryOperation):
     """
     Stacks multiple arrays together.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_base.DelayedNaryOperation.__slots__
 
     def __init__(self, parts, axis):
         """
@@ -104,23 +75,13 @@ class DelayedConcat(DelayedNaryOperation):
         super().__init__(parts=parts)
         self.meta['axis'] = axis
 
-    def __nice__(self):
-        return '{}'.format(self.shape)
-
-    @property
-    def shape(self):
-        """
-        Returns:
-            None | Tuple[int | None, ...]
-        """
-        shape = self.subdata.shape
-        return shape
-
 
 class DelayedFrameStack(DelayedStack):
     """
     Stacks multiple arrays together.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedStack.__slots__
 
     def __init__(self, parts):
         """
@@ -136,6 +97,8 @@ class DelayedFrameStack(DelayedStack):
 
 
 class ImageOpsMixin:
+    if delayed_base.USE_SLOTS:
+        __slots__ = tuple()
 
     @profile
     def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True,
@@ -527,7 +490,7 @@ class ImageOpsMixin:
         return dst_from_src
 
 
-class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
+class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
     """
     Stacks multiple arrays together.
 
@@ -560,7 +523,10 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
         >>> delayed.write_network_text()
         >>> delayed.optimize()
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedConcat.__slots__ + ('dsize', 'num_channels')
 
+    @profile
     def __init__(self, parts, dsize=None):
         """
         Args:
@@ -957,10 +923,13 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             return unwarped_parts
 
 
-class DelayedImage(ImageOpsMixin, DelayedArray):
+class DelayedImage(DelayedArray, ImageOpsMixin):
     """
     For the case where an array represents a 2D image with multiple channels
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedArray.__slots__
+
     def __init__(self, subdata=None, dsize=None, channels=None):
         """
         Args:
@@ -1342,6 +1311,8 @@ class DelayedAsXarray(DelayedImage):
         >>> assert final.coords.indexes['c'].tolist() == ['r', 'g', 'b']
         >>> assert final.dims == ('y', 'x', 'c')
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
 
     def _finalize(self):
         """
@@ -1384,6 +1355,9 @@ class DelayedWarp(DelayedImage):
         >>> print(ub.urepr(warp2.nesting(), nl=-1, sort=0))
         >>> print(ub.urepr(warp3.nesting(), nl=-1, sort=0))
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__ + ('_data_keys', '_algo_keys')
+
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
                  interpolation='linear', border_value='auto', noop_eps=0):
         """
@@ -1952,6 +1926,8 @@ class DelayedDequantize(DelayedImage):
     The output is usually between 0 and 1. This also handles transforming
     nodata into nan values.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
     def __init__(self, subdata, quantization):
         """
         Args:
@@ -2057,6 +2033,8 @@ class DelayedCrop(DelayedImage):
         >>> final = self._finalize()
         >>> assert final.shape == (16, 16, 2)
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
 
     @profile
     def __init__(self, subdata, space_slice=None, chan_idxs=None):
@@ -2387,6 +2365,9 @@ class DelayedOverview(DelayedImage):
         >>> kwplot.imshow(final0, pnum=(1, 2, 1), fnum=1, title='raw')
         >>> kwplot.imshow(final1, pnum=(1, 2, 2), fnum=1, title='optimized')
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
+
     def __init__(self, subdata, overview):
         """
         Args:
@@ -2651,19 +2632,19 @@ class CoordinateCompatibilityError(ValueError):
     """
 
 
-class _InnerAccumSegment:  # (ub.NiceRepr):
+class _InnerAccumSegment:
     """
     Gather the indexes we need to take from an inner component
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = ('comp', 'start', 'stop', 'codes', 'indexes')
+
     def __init__(curr, comp):
         curr.comp = comp
         curr.start = None
         curr.stop = None
         curr.codes = None
         curr.indexes = []
-
-    # def __nice__(curr):
-    #     return f'{curr.start}, {curr.stop}, {curr.indexes}, {curr.codes}'
 
     def add_inner(curr, inner, code):
         if curr.start is None:
@@ -2733,34 +2714,37 @@ class _InnerAccumSegment:  # (ub.NiceRepr):
         return sub_comp
 
 
-def isinstance2(inst, cls):
-    """
-    In production regular isinstance works fine, but when debugging in IPython
-    reloading classes will causes it to break, so we special case it here.
+if 1:
+    isinstance2 = isinstance
+else:
+    def isinstance2(inst, cls):
+        """
+        In production regular isinstance works fine, but when debugging in IPython
+        reloading classes will causes it to break, so we special case it here.
 
-    Args:
-        item (object): instance to check
-        cls (type): class to check against
+        Args:
+            item (object): instance to check
+            cls (type): class to check against
 
-    Returns:
-        bool
+        Returns:
+            bool
 
-    Ignore:
-        from delayed_image.delayed_nodes import *  # NOQA
-        from delayed_image.delayed_leafs import DelayedNans
+        Ignore:
+            from delayed_image.delayed_nodes import *  # NOQA
+            from delayed_image.delayed_leafs import DelayedNans
 
-        inst = DelayedNans()
-        cls = DelayedImage
-        isinstance2(inst, cls)
-        isinstance2(inst, DelayedWarp)
-    """
-    import sys
-    USE_REAL_ISINSTANCE = 'IPython' not in sys.modules
-    if USE_REAL_ISINSTANCE:
-        return isinstance(inst, cls)
-    else:
-        return any(inst_cls.__name__ == cls.__name__
-                   for inst_cls in inst.__class__.__mro__)
+            inst = DelayedNans()
+            cls = DelayedImage
+            isinstance2(inst, cls)
+            isinstance2(inst, DelayedWarp)
+        """
+        import sys
+        USE_REAL_ISINSTANCE = 'IPython' not in sys.modules
+        if USE_REAL_ISINSTANCE:
+            return isinstance(inst, cls)
+        else:
+            return any(inst_cls.__name__ == cls.__name__
+                       for inst_cls in inst.__class__.__mro__)
 
 
 def iceil(x):

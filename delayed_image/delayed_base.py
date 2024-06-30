@@ -14,10 +14,18 @@ try:
 except ImportError:
     profile = ub.identity
 
+# Flag to evaluate if slots are helping us at all
+USE_SLOTS = True
+
 
 # from kwcoco.util.util_monkey import Reloadable  # NOQA
 # @Reloadable.developing  # NOQA
-class DelayedOperation(ub.NiceRepr):
+class DelayedOperation:
+    """
+    Base class for all Delayed Nodes
+    """
+    if USE_SLOTS:
+        __slots__ = ('meta', '_opt_logs')
 
     def __init__(self):
         self.meta = {}
@@ -29,6 +37,24 @@ class DelayedOperation(ub.NiceRepr):
             str
         """
         return '{}'.format(self.shape)
+
+    def __repr__(self):
+        """
+        Returns:
+            str
+        """
+        nice = self.__nice__()
+        classname = self.__class__.__name__
+        return '<{0}({1}) at {2}>'.format(classname, nice, hex(id(self)))
+
+    def __str__(self):
+        """
+        Returns:
+            str
+        """
+        classname = self.__class__.__name__
+        nice = self.__nice__()
+        return '<{0}({1})>'.format(classname, nice)
 
     @profile
     def nesting(self):
@@ -395,6 +421,8 @@ class DelayedNaryOperation(DelayedOperation):
     """
     For operations that have multiple input arrays
     """
+    if USE_SLOTS:
+        __slots__ = DelayedOperation.__slots__ + ('parts',)
     def __init__(self, parts):
         super().__init__()
         self.parts = parts
@@ -411,6 +439,8 @@ class DelayedUnaryOperation(DelayedOperation):
     """
     For operations that have a single input array
     """
+    if USE_SLOTS:
+        __slots__ = DelayedOperation.__slots__ + ('subdata',)
     def __init__(self, subdata):
         super().__init__()
         self.subdata = subdata

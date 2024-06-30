@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.3.2 - Unreleased
 
+### Changed
+* Minor optimizations
+* Added `__slots__` to all node classes 
+
 
 ## Version 0.3.1 - Released 2024-06-24
 
