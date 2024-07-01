@@ -14,18 +14,37 @@ except Exception:
 write_network_text = util_network_text.write_network_text
 
 
+@profile
 def _auto_dsize(transform, sub_dsize):
     """
     Returns:
         Tuple[int, int]
+
+    Example:
+        transform = kwimage.Affine.random()
+        sub_dsize = (512, 512)
     """
     sub_w, sub_h = sub_dsize
-    sub_bounds = kwimage.Coords(
-        np.array([[0,     0], [sub_w, 0],
-                  [0, sub_h], [sub_w, sub_h]])
-    )
-    bounds = sub_bounds.warp(transform.matrix)
-    max_xy = np.ceil(bounds.data.max(axis=0))
+
+    if 0:
+        sub_bounds = kwimage.Coords(
+            np.array([[0,     0], [sub_w, 0],
+                      [0, sub_h], [sub_w, sub_h]])
+        )
+        bounds = sub_bounds.warp(transform.matrix)
+        max_xy = np.ceil(bounds.data.max(axis=0))
+    else:
+        # note: this is faster than the above variant but will break on
+        # non-affine (i.e. homogenous) transforms.
+        sub_bounds = np.array([
+            [0,     0, 1],
+            [sub_w, 0, 1],
+            [0, sub_h, 1],
+            [sub_w, sub_h, 1]
+        ])
+        # bounds = kwimage.warp_points(transform.matrix, sub_bounds)[0:2]
+        bounds = (transform.matrix[0:2] @ sub_bounds.T).T
+        max_xy = np.ceil(bounds.max(axis=0))
     max_x = int(max_xy[0])
     max_y = int(max_xy[1])
     dsize = (max_x, max_y)

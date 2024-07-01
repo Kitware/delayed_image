@@ -135,6 +135,7 @@ class DelayedLoad(DelayedImageLeaf):
     if delayed_base.USE_SLOTS:
         __slots__ = delayed_nodes.DelayedImage.__slots__ + ('lazy_ref',)
 
+    @profile
     def __init__(self, fpath, channels=None, dsize=None, nodata_method=None, num_overviews=None):
         """
         Args:

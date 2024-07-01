@@ -7,9 +7,9 @@ import copy
 import numpy as np
 import ubelt as ub
 import warnings
-from delayed_image import channel_spec
 from delayed_image import delayed_base
 from delayed_image import delayed_leafs
+from delayed_image.channel_spec import FusedChannelSpec
 
 
 try:
@@ -22,7 +22,6 @@ except Exception:
 # --------
 
 __docstubs__ = """
-from delayed_image.channel_spec import FusedChannelSpec
 from delayed_image.delayed_leafs import DelayedIdentity
 from delayed_image.delayed_base import DelayedOperation
 """
@@ -281,6 +280,7 @@ class ImageOpsMixin:
             new = new.warp(pad_warp, dsize=dsize)
         return new
 
+    @profile
     def warp(self, transform, dsize='auto', lazy=False, **warp_kwargs):
         """
         Applys an affine transformation to the image. See :class:`DelayedWarp`.
@@ -569,14 +569,14 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
         Returns:
             None | FusedChannelSpec
         """
-        import delayed_image
+        # import delayed_image
         sub_channs = []
         for comp in self.parts:
             comp_channels = comp.channels
             if comp_channels is None:
                 return None
             sub_channs.append(comp_channels)
-        channs = delayed_image.FusedChannelSpec.concat(sub_channs)
+        channs = FusedChannelSpec.concat(sub_channs)
         return channs
 
     @property
@@ -621,7 +621,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
         specified bands / channels.
 
         Args:
-            channels (List[int] | slice | channel_spec.FusedChannelSpec):
+            channels (List[int] | slice | FusedChannelSpec):
                 List of integers indexes, a slice, or a channel spec, which is
                 typically a pipe (`|`) delimited list of channel codes. See
                 :class:`ChannelSpec` for more detials.
@@ -695,7 +695,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             top_codes = self.channels.as_list()
             request_codes = None
         else:
-            channels = channel_spec.FusedChannelSpec.coerce(channels)
+            channels = FusedChannelSpec.coerce(channels)
             if current_channels == channels:
                 # If the request is equal to what we already have then skip this.
                 return self
@@ -930,6 +930,7 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
     if delayed_base.USE_SLOTS:
         __slots__ = DelayedArray.__slots__
 
+    @profile
     def __init__(self, subdata=None, dsize=None, channels=None):
         """
         Args:
@@ -938,7 +939,18 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
             channels (None | int | FusedChannelSpec): overrides subdata channels
         """
         super().__init__(subdata)
-        self.channels = channels
+        if channels is None:
+            num_channels = None
+        else:
+            if isinstance(channels, int):
+                num_channels = channels
+                channels = None
+            else:
+                channels = FusedChannelSpec.coerce(channels)
+                num_channels = channels.normalize().numel()
+        self.meta['channels'] = channels
+        self.meta['num_channels'] = num_channels
+
         self.meta['dsize'] = dsize
 
     def __nice__(self):
@@ -1007,8 +1019,7 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
                 num_channels = channels
                 channels = None
             else:
-                import delayed_image
-                channels = delayed_image.FusedChannelSpec.coerce(channels)
+                channels = FusedChannelSpec.coerce(channels)
                 num_channels = channels.normalize().numel()
         self.meta['channels'] = channels
         self.meta['num_channels'] = num_channels
@@ -1038,16 +1049,20 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
         return self.crop(space_slice, chan_idxs)
 
     @profile
-    def take_channels(self, channels):
+    def take_channels(self, channels, lazy=False):
         """
         This method returns a subset of the vision data with only the
         specified bands / channels.
 
         Args:
-            channels (List[int] | slice | channel_spec.FusedChannelSpec):
+            channels (List[int] | slice | FusedChannelSpec):
                 List of integers indexes, a slice, or a channel spec, which is
                 typically a pipe (`|`) delimited list of channel codes. See
                 ChannelSpec for more detials.
+
+            lazy (bool):
+                if True, dont create a new object if we can detect that it
+                would be a noop.
 
         Returns:
             DelayedCrop:
@@ -1102,13 +1117,17 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
         if isinstance(channels, list):
             top_idx_mapping = channels
         else:
+            if channels is None and lazy:
+                return self
             current_channels = self.channels
             if current_channels is None:
                 raise ValueError(
                     'The channel spec for this node are unknown. '
                     'Cannot use a spec to select them'
                 )
-            channels = channel_spec.FusedChannelSpec.coerce(channels)
+            channels = FusedChannelSpec.coerce(channels)
+            if lazy and current_channels == channels:
+                return self
             # Computer subindex integer mapping
             request_codes = channels.as_list()
             top_codes = current_channels.as_oset()
@@ -1358,6 +1377,7 @@ class DelayedWarp(DelayedImage):
     if delayed_base.USE_SLOTS:
         __slots__ = DelayedImage.__slots__ + ('_data_keys', '_algo_keys')
 
+    @profile
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
                  interpolation='linear', border_value='auto', noop_eps=0):
         """
@@ -2702,7 +2722,7 @@ class _InnerAccumSegment:
             if curr.codes is None:
                 nan_chan = None
             else:
-                nan_chan = channel_spec.FusedChannelSpec(curr.codes)
+                nan_chan = FusedChannelSpec(curr.codes)
             sub_comp = DelayedNans(dsize, channels=nan_chan)
         else:
             sub_idxs = curr.get_indexer()
