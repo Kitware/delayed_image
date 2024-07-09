@@ -850,6 +850,10 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
                 The List[DelayedImage] are the ``parts`` i.e. the new images with the warping undone.
                 The List[kwimage.Affine]: is the transforms from ``self`` to each item in ``parts``
 
+        Note:
+            The most common use case is to get aligned images, but at their
+            native scale, to do this use the argument: ``remove=['scale']``.
+
         Example:
             >>> from delayed_image.delayed_nodes import *  # NOQA
             >>> from delayed_image.delayed_leafs import DelayedLoad
