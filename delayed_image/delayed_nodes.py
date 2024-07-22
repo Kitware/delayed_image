@@ -1530,20 +1530,22 @@ class DelayedWarp(DelayedImage):
                     border_value = 0
         else:
             border_value = self.meta['border_value']
-        if not ub.iterable(border_value):
-            # Odd OpenCV behavior: https://github.com/opencv/opencv/issues/22283
-            # Can only have at most 4 components to border_value and
-            # then they start to wrap around. This is fine if we are only
-            # specifying a single number for all channels
-            border_value = (border_value,) * min(4, num_chan)
-        if len(border_value) > 4:
-            raise ValueError('borderValue cannot have more than 4 components. '
-                             'OpenCV #22283 describes why')
 
-        # HACK:
-        # the border value only correctly applies to the first 4 channels for
-        # whatever reason.
-        border_value = border_value[0:4]
+        if not isinstance(border_value, str):
+            if not ub.iterable(border_value):
+                # Odd OpenCV behavior: https://github.com/opencv/opencv/issues/22283
+                # Can only have at most 4 components to border_value and
+                # then they start to wrap around. This is fine if we are only
+                # specifying a single number for all channels
+                border_value = (border_value,) * min(4, num_chan)
+            if len(border_value) > 4:
+                raise ValueError('borderValue cannot have more than 4 components. '
+                                 'OpenCV #22283 describes why')
+
+            # HACK:
+            # the border value only correctly applies to the first 4 channels for
+            # whatever reason.
+            border_value = border_value[0:4]
 
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
@@ -1552,7 +1554,9 @@ class DelayedWarp(DelayedImage):
         final = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                     interpolation=interpolation,
                                     antialias=antialias,
-                                    border_value=border_value)
+                                    border_value=border_value,
+                                    origin_convention='corner'
+                                    )
         # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
         final = kwarray.atleast_nd(final, 3, front=False)
@@ -2365,6 +2369,19 @@ class DelayedCrop(DelayedImage):
             >>> kwplot.autompl()
             >>> kwplot.imshow(final0, pnum=(2, 2, 1), fnum=1, title='raw')
             >>> kwplot.imshow(final1, pnum=(2, 2, 2), fnum=1, title='optimized')
+
+        Example:
+            >>> from delayed_image import *  # NOQA
+            >>> import kwimage
+            >>> from delayed_image.delayed_leafs import DelayedLoad
+            >>> fpath = kwimage.grab_test_image_fpath(dsize=(8, 8))
+            >>> node0 = DelayedLoad(fpath, channels='r|g|b').prepare()
+            >>> node1 = node0[0:1, 0:1]
+            >>> node2 = node1.warp({'scale': 10})
+            >>> self = node2
+            >>> new_outer = node2._opt_warp_after_crop()
+            >>> node2.print_graph()
+            >>> new_outer.print_graph()
 
         Example:
             >>> # xdoctest: +REQUIRES(module:osgeo)

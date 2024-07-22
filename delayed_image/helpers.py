@@ -131,6 +131,7 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
 
     Example:
         >>> from delayed_image.helpers import *  # NOQA
+        >>> from delayed_image.helpers import _swap_warp_after_crop
         >>> region_slices = (slice(33, 100), slice(22, 62))
         >>> region_shape = (100, 100, 1)
         >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)
@@ -141,6 +142,8 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
         >>> print('slices = {!r}'.format(slices))
 
     Example:
+        >>> from delayed_image.helpers import *  # NOQA
+        >>> from delayed_image.helpers import _swap_warp_after_crop
         >>> region_slices = (slice(0, 8), slice(0, 8))
         >>> region_shape = (100, 100, 1)
         >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)
@@ -151,6 +154,8 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
         >>> print('slices = {!r}'.format(slices))
 
     Example:
+        >>> from delayed_image.helpers import *  # NOQA
+        >>> from delayed_image.helpers import _swap_warp_after_crop
         >>> region_slices = (slice(0, 8), slice(0, 8))
         >>> region_shape = (100, 100, 1)
         >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)

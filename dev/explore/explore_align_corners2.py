@@ -121,43 +121,143 @@ def new_coordinate_understanding():
 
     kwplot.autompl()
 
-    xx, yy = np.meshgrid(np.arange(8), np.arange(8))
-    points = kwimage.Points(xy=np.stack([xx.ravel(), yy.ravel()]).T)
+    # Define the transform of interest
+    transform = kwimage.Affine.scale(3)
 
-    # Create an checkerboard
-    H2 = W2 = 8
-    raster = kwimage.checkerboard(dsize=(W2, H2), num_squares=8)
-    colors = np.zeros((H2, W2, 3))
-    colors[0::2, 0::2, :] = np.array(kwimage.Color.coerce('kitware_red').as01())[None, None, :]
-    colors[2::4, 0::2, :] = np.array(kwimage.Color.coerce('kitware_yellow').as01())[None, None, :]
-    colors[1::2, 1::2, :] = np.array(kwimage.Color.coerce('kitware_green').as01())[None, None, :]
-    raster = kwimage.atleast_3channels(raster) * colors.round(1)
+    # modified_transform = transform @ offset1
+    # transform = modified_transform
 
-    transform = kwimage.Affine.scale(2)
-    upscaled_raster = kwimage.warp_affine(raster, transform, dsize='auto', interpolation='nearest')
-    upscaled_points = points.warp(transform)
+    # Define the original raster size
+    H1 = W1 = 4
 
-    offset1 = kwimage.Affine.coerce(offset=.5)
-    offset2 = kwimage.Affine.coerce(offset=-.5)
-    modified_transform = offset2 @ transform @ offset1
+    if 1:
+        # simple auto dsize that probably needs to be fixed
+        box = kwimage.Boxes(np.array([[0, 0, W1, H1]]), 'xywh')
+        warped_box = box.warp(transform)
+        new_dsize = tuple(map(int, warped_box.to_ltrb().quantize().data[0, 2:4]))
+        W2, H2 = new_dsize
 
-    modified_upscaled_raster = kwimage.warp_affine(raster, modified_transform, dsize='auto', interpolation='nearest')
+    # Define the indexes of the pixels
+    x_pixel_index_basis, y_pixel_index_basis = np.meshgrid(np.arange(H1), np.arange(W1))
 
-    kwplot.figure(fnum=1, doclf=1, pnum=(2, 2, 1))
+    # Define the coordinates of the centers of the pixels (using the integer-center convention)
+    pixel_int_center_coords = kwimage.Points(xy=np.stack([
+        x_pixel_index_basis.ravel(),
+        y_pixel_index_basis.ravel()
+    ]).T.astype(float))
+
+    pixel_int_corner_coords = pixel_int_center_coords.translate(0.5)
+
+    def grid_basis_and_segments(W, H, corner=0.5):
+        xmin, ymin = corner, corner
+        xmax = W - corner
+        ymax = H - corner
+        x_basis = np.linspace(xmin, xmax, num=W + 1)
+        y_basis = np.linspace(ymin, ymax, num=H + 1)
+        # Define endpoints for line segements that define the pixel edges.
+        edge_segments = []
+        for x in x_basis:
+            edge_segments.append([[x, ymin], [x, ymax]])
+        for y in y_basis:
+            edge_segments.append([[xmin, y], [xmax, y]])
+        edge_segments = np.array(edge_segments)
+        return x_basis, y_basis, edge_segments
+
+    # Define endpoints for line segements that define the pixel edges.
+    x_pixel_edge_coord_basis, y_pixel_edge_coord_basis, pixel_edge_segments = grid_basis_and_segments(W1, H1, corner=0)
+
+    # Get the grid for the resampled pixel edges
+    x_resampled_pixel_edge_coord_basis, y_resampled_pixel_edge_coord_basis, resampled_pixel_edge_segments = grid_basis_and_segments(W2, H2, corner=0)
+
+    warped_pixel_edge_segments = kwimage.warp_points(transform, pixel_edge_segments)
+    inv_resampled_pixel_edge_segments = kwimage.warp_points(transform.inv(), resampled_pixel_edge_segments)
+
+    # Create the raster checkerboard
+    raster = kwimage.checkerboard(dsize=(W1, H1), num_squares=W1,
+                                  on_value='kitware_green',
+                                  off_value='kitware_red',
+                                  bayer_value='kitware_yellow')
+
+    warped_rasterN = kwimage.warp_affine(raster, transform, dsize=(W2, H2),
+                                         interpolation='linear', origin_convention='center')
+    warped_rasterL = kwimage.warp_affine(raster, transform, dsize=(W2, H2),
+                                         interpolation='nearest', origin_convention='center')
+
+    warped_pixel_int_center_coords = pixel_int_center_coords.warp(transform)
+    warped_pixel_int_corner_coords = pixel_int_corner_coords.warp(transform)
+
+    modified_warped_rasterN = kwimage.warp_affine(
+        raster, transform, dsize=(W2, H2), interpolation='nearest', origin_convention='corner')
+    modified_warped_rasterL = kwimage.warp_affine(
+        raster, transform, dsize=(W2, H2), interpolation='linear', origin_convention='corner')
+
+    kwplot.figure(fnum=1, doclf=1, pnum=(2, 3, 1))
     kwplot.imshow(raster, show_ticks=True, title='integer-centers, original')
-    points.draw(radius=0.2, color='kitware_blue')
+    pixel_int_center_coords.draw(radius=0.1, color='kitware_darkblue')
 
-    kwplot.figure(fnum=1, pnum=(2, 2, 2))
-    kwplot.imshow(upscaled_raster, show_ticks=True, title='integer-centers, upscaled')
-    upscaled_points.draw(radius=0.5, color='kitware_blue')
+    kwplot.figure(fnum=1, pnum=(2, 3, 2))
+    kwplot.imshow(warped_rasterL, show_ticks=True, title='integer-centers, warped (nearest)')
+    warped_pixel_int_center_coords.draw(radius=0.2, color='kitware_darkblue')
 
-    kwplot.figure(fnum=1, pnum=(2, 2, 3))
-    kwplot.imshow(raster, show_ticks=True, pixels_are='points', title='integer-corners, original')
-    points.draw(radius=0.2, color='kitware_blue')
+    kwplot.figure(fnum=1, pnum=(2, 3, 3))
+    kwplot.imshow(warped_rasterN, show_ticks=True, title='integer-centers, warped (linear)')
+    warped_pixel_int_center_coords.draw(radius=0.2, color='kitware_darkblue')
 
-    kwplot.figure(fnum=1, pnum=(2, 2, 4))
-    kwplot.imshow(modified_upscaled_raster, show_ticks=True, pixels_are='points', title='integer-corners, upscaled')
-    upscaled_points.draw(radius=0.5, color='kitware_blue')
+    ax = kwplot.figure(fnum=1, pnum=(2, 3, 4)).gca()
+    kwplot.imshow(raster, show_ticks=True, origin_convention='corner', title='integer-corners, original')
+    pixel_int_corner_coords.draw(radius=0.1, color='kitware_darkblue')
+    artman = kwplot.ArtistManager()
+    for segment in pixel_edge_segments:
+        artman.add_linestring(segment, color='kitware_darkblue', linewidth=4)
+    for segment in inv_resampled_pixel_edge_segments:
+        artman.add_linestring(segment, color='kitware_blue', linewidth=1)
+    artman.add_to_axes(ax)
+
+    ax = kwplot.figure(fnum=1, pnum=(2, 3, 5)).gca()
+    kwplot.imshow(modified_warped_rasterN, show_ticks=True, origin_convention='corner', title='integer-corners, warped (nearest)')
+    warped_pixel_int_corner_coords.draw(radius=0.2, color='kitware_darkblue')
+    artman = kwplot.ArtistManager()
+    for segment in warped_pixel_edge_segments:
+        artman.add_linestring(segment, color='kitware_darkblue', linewidth=4)
+    for segment in resampled_pixel_edge_segments:
+        artman.add_linestring(segment, color='kitware_blue', linewidth=1)
+    artman.add_to_axes(ax)
+
+    ax = kwplot.figure(fnum=1, pnum=(2, 3, 6)).gca()
+    kwplot.imshow(modified_warped_rasterL, show_ticks=True, origin_convention='corner', title='integer-corners, warped (linear)')
+    warped_pixel_int_corner_coords.draw(radius=0.2, color='kitware_darkblue')
+    artman = kwplot.ArtistManager()
+    for segment in warped_pixel_edge_segments:
+        artman.add_linestring(segment, color='kitware_darkblue', linewidth=4)
+    for segment in resampled_pixel_edge_segments:
+        artman.add_linestring(segment, color='kitware_blue', linewidth=1)
+    artman.add_to_axes(ax)
+
+    # import kwplot
+    # fig = kwplot.figure(fnum=2, pnum=(1, 2, 1), doclf=1)
+    # ax = fig.gca()
+    # ax.set_xlim(-2, W1 + 2.0)
+    # ax.set_ylim(-2, H1 + 2.0)
+    # kwplot.imshow(raster, pixels_are='points', show_ticks=True)
+    # artman = kwplot.ArtistManager()
+    # for segment in pixel_edge_segments:
+    #     artman.add_linestring(segment, color='kitware_darkblue', linewidth=4)
+    # for segment in inv_resampled_pixel_edge_segments:
+    #     artman.add_linestring(segment, color='kitware_blue', linewidth=1)
+    # artman.add_to_axes(ax)
+
+    # ax = kwplot.figure(fnum=2, pnum=(1, 2, 2)).gca()
+    # ax.set_xlim(-2, W2 + 2.0)
+    # ax.set_ylim(-2, H2 + 2.0)
+    # # ax.set_xlim(xmin - 0.5, xmax + 0.5)
+    # # ax.set_ylim(ymin - 0.5, ymax + 0.5)
+    # artman = kwplot.ArtistManager()
+    # kwplot.imshow(modified_warped_raster, pixels_are='points', show_ticks=True)
+    # for segment in warped_pixel_edge_segments:
+    #     artman.add_linestring(segment, color='kitware_darkblue', linewidth=4)
+    # for segment in resampled_pixel_edge_segments:
+    #     artman.add_linestring(segment, color='kitware_blue', linewidth=1)
+    # artman.add_to_axes(ax)
 
 
 if __name__ == '__main__':

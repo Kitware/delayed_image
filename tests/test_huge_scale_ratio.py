@@ -12,24 +12,25 @@ def test_100x_scale_difference():
     """
     import delayed_image
     import kwimage
-    import numpy as np
+    # import numpy as np
 
     def fancy_checkerboard(dsize, num_squares):
-        w, h = dsize
-        raw = kwimage.checkerboard(dsize=(w, h), num_squares=num_squares)
-        colors = np.zeros((h, w, 3))
-        colors[0::2, 0::2, 0] = 1
-        colors[0::2, 0::2, 1] = 0
-        colors[0::2, 0::2, 2] = 0
+        # w, h = dsize
+        # raw = kwimage.checkerboard(dsize=(w, h), num_squares=num_squares)
+        # colors = np.zeros((h, w, 3))
+        # colors[0::2, 0::2, 0] = 1
+        # colors[0::2, 0::2, 1] = 0
+        # colors[0::2, 0::2, 2] = 0
 
-        colors[2::4, 0::2, 0] = 1
-        colors[2::4, 0::2, 1] = 1
-        colors[2::4, 0::2, 2] = 0
+        # colors[2::4, 0::2, 0] = 1
+        # colors[2::4, 0::2, 1] = 1
+        # colors[2::4, 0::2, 2] = 0
 
-        colors[1::2, 1::2, 0] = 0
-        colors[1::2, 1::2, 1] = 1
-        colors[1::2, 1::2, 2] = 0
-        raw = kwimage.atleast_3channels(raw) * colors.round(1)
+        # colors[1::2, 1::2, 0] = 0
+        # colors[1::2, 1::2, 1] = 1
+        # colors[1::2, 1::2, 2] = 0
+        # raw = kwimage.atleast_3channels(raw) * colors.round(1)
+        raw = kwimage.checkerboard(dsize=dsize, num_squares=num_squares, on_value='red', off_value='yellow', bayer_value='gray')
         return raw
 
     # Create an test image at a high resolution
@@ -46,7 +47,10 @@ def test_100x_scale_difference():
     # objects.
     delayed = delayed_image.DelayedChannelConcat([
         delayed1,
-        delayed2.scale(S1 / S2)
+        delayed2.scale(
+            S1 / S2,
+            # border_value='replicate'
+        )
     ])
     delayed.print_graph()
 
@@ -58,7 +62,7 @@ def test_100x_scale_difference():
 
     # NOTE: this needs to be considered as coordinates, and not as indices
     region_of_interest = kwimage.Box.coerce([
-        25, 0, box_size, box_size], format='xywh')
+        25, 0, box_size, box_size - 30], format='xywh')
 
     # region_of_interest = kwimage.Box.coerce([
     #     -0.5, -0.5, box_size, box_size], format='xywh')
@@ -69,13 +73,14 @@ def test_100x_scale_difference():
 
     # Resampling Approach: Finalize to grab resampled data.
     print('Finalized resampled chip (nearest)')
-    resampled_final = chip.finalize(interpolation='nearest', optimize=False)
+    resampled_final = chip.finalize(interpolation='nearest', optimize=True)
 
     hires_resampled_sample = resampled_final[..., 0:3]
     lores_resampled_sample_nearest = resampled_final[..., 3:6]
 
     print('Finalized resampled chip (linear)')
-    lores_resampled_sample_linear = chip.finalize(interpolation='linear')[..., 3:6]
+    lores_resampled_sample_linear = chip.finalize(interpolation='linear', optimize=True)[..., 3:6]
+    lores_resampled_sample_linear = kwimage.fill_nans_with_checkers(lores_resampled_sample_linear)
 
     # Native Approach:
     native_parts, native_warps = chip.optimize().undo_warps(remove=['scale'], return_warps=True)
@@ -95,6 +100,11 @@ def test_100x_scale_difference():
     lores_native_sample_nearest = native2.finalize(interpolation='nearest')
     print('Finalized native chip (lores, linear)')
     lores_native_sample_linear = native2.finalize(interpolation='linear')
+
+    # a = chip.optimize().parts[1].subdata.finalize()
+    # a = chip.optimize().parts[1].finalize()
+    # import kwplot
+    # kwplot.imshow(a, fnum=4)
 
     import rich
     rich.print('\n[green]--- HiRes Box---')
@@ -124,7 +134,7 @@ def test_100x_scale_difference():
         fig.clf()
 
         num_rows = 3
-        _imshow = functools.partial(kwplot.imshow, fnum=1, show_ticks=1, pixels_are='areas')
+        _imshow = functools.partial(kwplot.imshow, fnum=1, show_ticks=1, origin_convention='corner')
 
         # Draw where the box is on the native resolution datas
         _imshow(raw1, pnum=(num_rows, 3, 1), title='sample location in native resolution 1')
@@ -153,15 +163,15 @@ def test_100x_scale_difference():
         # TODO:
         # bounding boxes need convention to note if they are representing
         # coordinates or indices.
-        S = kwimage.Affine.coerce(scale=2)
-        T1 = kwimage.Affine.coerce(offset=0.0)
-        transform = S @ T1
-        manual = kwimage.warp_affine(raw2, transform, dsize='auto',
-                                     interpolation='nearest',
-                                     # interpolation='linear',
-                                     antialias=False, border_value=(1., 1., 1.))
-        # [0:100, 25:125]
-        kwplot.imshow(manual, fnum=2, show_ticks=1, pixels_are='points')
+        # S = kwimage.Affine.coerce(scale=2)
+        # T1 = kwimage.Affine.coerce(offset=0.0)
+        # transform = S @ T1
+        # manual = kwimage.warp_affine(raw2, transform, dsize='auto',
+        #                              interpolation='nearest',
+        #                              # interpolation='linear',
+        #                              antialias=False, border_value=(1., 1., 1.))
+        # # [0:100, 25:125]
+        # kwplot.imshow(manual, fnum=2, show_ticks=1, origin_convention='corner')
         kwplot.plt.show()
 
     # TODO: need to write checks beyond the visual one
