@@ -27,7 +27,7 @@ from delayed_image.delayed_base import DelayedOperation
 """
 
 TRACE_OPTIMIZE = 0  # TODO: make this a local setting
-IS_DEVELOPING = 1  # set to 1 if hacking in IPython, otherwise 0 for efficiency
+IS_DEVELOPING = 0  # set to 1 if hacking in IPython, otherwise 0 for efficiency
 
 
 class DelayedArray(delayed_base.DelayedUnaryOperation):
@@ -2369,19 +2369,6 @@ class DelayedCrop(DelayedImage):
             >>> kwplot.autompl()
             >>> kwplot.imshow(final0, pnum=(2, 2, 1), fnum=1, title='raw')
             >>> kwplot.imshow(final1, pnum=(2, 2, 2), fnum=1, title='optimized')
-
-        Example:
-            >>> from delayed_image import *  # NOQA
-            >>> import kwimage
-            >>> from delayed_image.delayed_leafs import DelayedLoad
-            >>> fpath = kwimage.grab_test_image_fpath(dsize=(8, 8))
-            >>> node0 = DelayedLoad(fpath, channels='r|g|b').prepare()
-            >>> node1 = node0[0:1, 0:1]
-            >>> node2 = node1.warp({'scale': 10})
-            >>> self = node2
-            >>> new_outer = node2._opt_warp_after_crop()
-            >>> node2.print_graph()
-            >>> new_outer.print_graph()
 
         Example:
             >>> # xdoctest: +REQUIRES(module:osgeo)

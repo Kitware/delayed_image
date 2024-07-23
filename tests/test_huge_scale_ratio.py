@@ -49,7 +49,7 @@ def test_100x_scale_difference():
         delayed1,
         delayed2.scale(
             S1 / S2,
-            # border_value='replicate'
+            border_value='replicate'
         )
     ])
     delayed.print_graph()
@@ -62,7 +62,7 @@ def test_100x_scale_difference():
 
     # NOTE: this needs to be considered as coordinates, and not as indices
     region_of_interest = kwimage.Box.coerce([
-        25, 0, box_size, box_size - 30], format='xywh')
+        25, 0, box_size, box_size], format='xywh')
 
     # region_of_interest = kwimage.Box.coerce([
     #     -0.5, -0.5, box_size, box_size], format='xywh')
@@ -121,7 +121,7 @@ def test_100x_scale_difference():
     native2.print_graph(fields='all')
 
     # Visual check to help ensure everything is ok
-    DRAW = 1
+    DRAW = 0
     if DRAW:
         # Note the matplotlib grid (which has the center of the top left pixel
         # at 0,0) and the top left point is -0.5,-0.5, and the "delayed image
