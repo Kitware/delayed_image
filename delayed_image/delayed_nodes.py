@@ -2394,8 +2394,9 @@ class DelayedCrop(DelayedImage):
         outer_region = outer_region.to_polygons()[0]
 
         from delayed_image.helpers import _swap_warp_after_crop
+        # Should origin_convention be configurable? I think no for now.
         inner_slice, outer_transform = _swap_warp_after_crop(
-            outer_region, inner_transform)
+            outer_region, inner_transform, origin_convention='corner')
 
         warp_meta = ub.dict_isect(self.meta, {'dsize'})
         warp_meta.update(ub.dict_isect(

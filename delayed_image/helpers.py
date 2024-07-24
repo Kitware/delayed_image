@@ -108,7 +108,7 @@ def _largest_shape(shapes):
 
 
 @profile
-def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
+def _swap_warp_after_crop(in_crop2, in_warp1, origin_convention='corner'):
     r"""
     Given a warp followed by a crop, compute the corresponding crop followed by
     a warp.
@@ -118,16 +118,16 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
     image and the adjusted transformation between that root and leaf.
 
     Args:
-        root_region_bounds (kwimage.Polygon):
+        in_crop2 (kwimage.Polygon):
             region representing the crop that happens after the warp
 
-        tf_leaf_to_root (kwimage.Affine):
+        in_warp1 (kwimage.Affine):
             the warp that happens before the input crop
 
     Returns:
         Tuple[Tuple[slice, slice], kwimage.Affine]:
-            leaf_crop_slices - the crop that happens before the warp
-            tf_newleaf_to_newroot - warp that happens after the crop.
+            out_crop1 - the crop that happens before the warp
+            out_warp2 - warp that happens after the crop.
 
     Example:
         >>> from delayed_image.helpers import *  # NOQA
@@ -159,12 +159,47 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
         >>> region_slices = (slice(0, 8), slice(0, 8))
         >>> region_shape = (100, 100, 1)
         >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)
-        >>> root_region_bounds = root_region_box.to_polygons()[0]
-        >>> tf_leaf_to_root = kwimage.Affine.affine(scale=0.4).matrix
-        >>> slices, tf_new = _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root)
-        >>> print('tf_new =\n{!r}'.format(tf_new))
-        >>> print('slices = {!r}'.format(slices))
+        >>> in_warp1 = kwimage.Affine.affine(scale=0.4).matrix
+        >>> in_crop2 = root_region_box.to_polygons()[0]
+        >>> out_crop1, out_warp2 = _swap_warp_after_crop(in_crop2, in_warp1)
+        >>> print('in_warp1 =\n{!r}'.format(in_warp1))
+        >>> print('in_crop2 = {!r}'.format(in_crop2.box().to_slice()))
+        >>> print('out_crop1 = {!r}'.format(out_crop1))
+        >>> print('out_warp2 =\n{!r}'.format(out_warp2))
+
+    Example:
+        >>> from delayed_image.helpers import *  # NOQA
+        >>> from delayed_image.helpers import _swap_warp_after_crop
+        >>> region_slices = (slice(0, 8), slice(4, 12))
+        >>> region_shape = (100, 100, 1)
+        >>> root_region_box = kwimage.Boxes.from_slice(region_slices, shape=region_shape)
+        >>> in_warp1 = kwimage.Affine.affine(scale=4).matrix
+        >>> in_crop2 = root_region_box.to_polygons()[0]
+        >>> out_crop1, out_warp2 = _swap_warp_after_crop(in_crop2, in_warp1, origin_convention='center')
+        >>> center_items = {
+        >>>     'input': {'in_warp1': in_warp1, 'in_crop2': in_crop2.box().to_slice()},
+        >>>     'output': {'out_crop1': out_crop1, 'out_warp2': out_warp2},
+        >>> }
+        >>> out_crop1, out_warp2 = _swap_warp_after_crop(in_crop2, in_warp1, origin_convention='corner')
+        >>> corner_items = {
+        >>>     'input': {'in_warp1': in_warp1, 'in_crop2': in_crop2.box().to_slice()},
+        >>>     'output': {'out_crop1': out_crop1, 'out_warp2': out_warp2},
+        >>> }
+        >>> # xdoctest: +REQUIRES(module:rich)
+        >>> import rich
+        >>> rich.print(f'center_items = {ub.urepr(center_items, nl=2)}')
+        >>> rich.print(f'corner_items = {ub.urepr(corner_items, nl=2)}')
     """
+    # TODO: rename variables to make concepts more clear
+    # Conceptually we want to warp the image and then crop out a box/polygon
+    # inside the warped image. We will call these in_warp1, and in_crop1.  We
+    # will then will produce a crop followed by a warp which is equivalent, but
+    # more efficient. Will create out_crop1, out_warp2
+    tf_leaf_to_root = in_warp1
+    root_region_bounds = in_crop2
+
+    needs_tl_corner_pad_workaround = origin_convention == 'corner'
+
     # Transform the region bounds into the sub-image space
     tf_leaf_to_root = kwimage.Affine.coerce(tf_leaf_to_root)
     tf_root_to_leaf = tf_leaf_to_root.inv()
@@ -238,9 +273,25 @@ def _swap_warp_after_crop(root_region_bounds, tf_leaf_to_root):
 
     # Need to pad add a bit more to the end of the crop because we are going to
     # warp afterwards. This fixes at least one case of off-by-one error.
-    leaf_crop_slices = (slice(lt_y, rb_y + padh), slice(lt_x, rb_x + padw))
+    rb_y_stop_index = rb_y + padh
+    rb_x_stop_index = rb_x + padw
 
-    return leaf_crop_slices, tf_newleaf_to_newroot
+    if needs_tl_corner_pad_workaround:
+        # pad by 1 if we are not on a left/top edge
+        lt_pad_h = min(lt_y, 1)
+        lt_pad_w = min(lt_x, 1)
+        lt_y_start_index = lt_y - lt_pad_h
+        lt_x_start_index = lt_x - lt_pad_w
+        lt_offset = kwimage.Affine.translate((-lt_pad_w, -lt_pad_h))
+        out_warp2 =  tf_newleaf_to_newroot @ lt_offset.matrix
+    else:
+        lt_y_start_index = lt_y
+        lt_x_start_index = lt_x
+        out_warp2 = tf_newleaf_to_newroot
+
+    out_crop1 = (slice(lt_y_start_index, rb_y_stop_index),
+                 slice(lt_x_start_index, rb_x_stop_index))
+    return out_crop1, out_warp2
 
 
 @profile

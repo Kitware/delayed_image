@@ -30,7 +30,16 @@ def test_100x_scale_difference():
         # colors[1::2, 1::2, 1] = 1
         # colors[1::2, 1::2, 2] = 0
         # raw = kwimage.atleast_3channels(raw) * colors.round(1)
-        raw = kwimage.checkerboard(dsize=dsize, num_squares=num_squares, on_value='red', off_value='yellow', bayer_value='gray')
+        checker = kwimage.checkerboard(dsize=dsize, num_squares=num_squares, on_value='red', off_value='yellow', bayer_value='gray')
+        checker = kwimage.ensure_float01(checker)
+        checker = kwimage.ensure_alpha_channel(checker, alpha=1.0)
+
+        astro = kwimage.ensure_float01(kwimage.grab_test_image(dsize=dsize))
+        astro = kwimage.ensure_float01(astro)
+        astro = kwimage.ensure_alpha_channel(astro, alpha=0.3)
+
+        raw = kwimage.overlay_alpha_images(astro, checker)
+        raw = kwimage.ensure_float01(raw[..., 0:3], copy=True)
         return raw
 
     # Create an test image at a high resolution
@@ -49,7 +58,8 @@ def test_100x_scale_difference():
         delayed1,
         delayed2.scale(
             S1 / S2,
-            border_value='replicate'
+            # border_value=float('nan'),
+            # border_value='replicate'
         )
     ])
     delayed.print_graph()
@@ -62,7 +72,7 @@ def test_100x_scale_difference():
 
     # NOTE: this needs to be considered as coordinates, and not as indices
     region_of_interest = kwimage.Box.coerce([
-        25, 0, box_size, box_size], format='xywh')
+        425, 120, box_size, box_size], format='xywh')
 
     # region_of_interest = kwimage.Box.coerce([
     #     -0.5, -0.5, box_size, box_size], format='xywh')
@@ -121,7 +131,8 @@ def test_100x_scale_difference():
     native2.print_graph(fields='all')
 
     # Visual check to help ensure everything is ok
-    DRAW = 0
+    import ubelt as ub
+    DRAW = ub.argflag('--show')
     if DRAW:
         # Note the matplotlib grid (which has the center of the top left pixel
         # at 0,0) and the top left point is -0.5,-0.5, and the "delayed image
@@ -180,6 +191,6 @@ def test_100x_scale_difference():
 if __name__ == '__main__':
     """
     CommandLine:
-        python ~/code/delayed_image/tests/test_huge_scale_ratio.py
+        python ~/code/delayed_image/tests/test_huge_scale_ratio.py --show
     """
     test_100x_scale_difference()
