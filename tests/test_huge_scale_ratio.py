@@ -9,27 +9,16 @@ def test_100x_scale_difference():
     """
     There is an issue here in that the native subdata does not seem to agree
     with the resampled subdata.
+
+    References:
+        https://forum.opencv.org/t/adapting-cv2-warpaffine-from-integer-corners-to-integer-centers-convention/15027/3
+        https://ppwwyyxx.com/blog/2021/Where-are-Pixels/
     """
     import delayed_image
     import kwimage
     # import numpy as np
 
     def fancy_checkerboard(dsize, num_squares):
-        # w, h = dsize
-        # raw = kwimage.checkerboard(dsize=(w, h), num_squares=num_squares)
-        # colors = np.zeros((h, w, 3))
-        # colors[0::2, 0::2, 0] = 1
-        # colors[0::2, 0::2, 1] = 0
-        # colors[0::2, 0::2, 2] = 0
-
-        # colors[2::4, 0::2, 0] = 1
-        # colors[2::4, 0::2, 1] = 1
-        # colors[2::4, 0::2, 2] = 0
-
-        # colors[1::2, 1::2, 0] = 0
-        # colors[1::2, 1::2, 1] = 1
-        # colors[1::2, 1::2, 2] = 0
-        # raw = kwimage.atleast_3channels(raw) * colors.round(1)
         checker = kwimage.checkerboard(dsize=dsize, num_squares=num_squares, on_value='red', off_value='yellow', bayer_value='gray')
         checker = kwimage.ensure_float01(checker)
         checker = kwimage.ensure_alpha_channel(checker, alpha=1.0)
@@ -116,18 +105,18 @@ def test_100x_scale_difference():
     # import kwplot
     # kwplot.imshow(a, fnum=4)
 
-    import rich
-    rich.print('\n[green]--- HiRes Box---')
+    # from rich import print
+    print('\n[green]--- HiRes Box---')
     print(region_of_interest)
-    rich.print('\n[green]--- Native Box---')
+    print('\n[green]--- Native Box---')
     print(roi_resolution2)
 
     # Get the delayed operation tree for just the coarse image for print comparison
     resampled2 = chip.optimize().undo_warps(remove=[])[1]
-    rich.print('\n[green]--- Resampled Operations For Data 2 ---')
+    print('\n[green]--- Resampled Operations For Data 2 ---')
     resampled2.print_graph(fields='all')
 
-    rich.print('\n[green]--- Native Operations For Data 2 ---')
+    print('\n[green]--- Native Operations For Data 2 ---')
     native2.print_graph(fields='all')
 
     # Visual check to help ensure everything is ok
@@ -168,21 +157,6 @@ def test_100x_scale_difference():
 
         # Test manual non-optimized resampled method
         # This seems to be a cv2 issue, I probably looked into this before
-        # https://forum.opencv.org/t/adapting-cv2-warpaffine-from-integer-corners-to-integer-centers-convention/15027/3
-        # https://ppwwyyxx.com/blog/2021/Where-are-Pixels/
-
-        # TODO:
-        # bounding boxes need convention to note if they are representing
-        # coordinates or indices.
-        # S = kwimage.Affine.coerce(scale=2)
-        # T1 = kwimage.Affine.coerce(offset=0.0)
-        # transform = S @ T1
-        # manual = kwimage.warp_affine(raw2, transform, dsize='auto',
-        #                              interpolation='nearest',
-        #                              # interpolation='linear',
-        #                              antialias=False, border_value=(1., 1., 1.))
-        # # [0:100, 25:125]
-        # kwplot.imshow(manual, fnum=2, show_ticks=1, origin_convention='corner')
         kwplot.plt.show()
 
     # TODO: need to write checks beyond the visual one
