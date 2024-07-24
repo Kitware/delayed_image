@@ -10,6 +10,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Changed
 * Minor optimizations
 * Added `__slots__` to all node classes 
+* Warping now uses `origin_convention='corner'` when warping. This is a
+  breaking change, but the result should be minor for any window size with more
+  than a few dozen pixels, and it the surrounding code was previously
+  incorrectly assuming the convention was corner.
+
+### Fixed
+
+* Fixed unexpected results caused by incorrect assumptions that the origin convention was corner.
 
 
 ## Version 0.3.1 - Released 2024-06-24
