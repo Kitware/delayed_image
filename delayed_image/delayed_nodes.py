@@ -27,6 +27,7 @@ from delayed_image.delayed_base import DelayedOperation
 """
 
 TRACE_OPTIMIZE = 0  # TODO: make this a local setting
+IS_DEVELOPING = 0  # set to 1 if hacking in IPython, otherwise 0 for efficiency
 
 
 class DelayedArray(delayed_base.DelayedUnaryOperation):
@@ -252,8 +253,68 @@ class ImageOpsMixin:
             new = self._padded_crop(space_slice, pad=pad)
         else:
             # Normal efficient case
+            # FIXME: This is using index-based slices and it there needs to be
+            # a an explicit distinction between index and coordinate based
+            # slices.
             new = DelayedCrop(self, space_slice, chan_idxs)
         return new
+
+    @profile
+    def _coordinate_crop(self, roi, lazy=False):
+        """
+        Experimental cropping implemented as a warp, which assumes the slice in
+        a coordinate-slice, and not a index-slice.
+
+        Contextual data that needs to be known:
+
+            * Is the box representing coordinates or indexes?
+
+            *
+
+        Ignore:
+            >>> from delayed_image import DelayedLoad
+            >>> import kwimage
+            >>> raw = DelayedLoad.demo(dsize=(16, 16)).prepare()
+            >>> w, h = raw.dsize[0:2]
+            >>> #roi = kwimage.Box.coerce([0, 0, 8, 8], format='xywh')
+            >>> roi = kwimage.Box.coerce([-.5, -.5, 8, 8], format='xywh')
+            >>> roi = kwimage.Box.coerce([.5, .5, 8, 8], format='xywh')
+            >>> space_slice = roi.to_slice()
+            >>> result1 = raw.crop(space_slice)
+            >>> result2 = raw.crop(space_slice, clip=False, wrap=False)
+            >>> result3 = raw._coordinate_crop(roi, lazy=True)
+            >>> result1.optimize().print_graph(fields='all')
+            >>> result2.optimize().print_graph(fields='all')
+            >>> result3.optimize().print_graph(fields='all')
+            >>> import kwplot
+            >>> kwplot.autompl()
+            >>> kwplot.imshow(raw.finalize(), pnum=(2, 1, 1), show_ticks=1, doclf=1)
+            >>> roi.draw()
+            >>> try:
+            >>>     kwplot.imshow(result1.finalize(), pnum=(2, 3, 4), show_ticks=1, title='orig crop (index path)')
+            >>> except Exception:
+            >>>     kwplot.imshow(np.zeros((1, 1)), pnum=(2, 3, 4), show_ticks=1, title='orig crop (index path)')
+            >>> kwplot.imshow(result2.finalize(), pnum=(2, 3, 5), show_ticks=1, title='orig crop (warp path)')
+            >>> kwplot.imshow(result3.finalize(), pnum=(2, 3, 6), show_ticks=1, title='coordinate crop')
+        """
+        # data_dims = self.dsize[::-1]
+        # _data_slice, _extra_padding = kwarray.embed_slice(
+        #     space_slice, data_dims)
+        tl_x = roi.tl_x
+        tl_y = roi.tl_y
+        coordinate_width = roi.width
+        coordinate_height = roi.height
+        # sl_y, sl_x = _data_slice
+        # Is this correct?
+        # coordinate_width = iceil(sl_x.stop - sl_x.start)
+        # coordinate_height = iceil(sl_y.stop - sl_y.start)
+        dsize = (coordinate_width, coordinate_height)
+        transform = kwimage.Affine.translate(offset=(-tl_x, -tl_y))
+        # offset1 = kwimage.Affine.translate(offset=(+.5, +.5))
+        # offset2 = kwimage.Affine.translate(offset=(-.5, -.5))
+        # adjusted_transform = offset2 @ transform @ offset1
+        # return self.warp(adjusted_transform, dsize=dsize, interpolation='linear')
+        return self.warp(transform, dsize=dsize, interpolation='linear')
 
     @profile
     def _padded_crop(self, space_slice, pad=0):
@@ -263,6 +324,7 @@ class ImageOpsMixin:
         """
         if self.dsize is None:
             raise Exception('dsize must be populated to do a padded crop')
+        print('padded crop')
         data_dims = self.dsize[::-1]
         _data_slice, _extra_padding = kwarray.embed_slice(
             space_slice, data_dims, pad)
@@ -1468,20 +1530,22 @@ class DelayedWarp(DelayedImage):
                     border_value = 0
         else:
             border_value = self.meta['border_value']
-        if not ub.iterable(border_value):
-            # Odd OpenCV behavior: https://github.com/opencv/opencv/issues/22283
-            # Can only have at most 4 components to border_value and
-            # then they start to wrap around. This is fine if we are only
-            # specifying a single number for all channels
-            border_value = (border_value,) * min(4, num_chan)
-        if len(border_value) > 4:
-            raise ValueError('borderValue cannot have more than 4 components. '
-                             'OpenCV #22283 describes why')
 
-        # HACK:
-        # the border value only correctly applies to the first 4 channels for
-        # whatever reason.
-        border_value = border_value[0:4]
+        if not isinstance(border_value, str):
+            if not ub.iterable(border_value):
+                # Odd OpenCV behavior: https://github.com/opencv/opencv/issues/22283
+                # Can only have at most 4 components to border_value and
+                # then they start to wrap around. This is fine if we are only
+                # specifying a single number for all channels
+                border_value = (border_value,) * min(4, num_chan)
+            if len(border_value) > 4:
+                raise ValueError('borderValue cannot have more than 4 components. '
+                                 'OpenCV #22283 describes why')
+
+            # HACK:
+            # the border value only correctly applies to the first 4 channels for
+            # whatever reason.
+            border_value = border_value[0:4]
 
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
@@ -1490,7 +1554,9 @@ class DelayedWarp(DelayedImage):
         final = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                     interpolation=interpolation,
                                     antialias=antialias,
-                                    border_value=border_value)
+                                    border_value=border_value,
+                                    origin_convention='corner'
+                                    )
         # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
         final = kwarray.atleast_nd(final, 3, front=False)
@@ -2328,8 +2394,9 @@ class DelayedCrop(DelayedImage):
         outer_region = outer_region.to_polygons()[0]
 
         from delayed_image.helpers import _swap_warp_after_crop
+        # Should origin_convention be configurable? I think no for now.
         inner_slice, outer_transform = _swap_warp_after_crop(
-            outer_region, inner_transform)
+            outer_region, inner_transform, origin_convention='corner')
 
         warp_meta = ub.dict_isect(self.meta, {'dsize'})
         warp_meta.update(ub.dict_isect(
@@ -2738,9 +2805,7 @@ class _InnerAccumSegment:
         return sub_comp
 
 
-if 1:
-    isinstance2 = isinstance
-else:
+if IS_DEVELOPING:
     def isinstance2(inst, cls):
         """
         In production regular isinstance works fine, but when debugging in IPython
@@ -2769,6 +2834,8 @@ else:
         else:
             return any(inst_cls.__name__ == cls.__name__
                        for inst_cls in inst.__class__.__mro__)
+else:
+    isinstance2 = isinstance
 
 
 def iceil(x):
