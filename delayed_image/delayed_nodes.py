@@ -324,7 +324,6 @@ class ImageOpsMixin:
         """
         if self.dsize is None:
             raise Exception('dsize must be populated to do a padded crop')
-        print('padded crop')
         data_dims = self.dsize[::-1]
         _data_slice, _extra_padding = kwarray.embed_slice(
             space_slice, data_dims, pad)
