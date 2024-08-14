@@ -17,7 +17,7 @@ Notes:
     # need to edit the conf.py
 
     cd ~/code/delayed_image/docs
-    sphinx-apidoc --private --separate -f -o ~/code/delayed_image/docs/source/auto ~/code/delayed_image/delayed_image
+    sphinx-apidoc --private --separate --force --output-dir ~/code/delayed_image/docs/source/auto ~/code/delayed_image/delayed_image
 
     # Note: the module should importable before running this
     # (e.g. install it in developer mode or munge the PYTHONPATH)
