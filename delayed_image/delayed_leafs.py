@@ -6,8 +6,8 @@ import kwarray
 import kwimage
 import numpy as np
 import warnings
-from delayed_image.delayed_nodes import DelayedImage, TRACE_OPTIMIZE
-# from delayed_image.delayed_nodes import DelayedArray
+from delayed_image import delayed_nodes
+from delayed_image import delayed_base
 
 try:
     from line_profiler import profile
@@ -19,7 +19,12 @@ from delayed_image.channel_spec import FusedChannelSpec
 """
 
 
-class DelayedImageLeaf(DelayedImage):
+TRACE_OPTIMIZE = delayed_nodes.TRACE_OPTIMIZE
+
+
+class DelayedImageLeaf(delayed_nodes.DelayedImage):
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_nodes.DelayedImage.__slots__
 
     def get_transform_from_leaf(self):
         """
@@ -127,6 +132,10 @@ class DelayedLoad(DelayedImageLeaf):
         >>> stack2 = kwimage.stack_images([stack1, data6], axis=1)
         >>> kwplot.imshow(stack2)
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_nodes.DelayedImage.__slots__ + ('lazy_ref',)
+
+    @profile
     def __init__(self, fpath, channels=None, dsize=None, nodata_method=None, num_overviews=None):
         """
         Args:
@@ -351,6 +360,9 @@ class DelayedNans(DelayedImageLeaf):
         >>> warped_cat = cat.warp({'scale': 1.07}, dsize=(328, 332))._validate()
         >>> warped_cat._validate().optimize().finalize()
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImageLeaf.__slots__ + ('_kwargs',)
+
     def __init__(self, dsize=None, channels=None):
         super().__init__(channels=channels, dsize=dsize)
         self._kwargs = {}
@@ -423,6 +435,9 @@ class DelayedNodata(DelayedNans):
         >>> assert not hasattr(im1, 'mask')
         >>> assert hasattr(im2, 'mask')
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedNans.__slots__
+
     def __init__(self, dsize=None, channels=None, nodata_method='float'):
         super().__init__(channels=channels, dsize=dsize)
         self.meta['nodata_method'] = nodata_method
@@ -466,6 +481,9 @@ class DelayedIdentity(DelayedImageLeaf):
         >>> warp = self.warp({'scale': 1.07})
         >>> warp.optimize().finalize()
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImageLeaf.__slots__ + ('data',)
+
     def __init__(self, data, channels=None, dsize=None):
         super().__init__(channels=channels)
         self.data = data

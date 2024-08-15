@@ -7,9 +7,9 @@ import copy
 import numpy as np
 import ubelt as ub
 import warnings
-from delayed_image import channel_spec
-from delayed_image.delayed_base import DelayedNaryOperation, DelayedUnaryOperation
+from delayed_image import delayed_base
 from delayed_image import delayed_leafs
+from delayed_image.channel_spec import FusedChannelSpec
 
 
 try:
@@ -22,46 +22,31 @@ except Exception:
 # --------
 
 __docstubs__ = """
-from delayed_image.channel_spec import FusedChannelSpec
 from delayed_image.delayed_leafs import DelayedIdentity
 from delayed_image.delayed_base import DelayedOperation
 """
 
 TRACE_OPTIMIZE = 0  # TODO: make this a local setting
+IS_DEVELOPING = 0  # set to 1 if hacking in IPython, otherwise 0 for efficiency
 
 
-class DelayedArray(DelayedUnaryOperation):
+class DelayedArray(delayed_base.DelayedUnaryOperation):
     """
     A generic NDArray.
+
+    Args:
+        subdata (DelayedArray):
     """
-    def __init__(self, subdata=None):
-        """
-        Args:
-            subdata (DelayedArray):
-        """
-        super().__init__(subdata=subdata)
-
-    def __nice__(self):
-        """
-        Returns:
-            str
-        """
-        return '{}'.format(self.shape)
-
-    @property
-    def shape(self):
-        """
-        Returns:
-            None | Tuple[int | None, ...]
-        """
-        shape = self.subdata.shape
-        return shape
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_base.DelayedUnaryOperation.__slots__
 
 
-class DelayedStack(DelayedNaryOperation):
+class DelayedStack(delayed_base.DelayedNaryOperation):
     """
     Stacks multiple arrays together.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_base.DelayedNaryOperation.__slots__
 
     def __init__(self, parts, axis):
         """
@@ -73,27 +58,13 @@ class DelayedStack(DelayedNaryOperation):
         super().__init__(parts=parts)
         self.meta['axis'] = axis
 
-    def __nice__(self):
-        """
-        Returns:
-            str
-        """
-        return '{}'.format(self.shape)
 
-    @property
-    def shape(self):
-        """
-        Returns:
-            None | Tuple[int | None, ...]
-        """
-        shape = self.subdata.shape
-        return shape
-
-
-class DelayedConcat(DelayedNaryOperation):
+class DelayedConcat(delayed_base.DelayedNaryOperation):
     """
     Stacks multiple arrays together.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = delayed_base.DelayedNaryOperation.__slots__
 
     def __init__(self, parts, axis):
         """
@@ -104,23 +75,13 @@ class DelayedConcat(DelayedNaryOperation):
         super().__init__(parts=parts)
         self.meta['axis'] = axis
 
-    def __nice__(self):
-        return '{}'.format(self.shape)
-
-    @property
-    def shape(self):
-        """
-        Returns:
-            None | Tuple[int | None, ...]
-        """
-        shape = self.subdata.shape
-        return shape
-
 
 class DelayedFrameStack(DelayedStack):
     """
     Stacks multiple arrays together.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedStack.__slots__
 
     def __init__(self, parts):
         """
@@ -136,6 +97,8 @@ class DelayedFrameStack(DelayedStack):
 
 
 class ImageOpsMixin:
+    if delayed_base.USE_SLOTS:
+        __slots__ = tuple()
 
     @profile
     def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True,
@@ -290,8 +253,68 @@ class ImageOpsMixin:
             new = self._padded_crop(space_slice, pad=pad)
         else:
             # Normal efficient case
+            # FIXME: This is using index-based slices and it there needs to be
+            # a an explicit distinction between index and coordinate based
+            # slices.
             new = DelayedCrop(self, space_slice, chan_idxs)
         return new
+
+    @profile
+    def _coordinate_crop(self, roi, lazy=False):
+        """
+        Experimental cropping implemented as a warp, which assumes the slice in
+        a coordinate-slice, and not a index-slice.
+
+        Contextual data that needs to be known:
+
+            * Is the box representing coordinates or indexes?
+
+            *
+
+        Ignore:
+            >>> from delayed_image import DelayedLoad
+            >>> import kwimage
+            >>> raw = DelayedLoad.demo(dsize=(16, 16)).prepare()
+            >>> w, h = raw.dsize[0:2]
+            >>> #roi = kwimage.Box.coerce([0, 0, 8, 8], format='xywh')
+            >>> roi = kwimage.Box.coerce([-.5, -.5, 8, 8], format='xywh')
+            >>> roi = kwimage.Box.coerce([.5, .5, 8, 8], format='xywh')
+            >>> space_slice = roi.to_slice()
+            >>> result1 = raw.crop(space_slice)
+            >>> result2 = raw.crop(space_slice, clip=False, wrap=False)
+            >>> result3 = raw._coordinate_crop(roi, lazy=True)
+            >>> result1.optimize().print_graph(fields='all')
+            >>> result2.optimize().print_graph(fields='all')
+            >>> result3.optimize().print_graph(fields='all')
+            >>> import kwplot
+            >>> kwplot.autompl()
+            >>> kwplot.imshow(raw.finalize(), pnum=(2, 1, 1), show_ticks=1, doclf=1)
+            >>> roi.draw()
+            >>> try:
+            >>>     kwplot.imshow(result1.finalize(), pnum=(2, 3, 4), show_ticks=1, title='orig crop (index path)')
+            >>> except Exception:
+            >>>     kwplot.imshow(np.zeros((1, 1)), pnum=(2, 3, 4), show_ticks=1, title='orig crop (index path)')
+            >>> kwplot.imshow(result2.finalize(), pnum=(2, 3, 5), show_ticks=1, title='orig crop (warp path)')
+            >>> kwplot.imshow(result3.finalize(), pnum=(2, 3, 6), show_ticks=1, title='coordinate crop')
+        """
+        # data_dims = self.dsize[::-1]
+        # _data_slice, _extra_padding = kwarray.embed_slice(
+        #     space_slice, data_dims)
+        tl_x = roi.tl_x
+        tl_y = roi.tl_y
+        coordinate_width = roi.width
+        coordinate_height = roi.height
+        # sl_y, sl_x = _data_slice
+        # Is this correct?
+        # coordinate_width = iceil(sl_x.stop - sl_x.start)
+        # coordinate_height = iceil(sl_y.stop - sl_y.start)
+        dsize = (coordinate_width, coordinate_height)
+        transform = kwimage.Affine.translate(offset=(-tl_x, -tl_y))
+        # offset1 = kwimage.Affine.translate(offset=(+.5, +.5))
+        # offset2 = kwimage.Affine.translate(offset=(-.5, -.5))
+        # adjusted_transform = offset2 @ transform @ offset1
+        # return self.warp(adjusted_transform, dsize=dsize, interpolation='linear')
+        return self.warp(transform, dsize=dsize, interpolation='linear')
 
     @profile
     def _padded_crop(self, space_slice, pad=0):
@@ -318,6 +341,7 @@ class ImageOpsMixin:
             new = new.warp(pad_warp, dsize=dsize)
         return new
 
+    @profile
     def warp(self, transform, dsize='auto', lazy=False, **warp_kwargs):
         """
         Applys an affine transformation to the image. See :class:`DelayedWarp`.
@@ -527,7 +551,7 @@ class ImageOpsMixin:
         return dst_from_src
 
 
-class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
+class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
     """
     Stacks multiple arrays together.
 
@@ -560,7 +584,10 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
         >>> delayed.write_network_text()
         >>> delayed.optimize()
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedConcat.__slots__ + ('dsize', 'num_channels')
 
+    @profile
     def __init__(self, parts, dsize=None):
         """
         Args:
@@ -603,14 +630,14 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
         Returns:
             None | FusedChannelSpec
         """
-        import delayed_image
+        # import delayed_image
         sub_channs = []
         for comp in self.parts:
             comp_channels = comp.channels
             if comp_channels is None:
                 return None
             sub_channs.append(comp_channels)
-        channs = delayed_image.FusedChannelSpec.concat(sub_channs)
+        channs = FusedChannelSpec.concat(sub_channs)
         return channs
 
     @property
@@ -655,7 +682,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
         specified bands / channels.
 
         Args:
-            channels (List[int] | slice | channel_spec.FusedChannelSpec):
+            channels (List[int] | slice | FusedChannelSpec):
                 List of integers indexes, a slice, or a channel spec, which is
                 typically a pipe (`|`) delimited list of channel codes. See
                 :class:`ChannelSpec` for more detials.
@@ -729,7 +756,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             top_codes = self.channels.as_list()
             request_codes = None
         else:
-            channels = channel_spec.FusedChannelSpec.coerce(channels)
+            channels = FusedChannelSpec.coerce(channels)
             if current_channels == channels:
                 # If the request is equal to what we already have then skip this.
                 return self
@@ -884,6 +911,10 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
                 The List[DelayedImage] are the ``parts`` i.e. the new images with the warping undone.
                 The List[kwimage.Affine]: is the transforms from ``self`` to each item in ``parts``
 
+        Note:
+            The most common use case is to get aligned images, but at their
+            native scale, to do this use the argument: ``remove=['scale']``.
+
         Example:
             >>> from delayed_image.delayed_nodes import *  # NOQA
             >>> from delayed_image.delayed_leafs import DelayedLoad
@@ -957,10 +988,14 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
             return unwarped_parts
 
 
-class DelayedImage(ImageOpsMixin, DelayedArray):
+class DelayedImage(DelayedArray, ImageOpsMixin):
     """
     For the case where an array represents a 2D image with multiple channels
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedArray.__slots__
+
+    @profile
     def __init__(self, subdata=None, dsize=None, channels=None):
         """
         Args:
@@ -969,7 +1004,18 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
             channels (None | int | FusedChannelSpec): overrides subdata channels
         """
         super().__init__(subdata)
-        self.channels = channels
+        if channels is None:
+            num_channels = None
+        else:
+            if isinstance(channels, int):
+                num_channels = channels
+                channels = None
+            else:
+                channels = FusedChannelSpec.coerce(channels)
+                num_channels = channels.normalize().numel()
+        self.meta['channels'] = channels
+        self.meta['num_channels'] = num_channels
+
         self.meta['dsize'] = dsize
 
     def __nice__(self):
@@ -1038,8 +1084,7 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
                 num_channels = channels
                 channels = None
             else:
-                import delayed_image
-                channels = delayed_image.FusedChannelSpec.coerce(channels)
+                channels = FusedChannelSpec.coerce(channels)
                 num_channels = channels.normalize().numel()
         self.meta['channels'] = channels
         self.meta['num_channels'] = num_channels
@@ -1069,16 +1114,20 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
         return self.crop(space_slice, chan_idxs)
 
     @profile
-    def take_channels(self, channels):
+    def take_channels(self, channels, lazy=False):
         """
         This method returns a subset of the vision data with only the
         specified bands / channels.
 
         Args:
-            channels (List[int] | slice | channel_spec.FusedChannelSpec):
+            channels (List[int] | slice | FusedChannelSpec):
                 List of integers indexes, a slice, or a channel spec, which is
                 typically a pipe (`|`) delimited list of channel codes. See
                 ChannelSpec for more detials.
+
+            lazy (bool):
+                if True, dont create a new object if we can detect that it
+                would be a noop.
 
         Returns:
             DelayedCrop:
@@ -1133,13 +1182,17 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
         if isinstance(channels, list):
             top_idx_mapping = channels
         else:
+            if channels is None and lazy:
+                return self
             current_channels = self.channels
             if current_channels is None:
                 raise ValueError(
                     'The channel spec for this node are unknown. '
                     'Cannot use a spec to select them'
                 )
-            channels = channel_spec.FusedChannelSpec.coerce(channels)
+            channels = FusedChannelSpec.coerce(channels)
+            if lazy and current_channels == channels:
+                return self
             # Computer subindex integer mapping
             request_codes = channels.as_list()
             top_codes = current_channels.as_oset()
@@ -1342,6 +1395,8 @@ class DelayedAsXarray(DelayedImage):
         >>> assert final.coords.indexes['c'].tolist() == ['r', 'g', 'b']
         >>> assert final.dims == ('y', 'x', 'c')
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
 
     def _finalize(self):
         """
@@ -1384,6 +1439,10 @@ class DelayedWarp(DelayedImage):
         >>> print(ub.urepr(warp2.nesting(), nl=-1, sort=0))
         >>> print(ub.urepr(warp3.nesting(), nl=-1, sort=0))
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__ + ('_data_keys', '_algo_keys')
+
+    @profile
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
                  interpolation='linear', border_value='auto', noop_eps=0):
         """
@@ -1470,20 +1529,22 @@ class DelayedWarp(DelayedImage):
                     border_value = 0
         else:
             border_value = self.meta['border_value']
-        if not ub.iterable(border_value):
-            # Odd OpenCV behavior: https://github.com/opencv/opencv/issues/22283
-            # Can only have at most 4 components to border_value and
-            # then they start to wrap around. This is fine if we are only
-            # specifying a single number for all channels
-            border_value = (border_value,) * min(4, num_chan)
-        if len(border_value) > 4:
-            raise ValueError('borderValue cannot have more than 4 components. '
-                             'OpenCV #22283 describes why')
 
-        # HACK:
-        # the border value only correctly applies to the first 4 channels for
-        # whatever reason.
-        border_value = border_value[0:4]
+        if not isinstance(border_value, str):
+            if not ub.iterable(border_value):
+                # Odd OpenCV behavior: https://github.com/opencv/opencv/issues/22283
+                # Can only have at most 4 components to border_value and
+                # then they start to wrap around. This is fine if we are only
+                # specifying a single number for all channels
+                border_value = (border_value,) * min(4, num_chan)
+            if len(border_value) > 4:
+                raise ValueError('borderValue cannot have more than 4 components. '
+                                 'OpenCV #22283 describes why')
+
+            # HACK:
+            # the border value only correctly applies to the first 4 channels for
+            # whatever reason.
+            border_value = border_value[0:4]
 
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
@@ -1492,7 +1553,9 @@ class DelayedWarp(DelayedImage):
         final = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                     interpolation=interpolation,
                                     antialias=antialias,
-                                    border_value=border_value)
+                                    border_value=border_value,
+                                    origin_convention='corner'
+                                    )
         # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
         final = kwarray.atleast_nd(final, 3, front=False)
@@ -1952,6 +2015,8 @@ class DelayedDequantize(DelayedImage):
     The output is usually between 0 and 1. This also handles transforming
     nodata into nan values.
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
     def __init__(self, subdata, quantization):
         """
         Args:
@@ -2057,6 +2122,8 @@ class DelayedCrop(DelayedImage):
         >>> final = self._finalize()
         >>> assert final.shape == (16, 16, 2)
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
 
     @profile
     def __init__(self, subdata, space_slice=None, chan_idxs=None):
@@ -2326,8 +2393,9 @@ class DelayedCrop(DelayedImage):
         outer_region = outer_region.to_polygons()[0]
 
         from delayed_image.helpers import _swap_warp_after_crop
+        # Should origin_convention be configurable? I think no for now.
         inner_slice, outer_transform = _swap_warp_after_crop(
-            outer_region, inner_transform)
+            outer_region, inner_transform, origin_convention='corner')
 
         warp_meta = ub.dict_isect(self.meta, {'dsize'})
         warp_meta.update(ub.dict_isect(
@@ -2387,6 +2455,9 @@ class DelayedOverview(DelayedImage):
         >>> kwplot.imshow(final0, pnum=(1, 2, 1), fnum=1, title='raw')
         >>> kwplot.imshow(final1, pnum=(1, 2, 2), fnum=1, title='optimized')
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = DelayedImage.__slots__
+
     def __init__(self, subdata, overview):
         """
         Args:
@@ -2651,19 +2722,19 @@ class CoordinateCompatibilityError(ValueError):
     """
 
 
-class _InnerAccumSegment:  # (ub.NiceRepr):
+class _InnerAccumSegment:
     """
     Gather the indexes we need to take from an inner component
     """
+    if delayed_base.USE_SLOTS:
+        __slots__ = ('comp', 'start', 'stop', 'codes', 'indexes')
+
     def __init__(curr, comp):
         curr.comp = comp
         curr.start = None
         curr.stop = None
         curr.codes = None
         curr.indexes = []
-
-    # def __nice__(curr):
-    #     return f'{curr.start}, {curr.stop}, {curr.indexes}, {curr.codes}'
 
     def add_inner(curr, inner, code):
         if curr.start is None:
@@ -2721,7 +2792,7 @@ class _InnerAccumSegment:  # (ub.NiceRepr):
             if curr.codes is None:
                 nan_chan = None
             else:
-                nan_chan = channel_spec.FusedChannelSpec(curr.codes)
+                nan_chan = FusedChannelSpec(curr.codes)
             sub_comp = DelayedNans(dsize, channels=nan_chan)
         else:
             sub_idxs = curr.get_indexer()
@@ -2733,34 +2804,37 @@ class _InnerAccumSegment:  # (ub.NiceRepr):
         return sub_comp
 
 
-def isinstance2(inst, cls):
-    """
-    In production regular isinstance works fine, but when debugging in IPython
-    reloading classes will causes it to break, so we special case it here.
+if IS_DEVELOPING:
+    def isinstance2(inst, cls):
+        """
+        In production regular isinstance works fine, but when debugging in IPython
+        reloading classes will causes it to break, so we special case it here.
 
-    Args:
-        item (object): instance to check
-        cls (type): class to check against
+        Args:
+            item (object): instance to check
+            cls (type): class to check against
 
-    Returns:
-        bool
+        Returns:
+            bool
 
-    Ignore:
-        from delayed_image.delayed_nodes import *  # NOQA
-        from delayed_image.delayed_leafs import DelayedNans
+        Ignore:
+            from delayed_image.delayed_nodes import *  # NOQA
+            from delayed_image.delayed_leafs import DelayedNans
 
-        inst = DelayedNans()
-        cls = DelayedImage
-        isinstance2(inst, cls)
-        isinstance2(inst, DelayedWarp)
-    """
-    import sys
-    USE_REAL_ISINSTANCE = 'IPython' not in sys.modules
-    if USE_REAL_ISINSTANCE:
-        return isinstance(inst, cls)
-    else:
-        return any(inst_cls.__name__ == cls.__name__
-                   for inst_cls in inst.__class__.__mro__)
+            inst = DelayedNans()
+            cls = DelayedImage
+            isinstance2(inst, cls)
+            isinstance2(inst, DelayedWarp)
+        """
+        import sys
+        USE_REAL_ISINSTANCE = 'IPython' not in sys.modules
+        if USE_REAL_ISINSTANCE:
+            return isinstance(inst, cls)
+        else:
+            return any(inst_cls.__name__ == cls.__name__
+                       for inst_cls in inst.__class__.__mro__)
+else:
+    isinstance2 = isinstance
 
 
 def iceil(x):

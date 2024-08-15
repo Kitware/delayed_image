@@ -102,7 +102,7 @@ def test_static_operation_optimize_single_chain():
     import kwimage
 
     try:
-        import osgeo
+        import osgeo  # NOQA
     except ImportError:
         import pytest
         pytest.skip()

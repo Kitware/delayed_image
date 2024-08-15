@@ -134,7 +134,13 @@ import ubelt as ub
 import warnings
 
 
-class BaseChannelSpec(ub.NiceRepr):
+try:
+    from line_profiler import profile
+except Exception:
+    from ubelt import identity as profile
+
+
+class BaseChannelSpec:
     """
     Common code API between :class:`FusedChannelSpec` and :class:`ChannelSpec`
 
@@ -142,6 +148,7 @@ class BaseChannelSpec(ub.NiceRepr):
         - [ ] Keep working on this base spec and ensure the inheriting classes
               conform to it.
     """
+    # __slots__ = tuple()
 
     @property
     @abc.abstractmethod
@@ -214,6 +221,24 @@ class BaseChannelSpec(ub.NiceRepr):
 
     def __nice__(self):
         return self.spec
+
+    def __repr__(self):
+        """
+        Returns:
+            str
+        """
+        nice = self.__nice__()
+        classname = self.__class__.__name__
+        return '<{0}({1}) at {2}>'.format(classname, nice, hex(id(self)))
+
+    def __str__(self):
+        """
+        Returns:
+            str
+        """
+        classname = self.__class__.__name__
+        nice = self.__nice__()
+        return '<{0}({1})>'.format(classname, nice)
 
     def __json__(self):
         return self.spec
@@ -356,6 +381,7 @@ class FusedChannelSpec(BaseChannelSpec):
         >>> self = ChannelSpec.coerce('a|b,c|d')
         >>> recon = pickle.loads(pickle.dumps(self))
     """
+    # __slots__ = ('parsed', '_is_normalized')
 
     _alias_lut = {
         'rgb': ['r', 'g', 'b'],
@@ -370,10 +396,10 @@ class FusedChannelSpec(BaseChannelSpec):
     _size_lut = {k: len(v) for k, v in _alias_lut.items()}
 
     def __init__(self, parsed, _is_normalized=False):
-        if __debug__ and not isinstance(parsed, list):
-            raise TypeError(
-                'FusedChannelSpec is only directly constructable via a list. '
-                'Use coerce for a general constructor')
+        # if __debug__ and not isinstance(parsed, list):
+        #     raise TypeError(
+        #         'FusedChannelSpec is only directly constructable via a list. '
+        #         'Use coerce for a general constructor')
         self.parsed = parsed
         # denote if we are already normalized or not for speed.
         self._is_normalized = _is_normalized
@@ -428,6 +454,7 @@ class FusedChannelSpec(BaseChannelSpec):
         return self.parsed == other.parsed
 
     @classmethod
+    @profile
     def coerce(cls, data):
         """
         Example:
@@ -449,20 +476,22 @@ class FusedChannelSpec(BaseChannelSpec):
         elif isinstance(data, str):
             self = cls.parse(data)
             cls._memo[data] = self
-        elif isinstance(data, int):
-            # we know the number of channels, but not their names
-            self = cls(['u{}'.format(i) for i in range(data)])
-            cls._memo[data] = self
         elif isinstance(data, cls):
             self = data
         elif isinstance(data, ChannelSpec):
             parsed = data.parse()
             if len(parsed) == 1:
-                self = cls(ub.peek(parsed.values()).parsed)
+                _first = ub.peek(parsed.values())
+                _parsed = _first.parsed
+                self = cls(_parsed)
             else:
                 raise ValueError(
                     'Cannot coerce ChannelSpec to a FusedChannelSpec '
                     'when there are multiple streams')
+        elif isinstance(data, int):
+            # we know the number of channels, but not their names
+            self = cls(['u{}'.format(i) for i in range(data)])
+            cls._memo[data] = self
         else:
             raise TypeError('unknown type {}'.format(type(data)))
         return self
@@ -924,6 +953,7 @@ class ChannelSpec(BaseChannelSpec):
         >>>     print('component_shapes = {}'.format(ub.urepr(component_shapes, nl=1)))
 
     """
+    # __slots__ = ('_spec', '_info')
 
     def __init__(self, spec, parsed=None):
         # TODO: allow integer specs
