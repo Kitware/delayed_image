@@ -10,6 +10,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.1 - Released 2024-09-05
 
+### Fixed
+* LICENSE issue
+
 
 ## Version 0.4.0 - Released 2024-08-14
 
