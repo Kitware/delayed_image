@@ -7,6 +7,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.2 - Unreleased
 
+### Added
+
+* Can now work with different `warp_affine` backends.
+
 
 ## Version 0.4.1 - Released 2024-09-05
 
