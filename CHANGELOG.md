@@ -5,7 +5,10 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.4.2 - Unreleased
+## Version 0.4.3 - Unreleased
+
+
+## Version 0.4.2 - Released 2024-10-16
 
 ### Added
 * Can now work with different `warp_affine` backends.
