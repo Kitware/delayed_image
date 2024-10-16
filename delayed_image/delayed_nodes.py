@@ -1410,6 +1410,8 @@ class DelayedAsXarray(DelayedImage):
         coords = {}
         if channels is not None:
             coords['c'] = channels.code_list()
+            if len(subfinal.shape) == 2:
+                subfinal = subfinal[:, :, None]
         final = xr.DataArray(subfinal, dims=('y', 'x', 'c'), coords=coords)
         return final
 
