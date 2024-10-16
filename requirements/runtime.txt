@@ -1,5 +1,5 @@
 kwarray>=0.6.19
-kwimage>=0.10.1
+kwimage>=0.11.0
 
 # xdev availpkg networkx --request_min=2.2.0
 # xdev availpkg imageio

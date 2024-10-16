@@ -363,8 +363,9 @@ class ImageOpsMixin:
                 antialiasing via gaussian a blur. Defaults to False
 
             interpolation (str):
-                interpolation code or cv2 integer. Interpolation codes are linear,
-                nearest, cubic, lancsoz, and area. Defaults to "linear".
+                interpolation code. Interpolation codes are 'linear',
+                'nearest', 'cubic', 'lancsoz', and 'area'. Defaults to
+                'linear'.
 
             border_value (int | float | str):
                 if auto will be nan for float and 0 for int.
@@ -1409,6 +1410,8 @@ class DelayedAsXarray(DelayedImage):
         coords = {}
         if channels is not None:
             coords['c'] = channels.code_list()
+            if len(subfinal.shape) == 2:
+                subfinal = subfinal[:, :, None]
         final = xr.DataArray(subfinal, dims=('y', 'x', 'c'), coords=coords)
         return final
 
@@ -1444,7 +1447,8 @@ class DelayedWarp(DelayedImage):
 
     @profile
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
-                 interpolation='linear', border_value='auto', noop_eps=0):
+                 interpolation='linear', border_value='auto', noop_eps=0,
+                 backend='auto'):
         """
         Args:
             subdata (DelayedArray): data to operate on
@@ -1485,6 +1489,7 @@ class DelayedWarp(DelayedImage):
         self.meta['interpolation'] = interpolation
         self.meta['border_value'] = border_value
         self.meta['noop_eps'] = noop_eps
+        self.meta['backend'] = backend
         # Mark which keys need to be passed around and for what reason
         self._data_keys = ['transform', 'dsize']
         self._algo_keys = [
@@ -1509,6 +1514,7 @@ class DelayedWarp(DelayedImage):
         antialias = self.meta['antialias']
         transform = self.meta['transform']
         interpolation = self.meta['interpolation']
+        backend = self.meta['backend']
 
         prewarp = self.subdata._finalize()
         prewarp = np.asanyarray(prewarp)
@@ -1554,7 +1560,8 @@ class DelayedWarp(DelayedImage):
                                     interpolation=interpolation,
                                     antialias=antialias,
                                     border_value=border_value,
-                                    origin_convention='corner'
+                                    origin_convention='corner',
+                                    backend=backend,
                                     )
         # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
@@ -1967,7 +1974,6 @@ class DelayedWarp(DelayedImage):
             return self
 
         # Check how many pyramid downs we could replace downsampling with
-        from kwimage.im_cv2 import _prepare_scale_residual
         num_downs_possible, _, _ = _prepare_scale_residual(sx, sy, fudge=0)
         # But only use as many downs as we have overviews
         num_downs = min(num_overviews, num_downs_possible)
@@ -2006,6 +2012,19 @@ class DelayedWarp(DelayedImage):
         if TRACE_OPTIMIZE:
             new._opt_logs.append('_opt_split_warp_overview')
         return new
+
+
+def _prepare_scale_residual(sx, sy, fudge=0):
+    # Previously in:
+    # from kwimage.im_cv2 import _prepare_scale_residual
+    # May be moved to a common kwimage utility module
+    max_scale = max(sx, sy)
+    ideal_num_downs = int(np.log2(1 / max_scale))
+    num_downs = max(ideal_num_downs - fudge, 0)
+    pyr_scale = 1 / (2 ** num_downs)
+    residual_sx = sx / pyr_scale
+    residual_sy = sy / pyr_scale
+    return num_downs, residual_sx, residual_sy
 
 
 class DelayedDequantize(DelayedImage):
