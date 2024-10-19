@@ -357,7 +357,8 @@ class SensorChanSpec(ub.NiceRepr):
         Get the components corresponding to a specific sensor
 
         Args:
-            sensor (str): the name of the sensor to match
+            sensor (str):
+                the name of the sensor to match or "*" to match everything.
 
         Returns:
             FusedSensorChanSpec: matching part of the spec
@@ -374,12 +375,21 @@ class SensorChanSpec(ub.NiceRepr):
             S1:a|b|c
             >>> print(self.matching_sensor('S3'))
             S3:
+            >>> print(self.matching_sensor('*'))
+            (S1,S2):(a|b|c),S2:c|d|e
         """
+        # Handle special case
+        if sensor == '*':
+            return self
+
         # matching_streams = []
         # for s in self.streams():
         #     if s.sensor.spec == sensor:
         #         matching_streams.append(s)
-        matching_streams = [s for s in self.streams() if s.sensor.spec == sensor]
+        matching_streams = [
+            s for s in self.streams()
+            if s.sensor.spec == sensor or s.sensor.spec == '*'
+        ]
         new = sum(matching_streams)
         if new == 0:
             import delayed_image

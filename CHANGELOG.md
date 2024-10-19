@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.3 - Unreleased
 
+### Fixed
+* `matching_sensor` now respects the special "*" sensor.
+
 
 ## Version 0.4.2 - Released 2024-10-16
 
