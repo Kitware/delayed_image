@@ -1153,7 +1153,8 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
         return self.crop(space_slice, chan_idxs)
 
     @profile
-    def take_channels(self, channels, lazy=False):
+    def take_channels(self, channels, lazy=False,
+                      missing_channel_policy='return_nan'):
         """
         This method returns a subset of the vision data with only the
         specified bands / channels.
@@ -1162,11 +1163,17 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
             channels (List[int] | slice | FusedChannelSpec):
                 List of integers indexes, a slice, or a channel spec, which is
                 typically a pipe (`|`) delimited list of channel codes. See
-                ChannelSpec for more detials.
+                :class:`ChannelSpec` for more detials.
 
             lazy (bool):
                 if True, dont create a new object if we can detect that it
                 would be a noop.
+
+            missing_channel_policy (str):
+                What to do if the requested channels are missing.
+                If set to 'return_nan' it will build a channel of nans which
+                will allow algorithms that can handle missing data to continue.
+                If set to 'error', then an ValueError will be raised.
 
         Returns:
             DelayedCrop:
@@ -1241,10 +1248,12 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
                     for code in request_codes
                 ]
             except KeyError:
-                # If a requested channel doesn't exist we have to break this
-                # node up into a concat node with nans
+                # If a requested channel doesn't exist we break this node up
+                # into a concat node so we can use its nan handing logic
+                # This should be easy to optimize if necessary.
                 wrp = DelayedChannelConcat([self], dsize=self.dsize)
-                new =  wrp.take_channels(channels)
+                new =  wrp.take_channels(
+                    channels, missing_channel_policy=missing_channel_policy)
                 return new
         new_chan_ixs = top_idx_mapping
         new = self.crop(None, new_chan_ixs)
