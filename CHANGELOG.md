@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.3 - Unreleased
 
+### Added
+* Add `missing_channel_policy` to `.take_channels`.
+
 ### Fixed
 * `matching_sensor` now respects the special "*" sensor.
 

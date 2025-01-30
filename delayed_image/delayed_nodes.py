@@ -677,7 +677,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
         return new
 
     @profile
-    def take_channels(self, channels):
+    def take_channels(self, channels, missing_channel_policy='return_nan'):
         """
         This method returns a subset of the vision data with only the
         specified bands / channels.
@@ -687,6 +687,12 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
                 List of integers indexes, a slice, or a channel spec, which is
                 typically a pipe (`|`) delimited list of channel codes. See
                 :class:`ChannelSpec` for more detials.
+
+            missing_channel_policy (str):
+                What to do if the requested channels are missing.
+                If set to 'return_nan' it will build a channel of nans which
+                will allow algorithms that can handle missing data to continue.
+                If set to 'error', then an ValueError will be raised.
 
         Returns:
             DelayedArray:
@@ -739,6 +745,9 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             >>> from delayed_image.delayed_nodes import *  # NOQA
             >>> dset = kwcoco.CocoDataset.demo('vidshapes8-multispectral', use_cache=1, verbose=100)
             >>> self = delayed = dset.coco_image(1).delay()
+            >>> # by default requesting the channels that dont exist will
+            >>> # return nan channels, but this can be modified by setting
+            >>> # missing_channel_policy
             >>> channels = 'B1|foobar|bazbiz|B8'
             >>> new = self.take_channels(channels)
             >>> new_cropped = new.crop((slice(10, 200), slice(12, 350)))
@@ -747,12 +756,22 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             >>> assert np.all(np.isnan(fused[..., 1:3]))
             >>> assert not np.any(np.isnan(fused[..., 0]))
             >>> assert not np.any(np.isnan(fused[..., 3]))
+            >>> # Test setting the missing channel policy
+            >>> import pytest
+            >>> with pytest.raises(ValueError):
+            >>>     new = self.take_channels(channels, missing_channel_policy='error')
+            >>> # test passing a bad policy
+            >>> with pytest.raises(KeyError):
+            >>>     new = self.take_channels(channels, missing_channel_policy='not-a-policy')
         """
         if channels is None:
             return self
         current_channels = self.channels
 
         if isinstance(channels, list):
+            # Allows channel selection via integer indexes
+            # TODO: this API needs to be tested and verified so it works
+            # correctly for integers indexes and string channel names.
             top_idx_mapping = channels
             top_codes = self.channels.as_list()
             request_codes = None
@@ -761,7 +780,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             if current_channels == channels:
                 # If the request is equal to what we already have then skip this.
                 return self
-            # Computer subindex integer mapping
+            # Compute subindex integer mapping
             request_codes = channels.as_list()
             top_codes = current_channels.as_oset()
             top_idx_mapping = []
@@ -771,9 +790,28 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
                 except KeyError:
                     top_idx_mapping.append(None)
 
+        if missing_channel_policy == 'return_nan':
+            # default behavior
+            ...
+        elif missing_channel_policy == 'error':
+            # do a quick check for missing channels outside of the core logic
+            missing_channels = [code for idx, code in zip(top_idx_mapping, request_codes)
+                                if idx is None]
+            if missing_channels:
+                raise ValueError(
+                    f'Requested channels: {missing_channels} do not exist. '
+                    f'Available channels are: {current_channels}')
+        else:
+            raise KeyError(f'Invalid missing_channel_policy={missing_channel_policy}')
+
         # Rearange subcomponents into the specified channel representation
         # I am not confident that this logic is the best way to do this.
-        # This may be a bottleneck
+        # This may be a bottleneck.
+
+        # This object can contain multiple subimages, which each may have
+        # different numbers of channels. The FlatIndexer lets us pretend they
+        # are all flattened and map from the flat index to the nested index we
+        # can use to efficiently lookup the value.
         subindexer = kwarray.FlatIndexer([
             comp.num_channels for comp in self.parts])
 
@@ -2744,6 +2782,8 @@ class CoordinateCompatibilityError(ValueError):
 class _InnerAccumSegment:
     """
     Gather the indexes we need to take from an inner component
+
+    This is a helper for :func:`DelayedChannelConcat.take_channels`
     """
     if delayed_base.USE_SLOTS:
         __slots__ = ('comp', 'start', 'stop', 'codes', 'indexes')
