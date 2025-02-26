@@ -1756,7 +1756,7 @@ def _path_sanitize_v2(path, maxlen=128, hash_suffix=None):
     Clean input text so it can be used as a path.
 
     Args:
-        path (str): the path name to santaize
+        path (str): the path name to satanize
         maxlen (int | None):
             if specified, and the name is longer than this length, it is
             shortened. Must be 8 or greater.
