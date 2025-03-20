@@ -493,7 +493,10 @@ class FusedChannelSpec(BaseChannelSpec):
             self = cls(['u{}'.format(i) for i in range(data)])
             cls._memo[data] = self
         else:
-            raise TypeError('unknown type {}'.format(type(data)))
+            if data is None:
+                raise TypeError('Cannot coerce None to {}'.format(cls))
+            else:
+                raise TypeError('Cannot coerce unknown type {} to {}'.format(type(data), cls))
         return self
 
     def concise(self):
@@ -1017,8 +1020,8 @@ class ChannelSpec(BaseChannelSpec):
             elif isinstance(data, str):
                 spec = data
             else:
-                raise TypeError('type(data)={}, data={!r}'.format(
-                    type(data), data))
+                raise TypeError('Cannot coerce type(data)={}, data={!r} to {}'.format(
+                    type(data), data, cls))
 
             self = cls(spec)
             return self
