@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 * `matching_sensor` now respects the special "*" sensor.
+* Corner cases when dsize is None / channels is None
 
 ### Changed
 * Improved error messages

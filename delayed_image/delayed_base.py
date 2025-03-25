@@ -329,6 +329,8 @@ class DelayedOperation:
         Returns:
             DelayedOperation
         """
+        # TODO: if leaf metadata changes, that should propogate up the tree
+        # (e.g. for dsize)
         for child in self.children():
             child.prepare()
         return self

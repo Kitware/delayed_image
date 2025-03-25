@@ -267,7 +267,8 @@ class DelayedLoad(DelayedImageLeaf):
         """
         required_meta_keys = ('dsize', 'num_channels', 'num_overviews')
         if all(self.meta[k] is not None for k in required_meta_keys):
-            return self
+            if not any(d is None for d in self.dsize):
+                return self
         self._load_reference()
         if self.lazy_ref is NotImplemented:
             shape = kwimage.load_image_shape(self.fpath)
@@ -278,7 +279,7 @@ class DelayedLoad(DelayedImageLeaf):
             shape = self.lazy_ref.shape
             num_overviews = self.lazy_ref.num_overviews
         h, w, c = shape
-        if self.dsize is None:
+        if self.dsize is None or any(d is None for d in self.dsize):
             self.meta['dsize'] = (w, h)
         if self.num_channels is None:
             self.meta['num_channels'] = c

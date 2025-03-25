@@ -451,6 +451,8 @@ class FusedChannelSpec(BaseChannelSpec):
         return self
 
     def __eq__(self, other):
+        if other is None:
+            return False
         return self.parsed == other.parsed
 
     @classmethod
