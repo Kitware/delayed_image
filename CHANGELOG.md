@@ -11,8 +11,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 * Add `missing_channel_policy` to `.take_channels`.
 
 ### Fixed
-* `matching_sensor` now respects the special "*" sensor.
+* `matching_sensor` now respects the special `*` sensor.
 * Corner cases when dsize is None / channels is None
+* `FusedSensorChanSpec.coerce` now works in simple cases.
 
 ### Changed
 * Improved error messages

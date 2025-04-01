@@ -426,10 +426,56 @@ class SensorChanSpec(ub.NiceRepr):
 class FusedSensorChanSpec(SensorChanSpec):
     """
     A single sensor a corresponding fused channels.
+
+    Example:
+        >>> from delayed_image.sensorchan_spec import *  # NOQA
+        >>> FusedSensorChanSpec.coerce('sensor:a|b|c.0|c.1|c.2')
     """
     def __init__(self, sensor, chans):
         self.sensor = sensor
         self._chans = chans
+
+    @classmethod
+    def coerce(cls, data):
+        """
+        Attempt to interpret the data as a channel specification
+
+        Returns:
+            SensorChanSpec
+
+        Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
+            >>> from delayed_image.sensorchan_spec import *  # NOQA
+            >>> from delayed_image.sensorchan_spec import FusedSensorChanSpec
+            >>> assert FusedSensorChanSpec.coerce('*:u.0:3').spec == '*:u.0|u.1|u.2'
+        """
+        import delayed_image
+        if isinstance(data, cls):
+            self = data
+            return self
+        elif isinstance(data, str):
+            parts = sensorchan_normalized_parts(data)
+            if not len(parts) == 1:
+                raise ValueError('must be a single fused set')
+            node = parts[0]
+            sensor = SensorSpec(node.sensor)
+            chans = delayed_image.FusedChannelSpec.coerce(node.chan.spec)
+            self = cls(sensor, chans)
+            return self
+        else:
+            raise NotImplementedError
+        # elif isinstance(data, delayed_image.FusedChannelSpec):
+        #     spec = data.spec
+        #     self = cls(spec)
+        #     return self
+        # elif isinstance(data, delayed_image.ChannelSpec):
+        #     spec = data.spec
+        #     self = cls(spec)
+        #     return self
+        # else:
+        #     chan = delayed_image.ChannelSpec.coerce(data)
+        #     self = cls(chan.spec)
+        #     return self
 
     @property
     def chans(self):
