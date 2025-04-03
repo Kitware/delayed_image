@@ -11,12 +11,6 @@ from delayed_image import delayed_base
 from delayed_image import delayed_leafs
 from delayed_image.channel_spec import FusedChannelSpec
 
-
-try:
-    from line_profiler import profile
-except Exception:
-    from ubelt import identity as profile
-
 # --------
 # Stacking
 # --------
@@ -100,7 +94,6 @@ class ImageOpsMixin:
     if delayed_base.USE_SLOTS:
         __slots__ = tuple()
 
-    @profile
     def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True,
              pad=0, lazy=False):
         """
@@ -259,7 +252,6 @@ class ImageOpsMixin:
             new = DelayedCrop(self, space_slice, chan_idxs)
         return new
 
-    @profile
     def _coordinate_crop(self, roi, lazy=False):
         """
         Experimental cropping implemented as a warp, which assumes the slice in
@@ -316,7 +308,6 @@ class ImageOpsMixin:
         # return self.warp(adjusted_transform, dsize=dsize, interpolation='linear')
         return self.warp(transform, dsize=dsize, interpolation='linear')
 
-    @profile
     def _padded_crop(self, space_slice, pad=0):
         """
         Does the type of padded crop we want, but inefficiently using a warp.
@@ -341,7 +332,6 @@ class ImageOpsMixin:
             new = new.warp(pad_warp, dsize=dsize)
         return new
 
-    @profile
     def warp(self, transform, dsize='auto', lazy=False, **warp_kwargs):
         """
         Applys an affine transformation to the image. See :class:`DelayedWarp`.
@@ -588,7 +578,6 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
     if delayed_base.USE_SLOTS:
         __slots__ = DelayedConcat.__slots__ + ('dsize', 'num_channels')
 
-    @profile
     def __init__(self, parts, dsize=None):
         """
         Args:
@@ -663,7 +652,6 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             final = np.concatenate(stack, axis=2)
         return final
 
-    @profile
     def optimize(self):
         """
         Returns:
@@ -676,7 +664,6 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             new._opt_logs.append('optimize DelayedChannelConcat')
         return new
 
-    @profile
     def take_channels(self, channels, missing_channel_policy='return_nan'):
         """
         This method returns a subset of the vision data with only the
@@ -1034,7 +1021,6 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
     if delayed_base.USE_SLOTS:
         __slots__ = DelayedArray.__slots__
 
-    @profile
     def __init__(self, subdata=None, dsize=None, channels=None):
         """
         Args:
@@ -1152,7 +1138,6 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
         space_slice = (sl_y, sl_x)
         return self.crop(space_slice, chan_idxs)
 
-    @profile
     def take_channels(self, channels, lazy=False,
                       missing_channel_policy='return_nan'):
         """
@@ -1309,7 +1294,6 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
                                             channels=self.channels)
         return new
 
-    @profile
     def _opt_push_under_concat(self):
         """
         Push this node under its child node if it is a concatenation operation
@@ -1462,7 +1446,6 @@ class DelayedAsXarray(DelayedImage):
         final = xr.DataArray(subfinal, dims=('y', 'x', 'c'), coords=coords)
         return final
 
-    @profile
     def optimize(self):
         """
         Returns:
@@ -1492,7 +1475,6 @@ class DelayedWarp(DelayedImage):
     if delayed_base.USE_SLOTS:
         __slots__ = DelayedImage.__slots__ + ('_data_keys', '_algo_keys')
 
-    @profile
     def __init__(self, subdata, transform, dsize='auto', antialias=True,
                  interpolation='linear', border_value='auto', noop_eps=0,
                  backend='auto'):
@@ -1615,7 +1597,6 @@ class DelayedWarp(DelayedImage):
         final = kwarray.atleast_nd(final, 3, front=False)
         return final
 
-    @profile
     def optimize(self):
         """
         Returns:
@@ -1697,7 +1678,6 @@ class DelayedWarp(DelayedImage):
     def _transform_from_subdata(self):
         return self.transform
 
-    @profile
     def _opt_fuse_warps(self):
         """
         Combine two consecutive warps into a single operation.
@@ -1727,7 +1707,6 @@ class DelayedWarp(DelayedImage):
             new.print_graph()
         return new
 
-    @profile
     def _opt_absorb_overview(self):
         """
         Remove any deeper overviews that would be undone by this warp.
@@ -1965,7 +1944,6 @@ class DelayedWarp(DelayedImage):
             print('---------')
         return new
 
-    @profile
     def _opt_split_warp_overview(self):
         """
         Split this node into a warp and an overview if possible
@@ -2107,7 +2085,6 @@ class DelayedDequantize(DelayedImage):
             final = dequantize(final, quantization)
         return final
 
-    @profile
     def optimize(self):
         """
 
@@ -2142,7 +2119,6 @@ class DelayedDequantize(DelayedImage):
             new._opt_logs.append('optimize DelayedDequantize')
         return new
 
-    @profile
     def _opt_dequant_before_other(self):
         quantization = self.meta['quantization']
         new = copy.copy(self.subdata)
@@ -2191,7 +2167,6 @@ class DelayedCrop(DelayedImage):
     if delayed_base.USE_SLOTS:
         __slots__ = DelayedImage.__slots__
 
-    @profile
     def __init__(self, subdata, space_slice=None, chan_idxs=None):
         """
         Args:
@@ -2255,7 +2230,6 @@ class DelayedCrop(DelayedImage):
         self_from_subdata = kwimage.Affine.translate(offset)
         return self_from_subdata
 
-    @profile
     def optimize(self):
         """
         Returns:
@@ -2316,7 +2290,6 @@ class DelayedCrop(DelayedImage):
             new._opt_logs.append('optimize crop')
         return new
 
-    @profile
     def _opt_fuse_crops(self):
         """
         Combine two consecutive crops into a single operation.
@@ -2403,7 +2376,6 @@ class DelayedCrop(DelayedImage):
             new._opt_logs.append('Fuse crops')
         return new
 
-    @profile
     def _opt_warp_after_crop(self):
         """
         If the child node is a warp, move it after the crop.
@@ -2475,7 +2447,6 @@ class DelayedCrop(DelayedImage):
             new_outer._opt_logs.append('_opt_warp_after_crop')
         return new_outer
 
-    @profile
     def _opt_dequant_after_crop(self):
         # Swap order so dequantize is after the crop
         assert isinstance2(self.subdata, DelayedDequantize)
@@ -2584,7 +2555,6 @@ class DelayedOverview(DelayedImage):
         )
         return final
 
-    @profile
     def optimize(self):
         """
         Returns:
@@ -2616,7 +2586,6 @@ class DelayedOverview(DelayedImage):
         scale = 1 / 2 ** self.meta['overview']
         return kwimage.Affine.scale(scale)
 
-    @profile
     def _opt_overview_as_warp(self):
         """
         Sometimes it is beneficial to replace an overview with a warp as an
@@ -2630,7 +2599,6 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_overview_as_warp')
         return new
 
-    @profile
     def _opt_crop_after_overview(self):
         """
         Given an outer overview and an inner crop, switch places. We want the
@@ -2699,7 +2667,6 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_crop_after_overview')
         return new
 
-    @profile
     def _opt_fuse_overview(self):
         assert isinstance2(self.subdata, DelayedOverview)
         outer_overview = self.meta['overview']
@@ -2710,7 +2677,6 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_fuse_overview')
         return new
 
-    @profile
     def _opt_dequant_after_overview(self):
         # Swap order so dequantize is after the crop
         assert isinstance2(self.subdata, DelayedDequantize)
@@ -2722,7 +2688,6 @@ class DelayedOverview(DelayedImage):
             new._opt_logs.append('_opt_dequant_after_overview')
         return new
 
-    @profile
     def _opt_warp_after_overview(self):
         """
         Given an warp followed by an overview, move the warp to the outer scope

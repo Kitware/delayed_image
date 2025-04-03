@@ -134,12 +134,6 @@ import ubelt as ub
 import warnings
 
 
-try:
-    from line_profiler import profile
-except Exception:
-    from ubelt import identity as profile
-
-
 class BaseChannelSpec:
     """
     Common code API between :class:`FusedChannelSpec` and :class:`ChannelSpec`
@@ -481,7 +475,6 @@ class FusedChannelSpec(BaseChannelSpec):
         return self
 
     @classmethod
-    @profile
     def coerce(cls, data) -> 'FusedChannelSpec':
         """
         Example:
