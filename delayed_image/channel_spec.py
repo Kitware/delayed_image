@@ -435,7 +435,7 @@ class FusedChannelSpec(BaseChannelSpec):
         return self
 
     @ub.memoize_property
-    def spec(self):
+    def spec(self) -> str:
         return '|'.join(self.parsed)
 
     @ub.memoize_method
@@ -450,14 +450,39 @@ class FusedChannelSpec(BaseChannelSpec):
             self = cls(spec.split('|'))
         return self
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if other is None:
             return False
         return self.parsed == other.parsed
 
     @classmethod
+    def from_spec(cls, spec: str) -> 'FusedChannelSpec':
+        try:
+            # Efficiency hack
+            return cls._memo[spec]
+        except KeyError:
+            pass
+        self = cls.parse(spec)
+        cls._memo[spec] = self
+        return self
+
+    @classmethod
+    def from_int(cls, num_chans: int) -> 'FusedChannelSpec':
+        """
+        Construct a generic set of classes from an integer
+        """
+        try:
+            # Efficiency hack
+            return cls._memo[num_chans]
+        except KeyError:
+            pass
+        self = cls(['u{}'.format(i) for i in range(num_chans)])
+        cls._memo[num_chans] = self
+        return self
+
+    @classmethod
     @profile
-    def coerce(cls, data):
+    def coerce(cls, data) -> 'FusedChannelSpec':
         """
         Example:
             >>> from delayed_image.channel_spec import *  # NOQA
@@ -467,17 +492,15 @@ class FusedChannelSpec(BaseChannelSpec):
             >>> FusedChannelSpec.coerce(FusedChannelSpec(['a']))
             >>> assert FusedChannelSpec.coerce('').numel() == 0
         """
-        if 1:
-            try:
-                # Efficiency hack
-                return cls._memo[data]
-            except (KeyError, TypeError):
-                pass
+        try:
+            # Efficiency hack
+            return cls._memo[data]
+        except (KeyError, TypeError):
+            pass
         if isinstance(data, list):
             self = cls(data)
         elif isinstance(data, str):
-            self = cls.parse(data)
-            cls._memo[data] = self
+            self = cls.from_spec(data)
         elif isinstance(data, cls):
             self = data
         elif isinstance(data, ChannelSpec):
@@ -492,8 +515,7 @@ class FusedChannelSpec(BaseChannelSpec):
                     'when there are multiple streams')
         elif isinstance(data, int):
             # we know the number of channels, but not their names
-            self = cls(['u{}'.format(i) for i in range(data)])
-            cls._memo[data] = self
+            self = cls.from_int(data)
         else:
             if data is None:
                 raise TypeError('Cannot coerce None to {}'.format(cls))
@@ -501,7 +523,7 @@ class FusedChannelSpec(BaseChannelSpec):
                 raise TypeError('Cannot coerce unknown type {} to {}'.format(type(data), cls))
         return self
 
-    def concise(self):
+    def concise(self) -> 'FusedChannelSpec':
         """
         Shorted the channel spec by de-normaliz slice syntax
 
@@ -653,7 +675,7 @@ class FusedChannelSpec(BaseChannelSpec):
         normed = FusedChannelSpec(norm_parsed, _is_normalized=True)
         return normed
 
-    def numel(self):
+    def numel(self) -> int:
         """
         Total number of channels in this spec
         """
@@ -871,6 +893,26 @@ class FusedChannelSpec(BaseChannelSpec):
         """
         return self
 
+    def split(self):
+        """
+        Breaks each fused channel into a separate stream.
+
+        Returns:
+            ChannelSpec
+
+        Example:
+            >>> from delayed_image.channel_spec import FusedChannelSpec
+            >>> self = FusedChannelSpec.coerce('red|green|blue')
+            >>> separted = self.split()
+            >>> print(separted.spec)
+            red,green,blue
+            >>> self = FusedChannelSpec.coerce('feat.0:3')
+            >>> print(self.split().spec)
+            feat.0,feat.1,feat.2
+        """
+        separated = ChannelSpec(','.join(self.normalize().parsed))
+        return separated
+
 
 class ChannelSpec(BaseChannelSpec):
     """
@@ -990,7 +1032,21 @@ class ChannelSpec(BaseChannelSpec):
         })
 
     @classmethod
-    def coerce(cls, data):
+    def from_spec(cls, spec: str) -> 'ChannelSpec':
+        self = cls(spec)
+        return self
+
+    @classmethod
+    def from_int(cls, num_chans: int) -> 'ChannelSpec':
+        """
+        Construct a generic set of classes from an integer
+        """
+        spec = '|'.join(['u{}'.format(i) for i in range(num_chans)])
+        self = cls.from_spec(spec)
+        return self
+
+    @classmethod
+    def coerce(cls, data) -> 'ChannelSpec':
         """
         Attempt to interpret the data as a channel specification
 
@@ -1009,24 +1065,19 @@ class ChannelSpec(BaseChannelSpec):
         """
         if isinstance(data, cls):
             self = data
-            return self
         elif isinstance(data, FusedChannelSpec):
             spec = data.spec
             parsed = {spec: data}
             self = cls(spec, parsed)
-            return self
+        elif isinstance(data, int):
+            # we know the number of channels, but not their names
+            self = cls.from_int(data)
+        elif isinstance(data, str):
+            self = cls.from_spec(data)
         else:
-            if isinstance(data, int):
-                # we know the number of channels, but not their names
-                spec = '|'.join(['u{}'.format(i) for i in range(data)])
-            elif isinstance(data, str):
-                spec = data
-            else:
-                raise TypeError('Cannot coerce type(data)={}, data={!r} to {}'.format(
-                    type(data), data, cls))
-
-            self = cls(spec)
-            return self
+            raise TypeError('Cannot coerce type(data)={}, data={!r} to {}'.format(
+                type(data), data, cls))
+        return self
 
     def parse(self):
         """
@@ -1130,9 +1181,31 @@ class ChannelSpec(BaseChannelSpec):
         else:
             return FusedChannelSpec(list(ub.flatten([p.parsed for p in parts])))
 
+    def split(self):
+        """
+        Breaks each fused channel into a separate stream.
+
+        Returns:
+            ChannelSpec
+
+        Example:
+            >>> from delayed_image.channel_spec import *
+            >>> self = ChannelSpec.coerce('r|g,B1|B2,fx|fy')
+            >>> print(self.split().spec)
+            r,g,B1,B2,fx,fy
+            >>> self = ChannelSpec.coerce('feat.0:3,feat.3:6')
+            >>> print(self.split().spec)
+            feat.0,feat.1,feat.2,feat.3,feat.4,feat.5
+        """
+        new_spec = ','.join([stream.split().spec for stream in self.streams()])
+        separted = self.__class__(new_spec)
+        return separted
+
     def streams(self):
         """
         Breaks this spec up into one spec for each early-fused input stream
+
+        This is similar to `values`
 
         Example:
             self = ChannelSpec.coerce('r|g,B1|B2,fx|fy')
@@ -1205,13 +1278,17 @@ class ChannelSpec(BaseChannelSpec):
 
     def intersection(self, other):
         """
-        Set difference. Remove all instances of other channels from
-        this set of channels.
+        Set intersection. For each stream in this channel find perform the
+        intersection of that stream with the fused version of the other
+        channels. Note, this implementation is not symmetric.
+
+        We may need to redesign this function for streams of fused channels.
+        There may be a more natural way to do this.
 
         Example:
             >>> from delayed_image.channel_spec import *
-            >>> self = ChannelSpec('rgb|disparity,flowx|r|flowy')
-            >>> other = ChannelSpec('rgb')
+            >>> self = ChannelSpec('r|g|b|disparity,flowx|r|flowy')
+            >>> other = ChannelSpec('r|g|b')
             >>> new = self.intersection(other)
             >>> print(new)
             >>> print(new.numel())
@@ -1294,9 +1371,11 @@ class ChannelSpec(BaseChannelSpec):
         IE: The EARLY-FUSED channel sizes
 
         Example:
+            >>> from delayed_image.channel_spec import *  # NOQA
             >>> self = ChannelSpec('rgb|disparity,flowx|flowy,B:10')
             >>> self.normalize().concise()
             >>> self.sizes()
+            {'rgb|disparity': 4, 'flowx|flowy': 2, 'B:10': 10}
         """
         sizes = {
             key: vals.numel()
@@ -1537,7 +1616,6 @@ class ChannelSpec(BaseChannelSpec):
 
         Example:
             >>> dims = (4, 4)
-            >>> inputs = ['flowx', 'flowy', 'disparity']
             >>> self = ChannelSpec('disparity,flowx|flowy')
             >>> component_indices = self.component_indices()
             >>> print('component_indices = {}'.format(ub.urepr(component_indices, nl=1)))
@@ -1781,6 +1859,7 @@ def _path_sanitize_v2(path, maxlen=128, hash_suffix=None):
         >>> print(_path_sanitize_v2('dont|use<these>chars:in?a*path.', maxlen=8))
         iderkhwc
     """
+    # TODO: use kwutil
     # https://stackoverflow.com/questions/1976007/what-characters-are-forbidden-in-windows-and-linux-directory-names
     illegal_character_mapping = {
         '|': '_',

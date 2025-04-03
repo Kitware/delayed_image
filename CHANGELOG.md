@@ -9,6 +9,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 * Add `missing_channel_policy` to `.take_channels`.
+* Add `numel` to `SensorChanSpec` and `FusedSensorChanSpec`
+* Add `split` method to channel spec classes.
+* Add `from_spec` method to channel spec classes.
 
 ### Fixed
 * `matching_sensor` now respects the special `*` sensor.
