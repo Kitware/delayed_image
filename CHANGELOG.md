@@ -5,7 +5,10 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.4.3 - Unreleased
+## Version 0.4.4 - Unreleased
+
+
+## Version 0.4.3 - Released 2025-04-04
 
 ### Added
 * Add `missing_channel_policy` to `.take_channels`.
