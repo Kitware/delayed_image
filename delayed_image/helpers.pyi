@@ -3,7 +3,6 @@ from typing import Dict
 from typing import Any
 from _typeshed import Incomplete
 
-profile: Incomplete
 write_network_text: Incomplete
 
 

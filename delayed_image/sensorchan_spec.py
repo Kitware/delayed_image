@@ -126,10 +126,16 @@ class SensorChanSpec(ub.NiceRepr):
     """
     The public facing API for the sensor / channel specification
 
+    Note:
+        Using the explicit constructor should be avoided, as it will likely
+        change for implementation efficiency in the future. Use `coerce` and
+        `from_spec` instead. (Or submit a PR/MR with additional constructors
+        you might find useful)
+
     Example:
         >>> # xdoctest: +REQUIRES(module:lark)
         >>> from delayed_image.sensorchan_spec import SensorChanSpec
-        >>> self = SensorChanSpec('(L8,S2):BGR,WV:BGR,S2:nir,L8:land.0:4')
+        >>> self = SensorChanSpec.from_spec('(L8,S2):BGR,WV:BGR,S2:nir,L8:land.0:4')
         >>> s1 = self.normalize()
         >>> s2 = self.concise()
         >>> streams = self.streams()
@@ -151,7 +157,7 @@ class SensorChanSpec(ub.NiceRepr):
         >>> # xdoctest: +REQUIRES(module:lark)
         >>> from delayed_image.sensorchan_spec import SensorChanSpec
         >>> import delayed_image
-        >>> self = SensorChanSpec('(*):BGR,*:BGR,*:nir,*:land.0:4')
+        >>> self = SensorChanSpec.from_spec('(*):BGR,*:BGR,*:nir,*:land.0:4')
         >>> self.concise().normalize()
         >>> s1 = self.normalize()
         >>> s2 = self.concise()
@@ -171,13 +177,13 @@ class SensorChanSpec(ub.NiceRepr):
         >>> # xdoctest: +REQUIRES(module:lark)
         >>> from delayed_image.sensorchan_spec import SensorChanSpec
         >>> import delayed_image
-        >>> print(SensorChanSpec('*:').normalize())
+        >>> print(SensorChanSpec.from_spec('*:').normalize())
         *:
-        >>> print(SensorChanSpec('sen:').normalize())
+        >>> print(SensorChanSpec.from_spec('sen:').normalize())
         sen:
-        >>> print(SensorChanSpec('sen:').normalize().concise())
+        >>> print(SensorChanSpec.from_spec('sen:').normalize().concise())
         sen:
-        >>> print(SensorChanSpec('sen:').concise().normalize().concise())
+        >>> print(SensorChanSpec.from_spec('sen:').concise().normalize().concise())
         sen:
     """
     def __init__(self, spec: str):
@@ -192,8 +198,19 @@ class SensorChanSpec(ub.NiceRepr):
     def __str__(self):
         return self.spec
 
+    def numel(self) -> int:
+        return sum(s.numel() for s in self.streams())
+
     @classmethod
-    def coerce(cls, data):
+    def from_spec(cls, spec: str) -> 'SensorChanSpec':
+        """
+        Explicit constructor from a string specification.
+        """
+        self = cls(spec)
+        return self
+
+    @classmethod
+    def coerce(cls, data) -> 'SensorChanSpec':
         """
         Attempt to interpret the data as a channel specification
 
@@ -217,27 +234,27 @@ class SensorChanSpec(ub.NiceRepr):
             self = data
             return self
         elif isinstance(data, str):
-            self = cls(data)
+            self = cls.from_spec(data)
             return self
         elif isinstance(data, delayed_image.FusedChannelSpec):
             spec = data.spec
-            self = cls(spec)
+            self = cls.from_spec(spec)
             return self
         elif isinstance(data, delayed_image.ChannelSpec):
             spec = data.spec
-            self = cls(spec)
+            self = cls.from_spec(spec)
             return self
         else:
             chan = delayed_image.ChannelSpec.coerce(data)
-            self = cls(chan.spec)
+            self = cls.from_spec(chan.spec)
             return self
 
-    def normalize(self):
+    def normalize(self) -> 'SensorChanSpec':
         new_spec = normalize_sensor_chan(self.spec)
-        new = self.__class__(new_spec)
+        new = self.__class__.from_spec(new_spec)
         return new
 
-    def concise(self):
+    def concise(self) -> 'SensorChanSpec':
         """
         Example:
             >>> # xdoctest: +REQUIRES(module:lark)
@@ -256,10 +273,10 @@ class SensorChanSpec(ub.NiceRepr):
             (*,Cam2):blue,*:green,Cam1:red
         """
         new_spec = concise_sensor_chan(self.spec)
-        new = self.__class__(new_spec)
+        new = self.__class__.from_spec(new_spec)
         return new
 
-    def streams(self):
+    def streams(self) -> list:
         """
         Returns:
             List[FusedSensorChanSpec]:
@@ -270,6 +287,32 @@ class SensorChanSpec(ub.NiceRepr):
             FusedSensorChanSpec(SensorSpec(part.sensor), part.chan.data)
             for part in parts]
         return streams
+
+    def split(self) -> 'SensorChanSpec':
+        """
+        Split each channel into a separate stream
+
+        Returns:
+            SensorChanSpec
+
+        Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
+            >>> from delayed_image import SensorChanSpec
+            >>> self = SensorChanSpec.coerce('Cam1:(red,blue),Cam1:feat.0:3')
+            >>> print(self.split().concise())
+            Cam1:(red,blue,feat.0,feat.1,feat.2)
+        """
+        # TODO: would be better to work with a fast and consistent
+        # backend data structure rather than doing everything with strings.
+        new_subspecs = []
+        for stream in self.streams():
+            sensor_spec = stream.sensor.spec
+            for subchan in stream.chans.split().streams():
+                new_subspec = f'{sensor_spec}:{subchan.spec}'
+                new_subspecs.append(new_subspec)
+        new_spec = ','.join(new_subspecs)
+        separted = SensorChanSpec.from_spec(new_spec)
+        return separted
 
     def late_fuse(self, *others):
         """
@@ -320,6 +363,7 @@ class SensorChanSpec(ub.NiceRepr):
             *:(A|B|C,edf,A12,,r|g|b)
 
         Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
             >>> # Test multi-arg case
             >>> import delayed_image
             >>> a = delayed_image.SensorChanSpec.coerce('A|B|C,edf')
@@ -357,10 +401,11 @@ class SensorChanSpec(ub.NiceRepr):
         Get the components corresponding to a specific sensor
 
         Args:
-            sensor (str): the name of the sensor to match
+            sensor (str):
+                the name of the sensor to match or "*" to match everything.
 
         Returns:
-            FusedSensorChanSpec: matching part of the spec
+            FusedSensorChanSpec | SensorChanSpec: matching part of the spec
 
         Example:
             >>> # xdoctest: +REQUIRES(module:lark)
@@ -374,12 +419,21 @@ class SensorChanSpec(ub.NiceRepr):
             S1:a|b|c
             >>> print(self.matching_sensor('S3'))
             S3:
+            >>> print(self.matching_sensor('*'))
+            (S1,S2):(a|b|c),S2:c|d|e
         """
+        # Handle special case
+        if sensor == '*':
+            return self
+
         # matching_streams = []
         # for s in self.streams():
         #     if s.sensor.spec == sensor:
         #         matching_streams.append(s)
-        matching_streams = [s for s in self.streams() if s.sensor.spec == sensor]
+        matching_streams = [
+            s for s in self.streams()
+            if s.sensor.spec == sensor or s.sensor.spec == '*'
+        ]
         new = sum(matching_streams)
         if new == 0:
             import delayed_image
@@ -416,10 +470,90 @@ class SensorChanSpec(ub.NiceRepr):
 class FusedSensorChanSpec(SensorChanSpec):
     """
     A single sensor a corresponding fused channels.
+
+    Note:
+        Using the explicit constructor should be avoided, as it will likely
+        change for implementation efficiency in the future. Use `coerce` and
+        `from_spec` instead. (Or submit a PR/MR with additional constructors
+        you might find useful)
+
+    Example:
+        >>> # xdoctest: +REQUIRES(module:lark)
+        >>> from delayed_image.sensorchan_spec import *  # NOQA
+        >>> assert FusedSensorChanSpec.coerce('sensor:a|b|c.0|c.1|c.2').spec == 'sensor:a|b|c.0|c.1|c.2'
+        >>> assert FusedSensorChanSpec.coerce('a|b|c.0|c.1|c.2').spec == '*:a|b|c.0|c.1|c.2'
     """
     def __init__(self, sensor, chans):
+        # Fixme, this signature does not agree with the parent
         self.sensor = sensor
         self._chans = chans
+
+    @classmethod
+    def from_spec(cls, spec: str) -> 'FusedSensorChanSpec':
+        import delayed_image
+        parts = sensorchan_normalized_parts(spec)
+        if not len(parts) == 1:
+            raise ValueError('must be a single fused set')
+        node = parts[0]
+        sensor = SensorSpec(node.sensor)
+        chans = delayed_image.FusedChannelSpec.coerce(node.chan.spec)
+        self = cls(sensor, chans)
+        return self
+
+    @classmethod
+    def coerce(cls, data) -> 'FusedSensorChanSpec':
+        """
+        Attempt to interpret the data as a channel specification
+
+        Returns:
+            SensorChanSpec
+
+        Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
+            >>> from delayed_image.sensorchan_spec import *  # NOQA
+            >>> from delayed_image.sensorchan_spec import FusedSensorChanSpec
+            >>> self = FusedSensorChanSpec.coerce('*:u.0:3')
+            >>> assert self.spec == '*:u.0|u.1|u.2'
+        """
+        if isinstance(data, cls):
+            self = data
+            return self
+        elif isinstance(data, str):
+            self = cls.from_spec(data)
+            return self
+        else:
+            raise NotImplementedError
+
+    def numel(self) -> int:
+        return self.chans.numel()
+
+    def normalize(self):
+        # Fixme, not efficient
+        new_spec = normalize_sensor_chan(self.spec)
+        new = self.__class__.from_spec(new_spec)
+        return new
+
+    def concise(self):
+        # Fixme, not efficient
+        new_spec = concise_sensor_chan(self.spec)
+        new = self.__class__.from_spec(new_spec)
+        return new
+
+    def split(self) -> 'SensorChanSpec':
+        """
+        Split each channel into a separate stream
+
+        Returns:
+            SensorChanSpec
+
+        Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
+            >>> from delayed_image import FusedSensorChanSpec
+            >>> self = FusedSensorChanSpec.coerce('Cam1:(red|blue|feat.0:3)')
+            >>> print(self.split().concise())
+            Cam1:(red,blue,feat.0,feat.1,feat.2)
+        """
+        return super().split()
 
     @property
     def chans(self):

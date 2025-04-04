@@ -9,11 +9,6 @@ import warnings
 from delayed_image import delayed_nodes
 from delayed_image import delayed_base
 
-try:
-    from line_profiler import profile
-except ImportError:
-    from ubelt import identity as profile
-
 __docstubs__ = """
 from delayed_image.channel_spec import FusedChannelSpec
 """
@@ -35,7 +30,6 @@ class DelayedImageLeaf(delayed_nodes.DelayedImage):
         """
         return kwimage.Affine.eye()
 
-    @profile
     def optimize(self):
         if TRACE_OPTIMIZE:
             self._opt_logs.append('optimize DelayedImageLeaf')
@@ -135,7 +129,6 @@ class DelayedLoad(DelayedImageLeaf):
     if delayed_base.USE_SLOTS:
         __slots__ = delayed_nodes.DelayedImage.__slots__ + ('lazy_ref',)
 
-    @profile
     def __init__(self, fpath, channels=None, dsize=None, nodata_method=None, num_overviews=None):
         """
         Args:
@@ -221,7 +214,6 @@ class DelayedLoad(DelayedImageLeaf):
                            nodata_method=nodata_method)
         return self
 
-    @profile
     def _load_reference(self):
         if self.lazy_ref is None:
             from delayed_image import lazy_loaders
@@ -236,7 +228,6 @@ class DelayedLoad(DelayedImageLeaf):
                 self.lazy_ref = NotImplemented
         return self
 
-    @profile
     def prepare(self):
         """
         If metadata is missing, perform minimal IO operations in order to
@@ -249,7 +240,6 @@ class DelayedLoad(DelayedImageLeaf):
         self._load_metadata()
         return self
 
-    @profile
     def _load_metadata(self):
         """
         Ignore:
@@ -267,7 +257,8 @@ class DelayedLoad(DelayedImageLeaf):
         """
         required_meta_keys = ('dsize', 'num_channels', 'num_overviews')
         if all(self.meta[k] is not None for k in required_meta_keys):
-            return self
+            if not any(d is None for d in self.dsize):
+                return self
         self._load_reference()
         if self.lazy_ref is NotImplemented:
             shape = kwimage.load_image_shape(self.fpath)
@@ -278,14 +269,13 @@ class DelayedLoad(DelayedImageLeaf):
             shape = self.lazy_ref.shape
             num_overviews = self.lazy_ref.num_overviews
         h, w, c = shape
-        if self.dsize is None:
+        if self.dsize is None or any(d is None for d in self.dsize):
             self.meta['dsize'] = (w, h)
         if self.num_channels is None:
             self.meta['num_channels'] = c
         self.meta['num_overviews'] = num_overviews
         return self
 
-    @profile
     def _finalize(self):
         """
         Returns:
@@ -367,7 +357,6 @@ class DelayedNans(DelayedImageLeaf):
         super().__init__(channels=channels, dsize=dsize)
         self._kwargs = {}
 
-    @profile
     def _finalize(self):
         """
         Returns:
@@ -379,7 +368,6 @@ class DelayedNans(DelayedImageLeaf):
         final = np.full(shape, fill_value=np.nan)
         return final
 
-    @profile
     def _optimized_crop(self, space_slice=None, chan_idxs=None):
         """
         Crops an image along integer pixel coordinates.
@@ -407,7 +395,6 @@ class DelayedNans(DelayedImageLeaf):
             new._opt_logs.append('Nans._optimized_crop')
         return new
 
-    @profile
     def _optimized_warp(self, transform, dsize=None, **warp_kwargs):
         """
         Returns:
@@ -443,7 +430,6 @@ class DelayedNodata(DelayedNans):
         self.meta['nodata_method'] = nodata_method
         self._kwargs['nodata_method'] = nodata_method
 
-    @profile
     def _finalize(self):
         """
         Returns:

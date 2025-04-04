@@ -9,11 +9,6 @@ try:
 except Exception:
     rich_mod = None
 
-try:
-    from line_profiler import profile
-except ImportError:
-    profile = ub.identity
-
 # Flag to evaluate if slots are helping us at all
 USE_SLOTS = True
 
@@ -56,7 +51,6 @@ class DelayedOperation:
         nice = self.__nice__()
         return '<{0}({1})>'.format(classname, nice)
 
-    @profile
     def nesting(self):
         """
         Returns:
@@ -129,7 +123,6 @@ class DelayedOperation:
             node_data['label'] = f'{short_type} {param_key}'
         return graph
 
-    @profile
     def _traverse(self):
         """
         A flat list of all descendent nodes and their parents
@@ -148,7 +141,6 @@ class DelayedOperation:
             for child in item.children():
                 stack.append((item, child))
 
-    @profile
     def leafs(self):
         """
         Iterates over all leafs in the tree.
@@ -170,7 +162,6 @@ class DelayedOperation:
 
     _leafs = leafs
 
-    @profile
     def _leaf_paths(self):
         """
         Builds all independent paths to leafs.
@@ -228,7 +219,6 @@ class DelayedOperation:
                         prev = part
                 yield leaf, part
 
-    @profile
     def _traversed_graph(self):
         """
         A flat list of all descendent nodes and their parents
@@ -329,6 +319,8 @@ class DelayedOperation:
         Returns:
             DelayedOperation
         """
+        # TODO: if leaf metadata changes, that should propogate up the tree
+        # (e.g. for dsize)
         for child in self.children():
             child.prepare()
         return self
@@ -347,7 +339,6 @@ class DelayedOperation:
         """
         raise NotImplementedError
 
-    @profile
     def finalize(self, prepare=True, optimize=True, **kwargs):
         """
         Evaluate the operation tree in full.
@@ -401,7 +392,6 @@ class DelayedOperation:
         """
         raise NotImplementedError
 
-    @profile
     def _set_nested_params(self, **kwargs):
         """
         Hack to override nested params on all warps for things like

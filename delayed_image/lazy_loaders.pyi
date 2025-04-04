@@ -2,8 +2,6 @@ import ubelt as ub
 from _typeshed import Incomplete
 from collections import OrderedDict
 
-profile: Incomplete
-
 
 class CacheDict(OrderedDict):
     cache_len: Incomplete

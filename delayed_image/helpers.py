@@ -5,16 +5,9 @@ import math
 from delayed_image.util import util_network_text
 
 
-try:
-    from line_profiler import profile
-except Exception:
-    profile = ub.identity
-
-
 write_network_text = util_network_text.write_network_text
 
 
-@profile
 def _auto_dsize(transform, sub_dsize):
     """
     Returns:
@@ -107,7 +100,6 @@ def _largest_shape(shapes):
     return largest
 
 
-@profile
 def _swap_warp_after_crop(in_crop2, in_warp1, origin_convention='corner'):
     r"""
     Given a warp followed by a crop, compute the corresponding crop followed by
@@ -294,7 +286,6 @@ def _swap_warp_after_crop(in_crop2, in_warp1, origin_convention='corner'):
     return out_crop1, out_warp2
 
 
-@profile
 def _swap_crop_after_warp(inner_region, outer_transform):
     r"""
     Given a crop followed by a warp (usually an overview), compute the
@@ -535,7 +526,6 @@ class mkslice_cls:
 mkslice = mkslice_cls()
 
 
-@profile
 def _decompose_scale(self):
     """
     Scale only decomposition. Experimental method that is faster than
