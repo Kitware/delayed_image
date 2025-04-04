@@ -296,6 +296,7 @@ class SensorChanSpec(ub.NiceRepr):
             SensorChanSpec
 
         Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
             >>> from delayed_image import SensorChanSpec
             >>> self = SensorChanSpec.coerce('Cam1:(red,blue),Cam1:feat.0:3')
             >>> print(self.split().concise())
@@ -362,6 +363,7 @@ class SensorChanSpec(ub.NiceRepr):
             *:(A|B|C,edf,A12,,r|g|b)
 
         Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
             >>> # Test multi-arg case
             >>> import delayed_image
             >>> a = delayed_image.SensorChanSpec.coerce('A|B|C,edf')
@@ -403,7 +405,7 @@ class SensorChanSpec(ub.NiceRepr):
                 the name of the sensor to match or "*" to match everything.
 
         Returns:
-            FusedSensorChanSpec: matching part of the spec
+            FusedSensorChanSpec | SensorChanSpec: matching part of the spec
 
         Example:
             >>> # xdoctest: +REQUIRES(module:lark)
@@ -476,6 +478,7 @@ class FusedSensorChanSpec(SensorChanSpec):
         you might find useful)
 
     Example:
+        >>> # xdoctest: +REQUIRES(module:lark)
         >>> from delayed_image.sensorchan_spec import *  # NOQA
         >>> assert FusedSensorChanSpec.coerce('sensor:a|b|c.0|c.1|c.2').spec == 'sensor:a|b|c.0|c.1|c.2'
         >>> assert FusedSensorChanSpec.coerce('a|b|c.0|c.1|c.2').spec == '*:a|b|c.0|c.1|c.2'
@@ -544,6 +547,7 @@ class FusedSensorChanSpec(SensorChanSpec):
             SensorChanSpec
 
         Example:
+            >>> # xdoctest: +REQUIRES(module:lark)
             >>> from delayed_image import FusedSensorChanSpec
             >>> self = FusedSensorChanSpec.coerce('Cam1:(red|blue|feat.0:3)')
             >>> print(self.split().concise())
