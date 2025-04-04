@@ -3,11 +3,13 @@ kwimage>=0.11.0
 
 # xdev availpkg networkx --request_min=2.2.0
 # xdev availpkg imageio
-networkx>=2.8           ; python_version < '4.0'   and python_version >= '3.11'   # Python 3.11+
+networkx>=3.0           ; python_version < '4.0'   and python_version >= '3.13'   # Python 3.13+
+networkx>=2.8           ; python_version < '3.13'  and python_version >= '3.11'   # Python 3.11-3.12
 networkx>=2.7           ; python_version < '3.11'  and python_version >= '3.8'    # Python 3.8-3.11
 
 # 1.19.2 is the tensorflow minimum
-numpy>=1.26.0  ; python_version < '4.0'  and python_version >= '3.12'    # Python 3.12+
+numpy>=2.1.0     ; python_version < '4.0'  and python_version >= '3.13'    # Python 3.13+
+numpy>=1.26.0    ; python_version < '3.13' and python_version >= '3.12'    # Python 3.12
 numpy>=1.23.2  ; python_version < '3.12' and python_version >= '3.11'    # Python 3.11
 numpy>=1.21.6  ; python_version < '3.11' and python_version >= '3.10'  # Python 3.10
 numpy>=1.19.3  ; python_version < '3.10' and python_version >= '3.9'   # Python 3.9

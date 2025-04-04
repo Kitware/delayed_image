@@ -32,7 +32,10 @@ def static_parse(varname, fpath):
         def visit_Assign(self, node):
             for target in node.targets:
                 if getattr(target, "id", None) == varname:
-                    self.static_value = node.value.s
+                    try:
+                        self.static_value = node.value.value
+                    except AttributeError:
+                        self.static_value = node.value.s
 
     visitor = StaticVisitor()
     visitor.visit(pt)
@@ -70,7 +73,7 @@ def parse_requirements(fname="requirements.txt", versions=False):
 
     Args:
         fname (str): path to requirements file
-        versions (bool | str, default=False):
+        versions (bool | str):
             If true include version specs.
             If strict, then pin to the minimum version.
 
@@ -106,7 +109,7 @@ def parse_requirements(fname="requirements.txt", versions=False):
                 info["package"] = line.split("#egg=")[1]
             else:
                 if "--find-links" in line:
-                    # setuptools doesnt seem to handle find links
+                    # setuptools does not seem to handle find links
                     line = line.split("--find-links")[0]
                 if ";" in line:
                     pkgpart, platpart = line.split(";")
@@ -159,7 +162,8 @@ def parse_requirements(fname="requirements.txt", versions=False):
                     if plat_deps is not None:
                         parts.append(";" + plat_deps)
                 item = "".join(parts)
-                yield item
+                if item:
+                    yield item
 
     packages = list(gen_packages_items())
     return packages
@@ -198,7 +202,6 @@ def parse_requirements(fname="requirements.txt", versions=False):
 NAME = "delayed_image"
 INIT_PATH = "delayed_image/__init__.py"
 VERSION = parse_version(INIT_PATH)
-
 if __name__ == "__main__":
     setupkw = {}
 
@@ -207,50 +210,60 @@ if __name__ == "__main__":
     )
     setupkw["extras_require"] = {
         "all": parse_requirements("requirements.txt", versions="loose"),
-        "tests": parse_requirements("requirements/tests.txt", versions="loose"),
-        "optional": parse_requirements("requirements/optional.txt", versions="loose"),
         "headless": parse_requirements("requirements/headless.txt", versions="loose"),
         "graphics": parse_requirements("requirements/graphics.txt", versions="loose"),
-        # Strict versions
+        "docs": parse_requirements("requirements/docs.txt", versions="loose"),
+        "gdal": parse_requirements("requirements/gdal.txt", versions="loose"),
+        "linting": parse_requirements("requirements/linting.txt", versions="loose"),
+        "optional": parse_requirements("requirements/optional.txt", versions="loose"),
+        "runtime": parse_requirements("requirements/runtime.txt", versions="loose"),
+        "tests": parse_requirements("requirements/tests.txt", versions="loose"),
+        "all-strict": parse_requirements("requirements.txt", versions="strict"),
         "headless-strict": parse_requirements(
             "requirements/headless.txt", versions="strict"
         ),
         "graphics-strict": parse_requirements(
             "requirements/graphics.txt", versions="strict"
         ),
-        "all-strict": parse_requirements("requirements.txt", versions="strict"),
+        "docs-strict": parse_requirements("requirements/docs.txt", versions="strict"),
+        "gdal-strict": parse_requirements("requirements/gdal.txt", versions="strict"),
+        "linting-strict": parse_requirements(
+            "requirements/linting.txt", versions="strict"
+        ),
+        "optional-strict": parse_requirements(
+            "requirements/optional.txt", versions="strict"
+        ),
         "runtime-strict": parse_requirements(
             "requirements/runtime.txt", versions="strict"
         ),
         "tests-strict": parse_requirements("requirements/tests.txt", versions="strict"),
-        "optional-strict": parse_requirements(
-            "requirements/optional.txt", versions="strict"
-        ),
     }
-
     setupkw["name"] = NAME
     setupkw["version"] = VERSION
     setupkw["author"] = "Jon Crall"
     setupkw["author_email"] = "jon.crall@kitware.com"
-    setupkw["url"] = None
+    setupkw["url"] = "https://gitlab.kitware.com/computer-vision/delayed_image"
     setupkw["description"] = "The delayed_image module"
     setupkw["long_description"] = parse_description()
     setupkw["long_description_content_type"] = "text/x-rst"
     setupkw["license"] = "Apache 2"
     setupkw["packages"] = find_packages(".")
-    setupkw["python_requires"] = ">=3.6"
+    setupkw["python_requires"] = ">=3.8"
     setupkw["classifiers"] = [
         "Development Status :: 1 - Planning",
         "Intended Audience :: Developers",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Utilities",
         "License :: OSI Approved :: Apache Software License",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ]
-    setupkw["package_data"] = {"delayed_image": ["py.typed", "*.pyi"]}
+    setupkw["package_data"] = {
+        "": ["requirements/*.txt"],
+        "delayed_image": ["py.typed", "*.pyi"],
+    }
     setup(**setupkw)
