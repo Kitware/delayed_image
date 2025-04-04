@@ -58,6 +58,9 @@ stages:
   <<: *common_template
   stage: test
   coverage: /TOTAL.+ ([0-9]{1,3}%)/
+  except:
+    refs:
+    - release
 .test_minimal-loose_template: &test_minimal-loose_template
   <<: *common_test_template
   before_script:
