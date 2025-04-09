@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.5 - Unreleased
 
+### Fixed
+* Corner case in stream method with non-empty sensor and empty channels
+
 
 ## Version 0.4.4 - Released 2025-04-04
 
