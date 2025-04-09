@@ -626,7 +626,9 @@ class SensorChanTransformer(Transformer):
         that is restircted to only a single sensor and group of fused channels.
 
     Ignore:
+        from delayed_image.sensorchan_spec import *  # NOQA
         cases = [
+             'S1:',
              'S1:b:3',
              'S1:b:3,S2:b:3',
              'S1:b:3,S2:(b.0,b.1,b.2)',
@@ -714,10 +716,10 @@ class SensorChanTransformer(Transformer):
         item, = items
         return [SensorChanNode('*', c) for c in item]
 
-    def sensor_chan(self, items):
+    def sensor_chan(self, items) -> list:
         if len(items) == 1:
             # handle empty channels
-            items = [items[0], ['']]
+            items = [items[0], [FusedChanNode([])]]
         assert len(items) == 2
         lhs, rhs = items
         new = []
