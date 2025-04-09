@@ -4,10 +4,13 @@ from delayed_image.sensorchan_spec import SensorChanSpec  # NOQA
 from delayed_image.sensorchan_spec import FusedSensorChanSpec  # NOQA
 from delayed_image.sensorchan_spec import SensorSpec  # NOQA
 import ubelt as ub
+import pytest
 
 
 @ub.memoize
 def build_spec_variants():
+    pytest.importorskip("lark")
+
     import itertools as it
 
     sensors = [
@@ -54,6 +57,7 @@ def test_matching_sensor():
     """
     Ensure matching_sensor filters to the appropriate sensor
     """
+    pytest.importorskip("lark")
     spec_variants = build_spec_variants()
     sensors = [
         'sensor1', 'sensor2'
@@ -79,6 +83,7 @@ def test_matching_sensor():
 
 def test_matching_sensor_generic():
     # generic sensor should match everything
+    pytest.importorskip("lark")
     spec_variants = build_spec_variants()
     for sensorchan in spec_variants['FusedSensorChanSpec']:
         assert sensorchan.matching_sensor('*').numel() == sensorchan.numel()
@@ -91,6 +96,7 @@ def test_empty_matching_sensor():
     """
     Test issue encounted in geowatch.
     """
+    pytest.importorskip("lark")
     input_sensorchan = SensorChanSpec.coerce('sensor2:r|g|b,sensor3:r|g|b')
     matching = input_sensorchan.matching_sensor('sensor1')
     assert matching.numel() == 0
