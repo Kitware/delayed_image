@@ -832,7 +832,7 @@ def sensorchan_concise_parts(spec: str):
     """
     try:
         sensor_channel_parser = _global_sensor_chan_parser()
-        tree = sensor_channel_parser.parse(spec)
+        tree = _string_safe_parse(sensor_channel_parser, spec)
         transformed = SensorChanTransformer(concise_sensors=1, concise_channels=1).transform(tree)
     except Exception:
         print(f'ERROR: Failed to condense spec={spec}')
@@ -849,9 +849,21 @@ def sensorchan_normalized_parts(spec: str):
     """
     try:
         sensor_channel_parser = _global_sensor_chan_parser()
-        tree = sensor_channel_parser.parse(spec)
+        tree = _string_safe_parse(sensor_channel_parser, spec)
         transformed = SensorChanTransformer(concise_sensors=0, concise_channels=0).transform(tree)
     except Exception:
         print(f'ERROR: Failed to normalize spec={spec}')
         raise
     return transformed
+
+
+def _string_safe_parse(parser, text):
+    try:
+        tree = parser.parse(text)
+    except TypeError:
+        if isinstance(text, str) and type(text) is not str:
+            # Could be lark not playing nice with string subclasses
+            tree = parser.parse(str(text))
+        else:
+            raise
+    return tree

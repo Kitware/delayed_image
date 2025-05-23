@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.6 - Unreleased
 
+### Fix
+* Handle case when input sensorchan strings are string subclasses.
+
 
 ## Version 0.4.5 - Released 2025-04-09
 
