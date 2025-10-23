@@ -80,6 +80,49 @@ def test_crop_optimize_issue():
     # print(opt_logs2)
 
 
+def test_lazy_warp_with_explicit_dsize():
+    """
+    In version 0.4.5 using lazy with warp would ignore the explicit dsize.
+    Test that this is fixed. This error showed up in the geowatch msi example
+    when doing kwcoco msi image generation.
+    """
+    import ubelt as ub
+    import numpy as np
+    import kwimage
+    from delayed_image import DelayedLoad
+    dpath = ub.Path.appdir('delayed_image/tests/lazy_warp_with_explicit_dsize')
+    dpath.ensuredir()
+
+    canvas_dsize = (431, 427)
+    fpath1 = kwimage.imwrite(dpath / 'dummy1.tif', np.random.rand(72, 72))
+    fpath2 = kwimage.imwrite(dpath / 'dummy2.tif', np.random.rand(427, 432))
+
+    band1 = DelayedLoad(fpath1).prepare()
+    band2 = DelayedLoad(fpath2).prepare()
+
+    for lazy in [True, False]:
+        # Test case with a real transform
+        without_dsize1 = band1.warp({'scale': 6.0, 'type': 'affine'}, lazy=lazy)
+        with_dsize1 = band1.warp({'scale': 6.0, 'type': 'affine'}, dsize=canvas_dsize, lazy=lazy)
+
+        assert without_dsize1.dsize == (432, 432)
+        assert with_dsize1.dsize == canvas_dsize
+
+        # Test case with an identity transform
+        without_dsize2 = band2.warp({'scale': 1.0, 'type': 'affine'}, lazy=lazy)
+        with_dsize2 = band2.warp({'scale': 1.0, 'type': 'affine'}, dsize=canvas_dsize, lazy=lazy)
+        assert without_dsize2.dsize != canvas_dsize
+        assert without_dsize2.dsize == (432, 427)
+        assert with_dsize2.dsize == canvas_dsize
+
+        # Alternative, no transform is given
+        without_dsize3 = band2.warp(None, lazy=lazy)
+        with_dsize3 = band2.warp(None, dsize=canvas_dsize, lazy=lazy)
+        assert without_dsize3.dsize != canvas_dsize
+        assert without_dsize3.dsize == (432, 427)
+        assert with_dsize3.dsize == canvas_dsize
+
+
 if __name__ == '__main__':
     """
     CommandLine:
