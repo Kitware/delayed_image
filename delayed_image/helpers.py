@@ -10,6 +10,10 @@ write_network_text = util_network_text.write_network_text
 
 def _auto_dsize(transform, sub_dsize):
     """
+    Args:
+        transform (kwimage.Affine): affine transform
+        sub_dsize (Tuple[int, int]): width / height
+
     Returns:
         Tuple[int, int]
 
@@ -27,6 +31,9 @@ def _auto_dsize(transform, sub_dsize):
         bounds = sub_bounds.warp(transform.matrix)
         max_xy = np.ceil(bounds.data.max(axis=0))
     else:
+        if transform.matrix is None:
+            return sub_dsize
+
         # note: this is faster than the above variant but will break on
         # non-affine (i.e. homogenous) transforms.
         sub_bounds = np.array([

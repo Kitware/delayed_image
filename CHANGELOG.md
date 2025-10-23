@@ -5,7 +5,14 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.4.5 - Unreleased
+## Version 0.4.6 - Unreleased
+
+### Fix
+* Handle case when input sensorchan strings are string subclasses.
+* Fix issue where lazy warps did not respect explicitly given dsize arguments
+
+
+## Version 0.4.5 - Released 2025-04-09
 
 ### Fixed
 * Corner case in stream method with non-empty sensor and empty channels

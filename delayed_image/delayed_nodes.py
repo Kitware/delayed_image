@@ -391,10 +391,16 @@ class ImageOpsMixin:
             >>> assert self is result3
         """
         if lazy:
-            if transform is None:
-                return self
-            transform = kwimage.Affine.coerce(transform)
-            if transform.isclose_identity():
+            can_be_lazy = False
+            if not isinstance(dsize, str) and self.dsize != dsize:
+                can_be_lazy = False
+            elif transform is None:
+                can_be_lazy = True
+            else:
+                transform = kwimage.Affine.coerce(transform)
+                if transform.isclose_identity():
+                    can_be_lazy = True
+            if can_be_lazy:
                 return self
         new = DelayedWarp(self, transform, dsize=dsize, **warp_kwargs)
         return new
