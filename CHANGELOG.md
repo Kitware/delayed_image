@@ -7,6 +7,11 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.6 - Unreleased
 
+### Added
+* Experimental AST-based optimizer available via `optimize_ast()` and
+  `delayed_image.experimental.astopt.optimize()`. The existing `optimize()`
+  behavior is unchanged.
+
 ### Fix
 * Handle case when input sensorchan strings are string subclasses.
 * Fix issue where lazy warps did not respect explicitly given dsize arguments

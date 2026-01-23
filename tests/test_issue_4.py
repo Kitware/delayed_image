@@ -1,4 +1,4 @@
-def test_issue4():
+def test_issue4(optimize_func):
     """
     The symptom is given this tree:
 
@@ -125,22 +125,22 @@ def test_issue4():
     delayed_crop = delayed_crop.prepare()
 
     delayed_crop.print_graph()
-    optimized = delayed_crop.optimize()
+    optimized = optimize_func(delayed_crop)
     optimized.print_graph()
     assert optimized.dsize == (225, 225)
 
 
-def test_clipped_negative_slice():
+def test_clipped_negative_slice(optimize_func):
     import delayed_image
     from delayed_image.helpers import mkslice
     base = delayed_image.DelayedLoad.demo(dsize=(256, 256))
     slices = mkslice[-10:216, 0:256]
     cropped = base.crop(slices)
     assert cropped.dsize == (256, 0)
-    assert cropped.optimize().dsize == (256, 0)
+    assert optimize_func(cropped).dsize == (256, 0)
 
 
-def test_oob_crop_after_load():
+def test_oob_crop_after_load(optimize_func):
     import delayed_image
     import ubelt as ub
     from delayed_image.helpers import mkslice
@@ -159,7 +159,7 @@ def test_oob_crop_after_load():
         print('key = {}'.format(ub.urepr(key, nl=1)))
         orig.print_graph()
         orig.prepare()
-        opt = orig.optimize()
+        opt = optimize_func(orig)
         opt.print_graph()
         outputs[key] = opt
         print('----------')
@@ -169,7 +169,7 @@ def test_oob_crop_after_load():
     assert outputs['v3'].dsize == (100, 200)
 
 
-def test_oob_crop_after_warp():
+def test_oob_crop_after_warp(optimize_func):
     """
     Like test_oob_crop_after_load, but adds in a warp before the slices that
     triggered errors the previous test did not.
@@ -195,7 +195,7 @@ def test_oob_crop_after_warp():
         orig.print_graph()
         orig.prepare()
         try:
-            opt = orig.optimize()
+            opt = optimize_func(orig)
         except Exception as ex:
             print('ex = {}'.format(ub.urepr(ex, nl=1)))
             errors.append((key, ex))
@@ -210,7 +210,7 @@ def test_oob_crop_after_warp():
     assert outputs['v3'].dsize == (100, 200)
 
 
-def test_oob_crop_after_warp_with_overviews():
+def test_oob_crop_after_warp_with_overviews(optimize_func):
     """
     Like test_oob_crop_after_load, but adds in a warp before the slices that
     triggered errors the previous test did not.
@@ -243,7 +243,7 @@ def test_oob_crop_after_warp_with_overviews():
         orig.print_graph()
         orig.prepare()
         try:
-            opt = orig.optimize()
+            opt = optimize_func(orig)
         except Exception as ex:
             print('ex = {}'.format(ub.urepr(ex, nl=1)))
             errors.append((key, ex))
@@ -258,7 +258,7 @@ def test_oob_crop_after_warp_with_overviews():
     assert outputs['v3'].dsize == (100, 200)
 
 
-def test_both_total_negative_slice():
+def test_both_total_negative_slice(optimize_func):
     import delayed_image
     try:
         import osgeo
@@ -271,6 +271,6 @@ def test_both_total_negative_slice():
     pad = [(0, 0), (0, 0)]
     crop = base.crop(slices, wrap=False, clip=False, pad=pad)
     crop.print_graph()
-    opt = crop.optimize()
+    opt = optimize_func(crop)
     assert crop.dsize == opt.dsize
     opt.print_graph()

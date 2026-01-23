@@ -1,6 +1,6 @@
 
 
-def test_subchannel_select_with_overviews_case1():
+def test_subchannel_select_with_overviews_case1(optimize_func):
     """
     This reproduces a bug in version < 0.2.8 with the exact operation tree that
     caused it in production.
@@ -39,7 +39,7 @@ def test_subchannel_select_with_overviews_case1():
     print(chr(10) + 'Before Optimization:')
     node.write_network_text()
 
-    optimized = node.optimize()
+    optimized = optimize_func(node)
 
     print(chr(10) + 'After Optimization:')
     optimized.write_network_text()
@@ -54,7 +54,7 @@ def test_subchannel_select_with_overviews_case1():
     assert im2.shape[2] == 2
 
 
-def test_subchannel_select_with_overviews_case2():
+def test_subchannel_select_with_overviews_case2(optimize_func):
     """
     This reproduces a bug in version < 0.2.8 with a minimal example
     """
@@ -75,7 +75,7 @@ def test_subchannel_select_with_overviews_case2():
     print(chr(10) + 'Before Optimization:')
     node.write_network_text()
 
-    optimized = node.optimize()
+    optimized = optimize_func(node)
 
     print(chr(10) + 'After Optimization:')
     optimized.write_network_text()

@@ -5,7 +5,7 @@ factor scale difference.
 """
 
 
-def test_100x_scale_difference():
+def test_100x_scale_difference(optimize_func):
     """
     There is an issue here in that the native subdata does not seem to agree
     with the resampled subdata.
@@ -82,7 +82,7 @@ def test_100x_scale_difference():
     lores_resampled_sample_linear = kwimage.fill_nans_with_checkers(lores_resampled_sample_linear)
 
     # Native Approach:
-    native_parts, native_warps = chip.optimize().undo_warps(remove=['scale'], return_warps=True)
+    native_parts, native_warps = optimize_func(chip).undo_warps(remove=['scale'], return_warps=True)
     native1, native2 = native_parts
     warp_native1_from_virtual = native_warps[0]
     warp_native2_from_virtual = native_warps[1]
@@ -112,7 +112,7 @@ def test_100x_scale_difference():
     print(roi_resolution2)
 
     # Get the delayed operation tree for just the coarse image for print comparison
-    resampled2 = chip.optimize().undo_warps(remove=[])[1]
+    resampled2 = optimize_func(chip).undo_warps(remove=[])[1]
     print('\n[green]--- Resampled Operations For Data 2 ---')
     resampled2.print_graph(fields='all')
 

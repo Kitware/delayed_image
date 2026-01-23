@@ -9,7 +9,7 @@ import numpy as np
 
 
 # @profile
-def test_shuffle_delayed_operations():
+def test_shuffle_delayed_operations(optimize_func):
     """
     CommandLine:
         XDEV_PROFILE=1 xdoctest -m tests/test_delayed_ops.py test_shuffle_delayed_operations
@@ -23,7 +23,7 @@ def test_shuffle_delayed_operations():
     # overviews=3)
     base = DelayedLoad(fpath, channels='r|g|b')._load_metadata()
     quantization = {'quant_max': 255, 'nodata': 0}
-    base.get_overview(1).dequantize(quantization).optimize()
+    optimize_func(base.get_overview(1).dequantize(quantization))
 
     operations = [
         ('warp', {'scale': 1}),
@@ -57,7 +57,7 @@ def test_shuffle_delayed_operations():
             delayed = func(args)
 
         # delayed.write_network_text(with_labels="name")
-        opt = delayed.optimize()
+        opt = optimize_func(delayed)
         # opt.write_network_text(with_labels="name")
 
         # We always expect that we will get a sequence in the form
@@ -80,7 +80,7 @@ def test_shuffle_delayed_operations():
             prev_idx = this_idx
 
 
-def test_static_operation_optimize_single_chain():
+def test_static_operation_optimize_single_chain(optimize_func):
     """
     There are 4 main operations:
 
@@ -176,7 +176,7 @@ def test_static_operation_optimize_single_chain():
     # the manipulated data will get cropped away.
 
     # The optimized tree looks like this
-    optimized = delayed.optimize()
+    optimized = optimize_func(delayed)
     optimized.print_graph()
     """
     ╙── Warp dsize=(64,32),transform={offset=(-0.6713,0.1755),scale=(0.5472,0.5773),shearx=0.1653,theta=-0.3208}
