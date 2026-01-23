@@ -1,6 +1,6 @@
 """Rule registry for the experimental AST optimizer."""
 
-from __future__ import annotations
+from __future__ import __annotations__
 
 from collections import defaultdict
 
@@ -116,6 +116,8 @@ def dequant_after_crop(node):
 @register_rule(DelayedCrop)
 def crop_under_concat(node):
     if isinstance2(node.subdata, DelayedChannelConcat):
+        if node.meta.get("chan_idxs", None) is not None:
+            return node, False, None
         return node._opt_push_under_concat(), True, "crop_under_concat"
     return node, False, None
 

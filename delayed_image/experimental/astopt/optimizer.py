@@ -1,6 +1,6 @@
 """Experimental AST-based optimizer driver."""
 
-from __future__ import annotations
+from __future__ import __annotations__
 
 from collections import Counter
 from dataclasses import dataclass, field

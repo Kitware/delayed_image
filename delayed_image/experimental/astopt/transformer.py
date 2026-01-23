@@ -1,6 +1,6 @@
 """Traversal helpers for delayed node trees."""
 
-from __future__ import annotations
+from __future__ import __annotations__
 
 import copy
 from typing import Dict, Iterable, List, Tuple

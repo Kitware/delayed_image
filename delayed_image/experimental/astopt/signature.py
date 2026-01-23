@@ -1,6 +1,6 @@
 """Helpers for creating canonical signatures for delayed nodes."""
 
-from __future__ import annotations
+from __future__ import __annotations__
 
 from typing import Any
 
