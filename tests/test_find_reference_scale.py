@@ -1,6 +1,6 @@
 
 
-def test_find_reference_scale():
+def test_find_reference_scale(optimize_func):
     try:
         from rich import print as rprint
         use_rich = 1
@@ -21,8 +21,8 @@ def test_find_reference_scale():
     mod = ref.warp(transform1).warp(transform2)
     # [0:100, 0:100]
 
-    opt_ref = ref.optimize()
-    opt_mod = mod.optimize()
+    opt_ref = optimize_func(ref)
+    opt_mod = optimize_func(mod)
 
     rprint('\n-- [green] REF --')
     ref.write_network_text(rich=use_rich)
@@ -45,7 +45,7 @@ def test_find_reference_scale():
     tf_mod_from_ref = tf_mod_from_leaf @ tf_leaf_from_ref
 
     recon_mod = opt_ref.warp(tf_mod_from_ref, dsize=mod.dsize)
-    recon_opt_mod = recon_mod.optimize()
+    recon_opt_mod = optimize_func(recon_mod)
 
     rprint('\n-- [orange1] MOD (recon) --')
     recon_mod.write_network_text(rich=use_rich)

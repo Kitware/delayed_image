@@ -392,6 +392,19 @@ class DelayedOperation:
         """
         raise NotImplementedError
 
+    def optimize_ast(self, **kwargs):
+        """
+        Experimental AST-based optimizer.
+
+        Args:
+            **kwargs: forwarded to the experimental optimizer.
+
+        Returns:
+            DelayedOperation
+        """
+        from delayed_image.experimental.astopt import optimize
+        return optimize(self, **kwargs)
+
     def _set_nested_params(self, **kwargs):
         """
         Hack to override nested params on all warps for things like

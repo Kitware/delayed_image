@@ -60,6 +60,9 @@ class DelayedOperation(ub.NiceRepr):
     def optimize(self) -> DelayedOperation:
         ...
 
+    def optimize_ast(self, **kwargs) -> DelayedOperation:
+        ...
+
 
 class DelayedNaryOperation(DelayedOperation):
     parts: Incomplete

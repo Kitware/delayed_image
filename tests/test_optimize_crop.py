@@ -1,4 +1,4 @@
-def test_optimize_crop_without_clip_reproduction():
+def test_optimize_crop_without_clip_reproduction(optimize_func):
     """
     There was an issue where a non-clipped crop would optimize it with a clip.
     This reproduces the issue exactly as it was originally seen.
@@ -44,7 +44,7 @@ def test_optimize_crop_without_clip_reproduction():
 
     delayed_image.delayed_nodes.TRACE_OPTIMIZE = 1
 
-    optimize = delayed.optimize()
+    optimize = optimize_func(delayed)
     optimize.print_graph()
 
     if delayed_image.delayed_nodes.TRACE_OPTIMIZE:
@@ -57,7 +57,7 @@ def test_optimize_crop_without_clip_reproduction():
     assert optimize.dsize == (416, 416), ('optimization should keep that size')
 
 
-def test_optimize_crop_without_clip_simplified():
+def test_optimize_crop_without_clip_simplified(optimize_func):
     """
     This reproduces a simplified minimal version of the issue
     """
@@ -75,14 +75,14 @@ def test_optimize_crop_without_clip_simplified():
     delayed = delayed.warp({'scale': 0.25}, dsize=(416, 416))
     delayed.print_graph()
 
-    optimize = delayed.optimize()
+    optimize = optimize_func(delayed)
     optimize.print_graph()
 
     assert delayed.dsize == (416, 416), ('original image has a specific size')
     assert optimize.dsize == (416, 416), ('optimization should keep that size')
 
 
-def test_optimize_crop_without_clip_minimal():
+def test_optimize_crop_without_clip_minimal(optimize_func):
     """
     Minimal operations that caused the issue
     """
@@ -101,7 +101,7 @@ def test_optimize_crop_without_clip_minimal():
 
     delayed_image.delayed_nodes.TRACE_OPTIMIZE = 1
 
-    optimize = delayed.optimize()
+    optimize = optimize_func(delayed)
     optimize.print_graph()
 
     if delayed_image.delayed_nodes.TRACE_OPTIMIZE:

@@ -12,7 +12,7 @@ def skip_if_missing_itk():
         pytest.skip('requires itk to test')
 
 
-def test_itk_warp():
+def test_itk_warp(optimize_func):
     skip_if_missing_itk()
 
     from delayed_image import DelayedLoad
@@ -23,7 +23,7 @@ def test_itk_warp():
     dsize = 'auto'
     new = self.warp({'scale': 1 / 30}, backend=backend, dsize=dsize, antialias=0)
     new.print_graph(fields='all')
-    opt = new.optimize()
+    opt = optimize_func(new)
     opt.print_graph(fields='all')
     result = opt.finalize()
     # import kwplot

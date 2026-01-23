@@ -1,4 +1,4 @@
-def test_crop_optimize_issue():
+def test_crop_optimize_issue(optimize_func):
     """
     There was an issue in 0.2.0 where a crop would be optimized incorrectly.
 
@@ -65,10 +65,10 @@ def test_crop_optimize_issue():
     chan2.write_network_text()
 
     print('\n-- Chan V1 [opt] --')
-    chan1_opt = chan1.optimize()
+    chan1_opt = optimize_func(chan1)
     chan1_opt.write_network_text()
     print('\n-- Chan V2 [opt] --')
-    chan2_opt = chan2.optimize()
+    chan2_opt = optimize_func(chan2)
     chan2_opt.write_network_text()
 
     assert chan1_opt.dsize == chan2_opt.dsize
@@ -128,4 +128,4 @@ if __name__ == '__main__':
     CommandLine:
         python ~/code/delayed_image/tests/test_delayed_nodes.py
     """
-    test_crop_optimize_issue()
+    test_crop_optimize_issue(lambda node, **kwargs: node.optimize(**kwargs))
