@@ -9,6 +9,13 @@ from _typeshed import Incomplete
 from collections.abc import Generator
 
 
+class OptimizeContext:
+    memo: Dict[int, 'DelayedOperation']
+
+    def __init__(self) -> None:
+        ...
+
+
 class DelayedOperation(ub.NiceRepr):
     meta: Incomplete
 
@@ -57,7 +64,7 @@ class DelayedOperation(ub.NiceRepr):
                  **kwargs) -> ArrayLike:
         ...
 
-    def optimize(self) -> DelayedOperation:
+    def optimize(self, ctx: OptimizeContext | None = None) -> DelayedOperation:
         ...
 
 

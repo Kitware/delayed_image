@@ -13,6 +13,18 @@ except Exception:
 USE_SLOTS = True
 
 
+# Per-call optimization context
+class OptimizeContext:
+    """
+    Holds per-call optimization state to avoid repeated work.
+    """
+    if USE_SLOTS:
+        __slots__ = ('memo',)
+
+    def __init__(self):
+        self.memo = {}
+
+
 # from kwcoco.util.util_monkey import Reloadable  # NOQA
 # @Reloadable.developing  # NOQA
 class DelayedOperation:
@@ -385,7 +397,7 @@ class DelayedOperation:
         # final = np.asanyarray(final) # does not work with xarray
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedOperation

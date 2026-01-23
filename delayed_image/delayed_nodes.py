@@ -658,16 +658,26 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             final = np.concatenate(stack, axis=2)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
         """
-        new_parts = [part.optimize() for part in self.parts]
-        kw = ub.dict_isect(self.meta, ['dsize'])
-        new = self.__class__(new_parts, **kw)
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        node_id = id(self)
+        if node_id in memo:
+            return memo[node_id]
+        new_parts = [part.optimize(ctx) for part in self.parts]
+        if all(p is o for p, o in zip(new_parts, self.parts)):
+            new = self
+        else:
+            kw = ub.dict_isect(self.meta, ['dsize'])
+            new = self.__class__(new_parts, **kw)
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedChannelConcat')
+        memo[node_id] = new
         return new
 
     def take_channels(self, channels, missing_channel_policy='return_nan'):
@@ -1452,14 +1462,25 @@ class DelayedAsXarray(DelayedImage):
         final = xr.DataArray(subfinal, dims=('y', 'x', 'c'), coords=coords)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
         """
-        new = self.subdata.optimize().as_xarray()
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        node_id = id(self)
+        if node_id in memo:
+            return memo[node_id]
+        new_subdata = self.subdata.optimize(ctx)
+        if new_subdata is self.subdata:
+            new = self
+        else:
+            new = new_subdata.as_xarray()
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedAsXarray')
+        memo[node_id] = new
         return new
 
 
@@ -1603,7 +1624,7 @@ class DelayedWarp(DelayedImage):
         final = kwarray.atleast_nd(final, 3, front=False)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
@@ -1646,40 +1667,69 @@ class DelayedWarp(DelayedImage):
             >>> assert len(self.as_graph().nodes) == 2
             >>> assert len(new.as_graph().nodes) == 1
         """
-        new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
-        if isinstance2(new.subdata, DelayedWarp):
-            new = new._opt_fuse_warps()
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        node_id = id(self)
+        if node_id in memo:
+            return memo[node_id]
 
-        # Check if the transform is close enough to identity to be considered
-        # negligable.
-        noop_eps = new.meta['noop_eps']
-        is_negligable = (
-            new.dsize == new.subdata.dsize and
-            new.transform.isclose_identity(rtol=noop_eps, atol=noop_eps)
-        )
-        if is_negligable:
-            new = new.subdata
-            if TRACE_OPTIMIZE:
-                new._opt_logs.append('Contract identity warp')
-        elif isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize()
-        elif hasattr(new.subdata, '_optimized_warp'):
-            # The subdata knows how to optimize itself wrt a warp
-            warp_kwargs = ub.dict_isect(
-                self.meta, self._data_keys + self._algo_keys)
-            new = new.subdata._optimized_warp(**warp_kwargs).optimize()
-        else:
-            split = new._opt_split_warp_overview()
-            if new is not split:
-                new = split
-                new.subdata = new.subdata.optimize()
-                new = new.optimize()
+        node = self
+        while isinstance2(node, DelayedWarp):
+            subdata = node.subdata.optimize(ctx)
+            if subdata is not node.subdata:
+                node = copy.copy(node)
+                node.subdata = subdata
+
+            rewritten = False
+            if isinstance2(node.subdata, DelayedWarp):
+                node = node._opt_fuse_warps()
+                rewritten = True
             else:
-                new = new._opt_absorb_overview()
+                # Check if the transform is close enough to identity to be considered
+                # negligable.
+                noop_eps = node.meta['noop_eps']
+                is_negligable = (
+                    node.dsize == node.subdata.dsize and
+                    node.transform.isclose_identity(rtol=noop_eps, atol=noop_eps)
+                )
+                if is_negligable:
+                    node = node.subdata
+                    if TRACE_OPTIMIZE:
+                        node._opt_logs.append('Contract identity warp')
+                    rewritten = True
+                elif isinstance2(node.subdata, DelayedChannelConcat):
+                    node = node._opt_push_under_concat()
+                    rewritten = True
+                elif hasattr(node.subdata, '_optimized_warp'):
+                    # The subdata knows how to optimize itself wrt a warp
+                    warp_kwargs = ub.dict_isect(
+                        node.meta, node._data_keys + node._algo_keys)
+                    node = node.subdata._optimized_warp(**warp_kwargs)
+                    rewritten = True
+                else:
+                    split = node._opt_split_warp_overview()
+                    if node is not split:
+                        node = split
+                        rewritten = True
+                    else:
+                        absorbed = node._opt_absorb_overview()
+                        if absorbed is not node:
+                            node = absorbed
+                            rewritten = True
+
+            if rewritten:
+                continue
+            break
+
+        if not isinstance2(node, DelayedWarp):
+            result = node.optimize(ctx)
+        else:
+            result = node
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('optimize DelayedWarp')
-        return new
+            result._opt_logs.append('optimize DelayedWarp')
+        memo[node_id] = result
+        return result
 
     def _transform_from_subdata(self):
         return self.transform
@@ -2091,7 +2141,7 @@ class DelayedDequantize(DelayedImage):
             final = dequantize(final, quantization)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
 
         Returns:
@@ -2108,22 +2158,44 @@ class DelayedDequantize(DelayedImage):
             >>> self.write_network_text()
             >>> opt = self.optimize()
         """
-        new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        node_id = id(self)
+        if node_id in memo:
+            return memo[node_id]
 
-        if isinstance2(new.subdata, DelayedDequantize):
-            raise AssertionError('Dequantization is only allowed once')
+        node = self
+        while isinstance2(node, DelayedDequantize):
+            subdata = node.subdata.optimize(ctx)
+            if subdata is not node.subdata:
+                node = copy.copy(node)
+                node.subdata = subdata
 
-        if isinstance2(new.subdata, DelayedWarp):
-            # Swap order so quantize is before the warp
-            new = new._opt_dequant_before_other()
-            new = new.optimize()
+            rewritten = False
+            if isinstance2(node.subdata, DelayedDequantize):
+                raise AssertionError('Dequantization is only allowed once')
 
-        if isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize()
+            if isinstance2(node.subdata, DelayedWarp):
+                # Swap order so quantize is before the warp
+                node = node._opt_dequant_before_other()
+                rewritten = True
+            elif isinstance2(node.subdata, DelayedChannelConcat):
+                node = node._opt_push_under_concat()
+                rewritten = True
+
+            if rewritten:
+                continue
+            break
+
+        if not isinstance2(node, DelayedDequantize):
+            result = node.optimize(ctx)
+        else:
+            result = node
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('optimize DelayedDequantize')
-        return new
+            result._opt_logs.append('optimize DelayedDequantize')
+        memo[node_id] = result
+        return result
 
     def _opt_dequant_before_other(self):
         quantization = self.meta['quantization']
@@ -2236,7 +2308,7 @@ class DelayedCrop(DelayedImage):
         self_from_subdata = kwimage.Affine.translate(offset)
         return self_from_subdata
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
@@ -2253,48 +2325,75 @@ class DelayedCrop(DelayedImage):
             >>> new.write_network_text()
             >>> assert len(new.as_graph().nodes) == 1
         """
-        new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
-        if isinstance2(new.subdata, DelayedCrop):
-            new = new._opt_fuse_crops()
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        node_id = id(self)
+        if node_id in memo:
+            return memo[node_id]
 
-        if hasattr(new.subdata, '_optimized_crop'):
-            # The subdata knows how to optimize itself wrt this node
-            crop_kwargs = ub.dict_isect(self.meta, {'space_slice', 'chan_idxs'})
-            new = new.subdata._optimized_crop(**crop_kwargs).optimize()
-        if isinstance2(new.subdata, DelayedWarp):
-            new = new._opt_warp_after_crop()
-            new = new.optimize()
-        elif isinstance2(new.subdata, DelayedDequantize):
-            new = new._opt_dequant_after_crop()
-            new = new.optimize()
+        node = self
+        while isinstance2(node, DelayedCrop):
+            subdata = node.subdata.optimize(ctx)
+            if subdata is not node.subdata:
+                node = copy.copy(node)
+                node.subdata = subdata
 
-        if isinstance2(new.subdata, DelayedChannelConcat):
-            if isinstance2(new, DelayedCrop):
-                # We have to be careful if there we have band selection
-                chan_idxs = new.meta.get('chan_idxs', None)
-                space_slice = new.meta.get('space_slice', None)
-                taken = new.subdata
-                if TRACE_OPTIMIZE:
-                    _new_logs = []
-                if chan_idxs is not None:
+            rewritten = False
+            if isinstance2(node.subdata, DelayedCrop):
+                node = node._opt_fuse_crops()
+                rewritten = True
+
+            if not rewritten and hasattr(node.subdata, '_optimized_crop'):
+                # The subdata knows how to optimize itself wrt this node
+                crop_kwargs = ub.dict_isect(node.meta, {'space_slice', 'chan_idxs'})
+                node = node.subdata._optimized_crop(**crop_kwargs)
+                rewritten = True
+
+            if not rewritten and isinstance2(node.subdata, DelayedWarp):
+                node = node._opt_warp_after_crop()
+                rewritten = True
+            elif not rewritten and isinstance2(node.subdata, DelayedDequantize):
+                node = node._opt_dequant_after_crop()
+                rewritten = True
+
+            if not rewritten and isinstance2(node.subdata, DelayedChannelConcat):
+                if isinstance2(node, DelayedCrop):
+                    # We have to be careful if there we have band selection
+                    chan_idxs = node.meta.get('chan_idxs', None)
+                    space_slice = node.meta.get('space_slice', None)
+                    taken = node.subdata
                     if TRACE_OPTIMIZE:
-                        _new_logs.extend(new.subdata._opt_logs)
-                        _new_logs.extend(new._opt_logs)
-                        _new_logs.append('concat-chan-crop-interact')
-                    taken = new.subdata.take_channels(chan_idxs).optimize()
-                if space_slice is not None:
+                        _new_logs = []
+                    if chan_idxs is not None:
+                        if TRACE_OPTIMIZE:
+                            _new_logs.extend(node.subdata._opt_logs)
+                            _new_logs.extend(node._opt_logs)
+                            _new_logs.append('concat-chan-crop-interact')
+                        taken = node.subdata.take_channels(chan_idxs)
+                    if space_slice is not None:
+                        if TRACE_OPTIMIZE:
+                            _new_logs.append('concat-space-crop-interact')
+                        taken = taken.crop(space_slice)._opt_push_under_concat()
+                    node = taken
                     if TRACE_OPTIMIZE:
-                        _new_logs.append('concat-space-crop-interact')
-                    taken = taken.crop(space_slice)._opt_push_under_concat().optimize()
-                new = taken
-                if TRACE_OPTIMIZE:
-                    new._opt_logs.extend(_new_logs)
-            else:
-                new = new._opt_push_under_concat().optimize()
+                        node._opt_logs.extend(_new_logs)
+                else:
+                    node = node._opt_push_under_concat()
+                rewritten = True
+
+            if rewritten:
+                continue
+            break
+
+        if not isinstance2(node, DelayedCrop):
+            result = node.optimize(ctx)
+        else:
+            result = node
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('optimize crop')
-        return new
+            result._opt_logs.append('optimize crop')
+        memo[node_id] = result
+        return result
 
     def _opt_fuse_crops(self):
         """
@@ -2561,32 +2660,58 @@ class DelayedOverview(DelayedImage):
         )
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
         """
-        new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
-        if isinstance2(new.subdata, DelayedOverview):
-            new = new._opt_fuse_overview()
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        node_id = id(self)
+        if node_id in memo:
+            return memo[node_id]
 
-        if new.meta['overview'] == 0:
-            new = new.subdata
-        elif isinstance2(new.subdata, DelayedCrop):
-            new = new._opt_crop_after_overview()
-            new = new.optimize()
-        elif isinstance2(new.subdata, DelayedWarp):
-            new = new._opt_warp_after_overview()
-            new = new.optimize()
-        elif isinstance2(new.subdata, DelayedDequantize):
-            new = new._opt_dequant_after_overview()
-            new = new.optimize()
-        if isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize()
+        node = self
+        while isinstance2(node, DelayedOverview):
+            subdata = node.subdata.optimize(ctx)
+            if subdata is not node.subdata:
+                node = copy.copy(node)
+                node.subdata = subdata
+
+            rewritten = False
+            if isinstance2(node.subdata, DelayedOverview):
+                node = node._opt_fuse_overview()
+                rewritten = True
+
+            if not rewritten and node.meta['overview'] == 0:
+                node = node.subdata
+                rewritten = True
+            elif not rewritten and isinstance2(node.subdata, DelayedCrop):
+                node = node._opt_crop_after_overview()
+                rewritten = True
+            elif not rewritten and isinstance2(node.subdata, DelayedWarp):
+                node = node._opt_warp_after_overview()
+                rewritten = True
+            elif not rewritten and isinstance2(node.subdata, DelayedDequantize):
+                node = node._opt_dequant_after_overview()
+                rewritten = True
+            elif not rewritten and isinstance2(node.subdata, DelayedChannelConcat):
+                node = node._opt_push_under_concat()
+                rewritten = True
+
+            if rewritten:
+                continue
+            break
+
+        if not isinstance2(node, DelayedOverview):
+            result = node.optimize(ctx)
+        else:
+            result = node
         if TRACE_OPTIMIZE:
-            new._opt_logs.append('optimize overview')
-        return new
+            result._opt_logs.append('optimize overview')
+        memo[node_id] = result
+        return result
 
     def _transform_from_subdata(self):
         scale = 1 / 2 ** self.meta['overview']

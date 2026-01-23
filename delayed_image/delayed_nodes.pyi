@@ -6,7 +6,7 @@ from typing import Dict
 from typing import Any
 from _typeshed import Incomplete
 from delayed_image import channel_spec
-from delayed_image.delayed_base import DelayedNaryOperation, DelayedUnaryOperation
+from delayed_image.delayed_base import DelayedNaryOperation, DelayedUnaryOperation, OptimizeContext
 
 from delayed_image.channel_spec import FusedChannelSpec
 from delayed_image.delayed_leafs import DelayedIdentity
@@ -116,7 +116,7 @@ class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
     def shape(self) -> Tuple[int | None, int | None, int | None]:
         ...
 
-    def optimize(self) -> DelayedImage:
+    def optimize(self, ctx: OptimizeContext | None = None) -> DelayedImage:
         ...
 
     def take_channels(
@@ -203,7 +203,7 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
 
 class DelayedAsXarray(DelayedImage):
 
-    def optimize(self) -> DelayedImage:
+    def optimize(self, ctx: OptimizeContext | None = None) -> DelayedImage:
         ...
 
 
@@ -223,7 +223,7 @@ class DelayedWarp(DelayedImage):
     def transform(self) -> kwimage.Affine:
         ...
 
-    def optimize(self) -> DelayedImage:
+    def optimize(self, ctx: OptimizeContext | None = None) -> DelayedImage:
         ...
 
 
@@ -232,7 +232,7 @@ class DelayedDequantize(DelayedImage):
     def __init__(self, subdata: DelayedArray, quantization: Dict) -> None:
         ...
 
-    def optimize(self) -> DelayedImage:
+    def optimize(self, ctx: OptimizeContext | None = None) -> DelayedImage:
         ...
 
 
@@ -245,7 +245,7 @@ class DelayedCrop(DelayedImage):
                  chan_idxs: List[int] | None = None) -> None:
         ...
 
-    def optimize(self) -> DelayedImage:
+    def optimize(self, ctx: OptimizeContext | None = None) -> DelayedImage:
         ...
 
 
@@ -258,7 +258,7 @@ class DelayedOverview(DelayedImage):
     def num_overviews(self) -> int:
         ...
 
-    def optimize(self) -> DelayedImage:
+    def optimize(self, ctx: OptimizeContext | None = None) -> DelayedImage:
         ...
 
 

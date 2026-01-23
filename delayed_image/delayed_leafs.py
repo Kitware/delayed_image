@@ -30,9 +30,16 @@ class DelayedImageLeaf(delayed_nodes.DelayedImage):
         """
         return kwimage.Affine.eye()
 
-    def optimize(self):
+    def optimize(self, ctx=None):
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        node_id = id(self)
+        if node_id in memo:
+            return memo[node_id]
         if TRACE_OPTIMIZE:
             self._opt_logs.append('optimize DelayedImageLeaf')
+        memo[node_id] = self
         return self
 
 

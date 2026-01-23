@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## Version 0.4.6 - Unreleased
 
+### Performance
+* Improve optimize() performance via per-call memoization, reduced allocations, and fixed-point rewrite loops; no behavior change intended.
+
 ### Fix
 * Handle case when input sensorchan strings are string subclasses.
 * Fix issue where lazy warps did not respect explicitly given dsize arguments
