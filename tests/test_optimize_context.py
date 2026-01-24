@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import warnings
 
 import numpy as np
@@ -24,6 +26,7 @@ def test_optimize_idempotence():
     rng = np.random.default_rng(0)
     data = (rng.random((32, 32, 3)) * 255).astype(np.uint8)
     base = delayed_image.DelayedIdentity(data, channels='r|g|b')
+    base.meta['num_overviews'] = 1
     quantization = {'quant_max': 255, 'nodata': 0}
 
     node = base.dequantize(quantization)
@@ -69,6 +72,7 @@ def test_randomized_tree_finalize_equivalence():
     rng = np.random.default_rng(2)
     data = (rng.random((64, 64, 3)) * 255).astype(np.uint8)
     base = delayed_image.DelayedIdentity(data, channels='r|g|b')
+    base.meta['num_overviews'] = 1
     quantization = {'quant_max': 255, 'nodata': 0}
 
     node = base.dequantize(quantization)
