@@ -1716,21 +1716,13 @@ class DelayedWarp(DelayedImage):
             split = node._opt_split_warp_overview()
             if node is not split:
                 node = split
-                if not isinstance2(node, DelayedWarp):
-                    result = node.optimize(ctx)
-                    break
-                continue
-
-            absorbed = node._opt_absorb_overview()
-            if absorbed is not node:
-                node = absorbed
-                if not isinstance2(node, DelayedWarp):
-                    result = node.optimize(ctx)
-                    break
-                continue
-
-            result = node
-            break
+                node.subdata = node.subdata.optimize(ctx)
+                result = node.optimize(ctx)
+                break
+            else:
+                node = node._opt_absorb_overview()
+                result = node
+                break
         if TRACE_OPTIMIZE:
             result._opt_logs.append('optimize DelayedWarp')
         memo[node_id] = result
