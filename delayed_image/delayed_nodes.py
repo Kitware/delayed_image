@@ -1315,9 +1315,13 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
         """
         Push this node under its child node if it is a concatenation operation
         """
-        assert isinstance2(self.subdata, DelayedChannelConcat)
+        if not isinstance2(self.subdata, DelayedChannelConcat):
+            return self
         kwargs = ub.compatible(self.meta, self.__class__.__init__)
-        new = self.subdata._push_operation_under(self.__class__, kwargs)
+        try:
+            new = self.subdata._push_operation_under(self.__class__, kwargs)
+        except CoordinateCompatibilityError:
+            return self
         if TRACE_OPTIMIZE:
             new._opt_logs.append('_opt_push_under_concat')
         return new
@@ -1692,7 +1696,11 @@ class DelayedWarp(DelayedImage):
             if TRACE_OPTIMIZE:
                 new._opt_logs.append('Contract identity warp')
         elif isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize(ctx)
+            pushed = new._opt_push_under_concat()
+            if pushed is not new:
+                new = pushed.optimize(ctx)
+            else:
+                new = pushed
         elif hasattr(new.subdata, '_optimized_warp'):
             # The subdata knows how to optimize itself wrt a warp
             warp_kwargs = ub.dict_isect(
@@ -2157,7 +2165,11 @@ class DelayedDequantize(DelayedImage):
             new = new.optimize(ctx)
 
         if isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize(ctx)
+            pushed = new._opt_push_under_concat()
+            if pushed is not new:
+                new = pushed.optimize(ctx)
+            else:
+                new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedDequantize')
         memo[node_id] = new
@@ -2308,8 +2320,9 @@ class DelayedCrop(DelayedImage):
             crop_kwargs = ub.dict_isect(self.meta, {'space_slice', 'chan_idxs'})
             new = new.subdata._optimized_crop(**crop_kwargs).optimize(ctx)
         if isinstance2(new.subdata, DelayedWarp):
-            new = new._opt_warp_after_crop()
-            new = new.optimize(ctx)
+            if 0 not in new.meta.get('dsize', ()):
+                new = new._opt_warp_after_crop()
+                new = new.optimize(ctx)
         elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_crop()
             new = new.optimize(ctx)
@@ -2331,12 +2344,20 @@ class DelayedCrop(DelayedImage):
                 if space_slice is not None:
                     if TRACE_OPTIMIZE:
                         _new_logs.append('concat-space-crop-interact')
-                    taken = taken.crop(space_slice)._opt_push_under_concat().optimize(ctx)
+                    pushed = taken.crop(space_slice)._opt_push_under_concat()
+                    if pushed is not taken:
+                        taken = pushed.optimize(ctx)
+                    else:
+                        taken = pushed
                 new = taken
                 if TRACE_OPTIMIZE:
                     new._opt_logs.extend(_new_logs)
             else:
-                new = new._opt_push_under_concat().optimize(ctx)
+                pushed = new._opt_push_under_concat()
+                if pushed is not new:
+                    new = pushed.optimize(ctx)
+                else:
+                    new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize crop')
         memo[node_id] = new
@@ -2473,6 +2494,8 @@ class DelayedCrop(DelayedImage):
             >>> print(ub.urepr(new_outer.nesting(), nl=-1, sort=0))
         """
         assert isinstance2(self.subdata, DelayedWarp)
+        if 0 in self.meta.get('dsize', ()):
+            return self
         # Inner is the data closer to the leaf (disk), outer is the data closer
         # to the user (output).
         outer_slices = self.meta['space_slice']
@@ -2636,7 +2659,11 @@ class DelayedOverview(DelayedImage):
             new = new._opt_dequant_after_overview()
             new = new.optimize(ctx)
         if isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize(ctx)
+            pushed = new._opt_push_under_concat()
+            if pushed is not new:
+                new = pushed.optimize(ctx)
+            else:
+                new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize overview')
         memo[node_id] = new
