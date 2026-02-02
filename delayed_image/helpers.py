@@ -22,8 +22,6 @@ def _auto_dsize(transform, sub_dsize):
         sub_dsize = (512, 512)
     """
     sub_w, sub_h = sub_dsize
-    if sub_w is None or sub_h is None:
-        return sub_dsize
 
     if 0:
         sub_bounds = kwimage.Coords(
@@ -39,16 +37,16 @@ def _auto_dsize(transform, sub_dsize):
         # note: this is faster than the above variant but will break on
         # non-affine (i.e. homogenous) transforms.
         sub_bounds = np.array([
-            [0,         0, 1],
-            [sub_w - 1, 0, 1],
-            [0, sub_h - 1, 1],
-            [sub_w - 1, sub_h - 1, 1]
+            [0,     0, 1],
+            [sub_w, 0, 1],
+            [0, sub_h, 1],
+            [sub_w, sub_h, 1]
         ])
         # bounds = kwimage.warp_points(transform.matrix, sub_bounds)[0:2]
         bounds = (transform.matrix[0:2] @ sub_bounds.T).T
         max_xy = np.ceil(bounds.max(axis=0))
-    max_x = int(max_xy[0]) + 1
-    max_y = int(max_xy[1]) + 1
+    max_x = int(max_xy[0])
+    max_y = int(max_xy[1])
     dsize = (max_x, max_y)
     return dsize
 

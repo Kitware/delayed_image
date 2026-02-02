@@ -675,7 +675,10 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             new = self
         else:
             kw = ub.dict_isect(self.meta, ['dsize'])
-            new = self.__class__(new_parts, **kw)
+            try:
+                new = self.__class__(new_parts, **kw)
+            except CoordinateCompatibilityError:
+                new = self
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedChannelConcat')
         memo[node_id] = new
