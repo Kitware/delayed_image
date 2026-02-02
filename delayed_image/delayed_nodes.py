@@ -667,9 +667,8 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
         if ctx is None:
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
-        node_id = id(self)
-        if node_id in memo:
-            return memo[node_id]
+        if self in memo:
+            return memo[self]
         new_parts = [part.optimize(ctx) for part in self.parts]
         if all(p is o for p, o in zip(new_parts, self.parts)):
             new = self
@@ -681,7 +680,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
                 new = self
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedChannelConcat')
-        memo[node_id] = new
+        memo[self] = new
         return new
 
     def take_channels(self, channels, missing_channel_policy='return_nan'):
@@ -1478,9 +1477,8 @@ class DelayedAsXarray(DelayedImage):
         if ctx is None:
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
-        node_id = id(self)
-        if node_id in memo:
-            return memo[node_id]
+        if self in memo:
+            return memo[self]
         new_subdata = self.subdata.optimize(ctx)
         if new_subdata is self.subdata:
             new = self
@@ -1488,7 +1486,7 @@ class DelayedAsXarray(DelayedImage):
             new = new_subdata.as_xarray()
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedAsXarray')
-        memo[node_id] = new
+        memo[self] = new
         return new
 
 
@@ -1678,9 +1676,8 @@ class DelayedWarp(DelayedImage):
         if ctx is None:
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
-        node_id = id(self)
-        if node_id in memo:
-            return memo[node_id]
+        if self in memo:
+            return memo[self]
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -1719,7 +1716,7 @@ class DelayedWarp(DelayedImage):
                 new = new._opt_absorb_overview()
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedWarp')
-        memo[node_id] = new
+        memo[self] = new
         return new
 
     def _transform_from_subdata(self):
@@ -2152,9 +2149,8 @@ class DelayedDequantize(DelayedImage):
         if ctx is None:
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
-        node_id = id(self)
-        if node_id in memo:
-            return memo[node_id]
+        if self in memo:
+            return memo[self]
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -2175,7 +2171,7 @@ class DelayedDequantize(DelayedImage):
                 new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedDequantize')
-        memo[node_id] = new
+        memo[self] = new
         return new
 
     def _opt_dequant_before_other(self):
@@ -2309,9 +2305,8 @@ class DelayedCrop(DelayedImage):
         if ctx is None:
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
-        node_id = id(self)
-        if node_id in memo:
-            return memo[node_id]
+        if self in memo:
+            return memo[self]
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -2363,7 +2358,7 @@ class DelayedCrop(DelayedImage):
                     new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize crop')
-        memo[node_id] = new
+        memo[self] = new
         return new
 
     def _opt_fuse_crops(self):
@@ -2641,9 +2636,8 @@ class DelayedOverview(DelayedImage):
         if ctx is None:
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
-        node_id = id(self)
-        if node_id in memo:
-            return memo[node_id]
+        if self in memo:
+            return memo[self]
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -2669,7 +2663,7 @@ class DelayedOverview(DelayedImage):
                 new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize overview')
-        memo[node_id] = new
+        memo[self] = new
         return new
 
     def _transform_from_subdata(self):

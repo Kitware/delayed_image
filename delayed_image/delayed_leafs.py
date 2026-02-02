@@ -35,12 +35,11 @@ class DelayedImageLeaf(delayed_nodes.DelayedImage):
         if ctx is None:
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
-        node_id = id(self)
-        if node_id in memo:
-            return memo[node_id]
+        if self in memo:
+            return memo[self]
         if TRACE_OPTIMIZE:
             self._opt_logs.append('optimize DelayedImageLeaf')
-        memo[node_id] = self
+        memo[self] = self
         return self
 
 
