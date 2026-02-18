@@ -1624,12 +1624,15 @@ class DelayedWarp(DelayedImage):
 
         # Determine antialiasing from the forward transform semantics.
         # (Passing the inverse transform directly would invert this heuristic.)
-        if antialias is True:
+        # Also, nearest-neighbor interpolation should never use antialiasing.
+        if interpolation == 'nearest':
+            use_antialias = False
+        elif bool(antialias):
             params = transform.decompose()
             sx, sy = params['scale']
             use_antialias = (sx < 1) or (sy < 1)
         else:
-            use_antialias = antialias
+            use_antialias = False
 
         final = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                     interpolation=interpolation,
