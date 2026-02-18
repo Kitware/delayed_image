@@ -1617,10 +1617,23 @@ class DelayedWarp(DelayedImage):
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
 
-        M = np.asarray(transform)
+        # kwimage.warp_affine expects a mapping from output-space to
+        # input-space, whereas this node stores the opposite convention.
+        # Convert here to preserve delayed-image transform semantics.
+        M = np.asarray(transform.inv())
+
+        # Determine antialiasing from the forward transform semantics.
+        # (Passing the inverse transform directly would invert this heuristic.)
+        if antialias is True:
+            params = transform.decompose()
+            sx, sy = params['scale']
+            use_antialias = (sx < 1) or (sy < 1)
+        else:
+            use_antialias = antialias
+
         final = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                     interpolation=interpolation,
-                                    antialias=antialias,
+                                    antialias=use_antialias,
                                     border_value=border_value,
                                     origin_convention='corner',
                                     backend=backend,
