@@ -2331,9 +2331,10 @@ class DelayedCrop(DelayedImage):
             crop_kwargs = ub.dict_isect(self.meta, {'space_slice', 'chan_idxs'})
             new = new.subdata._optimized_crop(**crop_kwargs).optimize(ctx)
         if isinstance2(new.subdata, DelayedWarp):
-            if 0 not in new.meta.get('dsize', ()):
-                new = new._opt_warp_after_crop()
-                new = new.optimize(ctx)
+            # NOTE: keep crop-after-warp order for correctness. Rewriting this
+            # path is sensitive to warp sampling conventions and can introduce
+            # off-by-one / border artifacts in optimized output.
+            pass
         elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_crop()
             new = new.optimize(ctx)
