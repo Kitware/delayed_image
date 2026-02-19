@@ -1701,6 +1701,32 @@ class DelayedWarp(DelayedImage):
                                     origin_convention='corner',
                                     backend=backend,
                                     )
+
+        # Runtime safeguard: some stacks can still choose the wrong matrix
+        # convention for nearest upscales, causing NaN-heavy outputs with very
+        # low value diversity (e.g. [0.8, nan]). Retry with the opposite matrix
+        # and keep whichever result has better finite coverage / uniqueness.
+        if interpolation == 'nearest':
+            src_vals = np.unique(prewarp[np.isfinite(prewarp)])
+            if src_vals.size > 4:
+                fin = np.isfinite(final)
+                fin_ratio = fin.mean()
+                uniq = np.unique(final[fin]).size if fin.any() else 0
+                if fin_ratio < 0.95 or uniq <= 2:
+                    alt_M = np.asarray(transform.inv()) if matrix_mode == 'forward' else np.asarray(transform)
+                    alt = kwimage.warp_affine(prewarp, alt_M, dsize=dsize,
+                                              interpolation=interpolation,
+                                              antialias=use_antialias,
+                                              border_value=border_value,
+                                              origin_convention='corner',
+                                              backend=backend,
+                                              )
+                    alt_fin = np.isfinite(alt)
+                    alt_score = (alt_fin.mean(), np.unique(alt[alt_fin]).size if alt_fin.any() else 0)
+                    cur_score = (fin_ratio, uniq)
+                    if alt_score > cur_score:
+                        final = alt
+
         # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
         final = kwarray.atleast_nd(final, 3, front=False)
