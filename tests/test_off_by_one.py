@@ -94,10 +94,22 @@ def test_off_by_one_with_small_img():
     raw.shape
     raw_unique = np.unique(raw)
     data1_unique = np.unique(data1)
+
+    fwd = kwimage.warp_affine(raw, np.asarray(warp), dsize=x.dsize,
+                              interpolation='nearest', antialias=False,
+                              border_value=np.nan, origin_convention='corner',
+                              backend='auto')
+    inv = kwimage.warp_affine(raw, np.asarray(warp.inv()), dsize=x.dsize,
+                              interpolation='nearest', antialias=False,
+                              border_value=np.nan, origin_convention='corner',
+                              backend='auto')
+    fwd_fin = np.isfinite(fwd).mean()
+    inv_fin = np.isfinite(inv).mean()
+
     assert raw_unique.shape == data1_unique.shape and np.all(raw_unique == data1_unique), (
         'data1 should have exactly the same values as raw because it is '
         'just an upscale with nearest resampling. '
-        'It should not have any nan values. '        f'raw_unique.shape={raw_unique.shape}, data1_unique.shape={data1_unique.shape}, '        f'raw_unique[:8]={raw_unique[:8]!r}, data1_unique[:8]={data1_unique[:8]!r}, '        f'data1 finite ratio={np.isfinite(data1).mean():.6f}')
+        'It should not have any nan values. '        f'raw_unique.shape={raw_unique.shape}, data1_unique.shape={data1_unique.shape}, '        f'raw_unique[:8]={raw_unique[:8]!r}, data1_unique[:8]={data1_unique[:8]!r}, '        f'data1 finite ratio={np.isfinite(data1).mean():.6f}, '        f'fwd finite ratio={fwd_fin:.6f}, inv finite ratio={inv_fin:.6f}, '        f'fwd unique[:8]={np.unique(fwd)[:8]!r}, inv unique[:8]={np.unique(inv)[:8]!r}')
 
     assert not np.any(np.isnan(data2[1:, 1:])), (
         'data2 should not have any nan values except in the first row / column '

@@ -31,3 +31,18 @@ What I was thinking:
 Where this might go next:
 - If CI still fails, I want to log both candidate outputs in the exact failing environment and compare not only uniqueness but also whether source values are preserved as a set.
 - If needed, we can add a narrowly scoped nearest-upscale fallback path specialized for pure scale transforms.
+
+## 2026-02-19 — Commit in progress (deeper hypothesis)
+
+I think there is a deeper issue than just matrix-direction probing: in one sdist runtime, both matrix candidates may degrade in nearest mode for pure scale, which suggests a backend/pathology around warp + border interactions.
+
+What I changed in this step:
+- Added richer diagnostics to the failing test that explicitly compute direct forward/inverse `kwimage.warp_affine` baselines and include their finite ratios / unique previews in the assertion message.
+- Added a narrowly scoped fallback in `DelayedWarp._finalize()` for nearest pure-scale transforms: if both candidate warp scores are pathologically low in finite coverage, rescue via `kwimage.imresize(..., interpolation='nearest')`.
+
+What I was thinking:
+- This keeps behavior stable for normal cases while giving us a deterministic escape hatch for the exact pathological signature in CI.
+- The extra test diagnostics should show if the environment is failing both affine directions or only one.
+
+Where this might go next:
+- If this still fails, the next likely step is explicitly pinning nearest pure-scale to a backend-specific implementation or introducing a dedicated helper with direct OpenCV `resize` for that niche path.
