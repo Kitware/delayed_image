@@ -1716,23 +1716,33 @@ class DelayedWarp(DelayedImage):
                                         backend=backend,
                                         )
 
+            src_fin = np.isfinite(prewarp)
+            src_uniq = int(np.unique(prewarp[src_fin]).size) if src_fin.any() else 0
+
             def _score(arr):
                 fin = np.isfinite(arr)
-                if not fin.any():
-                    return (0.0, 0)
-                return (float(fin.mean()), int(np.unique(arr[fin]).size))
+                fin_ratio = float(fin.mean()) if fin.size else 0.0
+                uniq = int(np.unique(arr[fin]).size) if fin.any() else 0
+                # Prefer outputs with finite coverage and value diversity close
+                # to source for nearest-neighbor upscales.
+                uniq_gap = abs(uniq - src_uniq)
+                return (fin_ratio, -uniq_gap, uniq)
 
             score1 = _score(cand1)
             score2 = _score(cand2)
-            final = cand1 if score1 >= score2 else cand2
+            use_primary = score1 >= score2
+            final = cand1 if use_primary else cand2
             if os.environ.get('DELAYED_IMAGE_WARP_DEBUG', ''):
                 print('DelayedWarp nearest matrix debug:', {
                     'dtype': str(prewarp.dtype),
                     'backend': backend,
                     'matrix_mode': matrix_mode,
+                    'source_unique': src_uniq,
                     'score_primary': score1,
                     'score_alt': score2,
-                    'chosen': 'primary' if score1 >= score2 else 'alt',
+                    'chosen': 'primary' if use_primary else 'alt',
+                    'primary_preview': np.unique(cand1)[0:8].tolist(),
+                    'alt_preview': np.unique(cand2)[0:8].tolist(),
                 })
         else:
             final = kwimage.warp_affine(prewarp, M, dsize=dsize,
