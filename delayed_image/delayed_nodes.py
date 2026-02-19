@@ -1698,20 +1698,28 @@ class DelayedWarp(DelayedImage):
         else:
             use_antialias = False
 
+        warp_border_value = border_value
+        if (interpolation == 'nearest' and prewarp.dtype.kind == 'f' and
+                isinstance(border_value, tuple) and len(border_value) == 1 and
+                np.isnan(border_value[0])):
+            # Some runtime stacks handle scalar NaN border values more
+            # consistently than 1-tuple NaN for nearest interpolation.
+            warp_border_value = np.nan
+
         if interpolation == 'nearest':
             # Robustness for runtime convention mismatches: evaluate both
             # conventions and keep the better-scoring result.
             cand1 = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                         interpolation=interpolation,
                                         antialias=use_antialias,
-                                        border_value=border_value,
+                                        border_value=warp_border_value,
                                         origin_convention='corner',
                                         backend=backend,
                                         )
             cand2 = kwimage.warp_affine(prewarp, alt_M, dsize=dsize,
                                         interpolation=interpolation,
                                         antialias=use_antialias,
-                                        border_value=border_value,
+                                        border_value=warp_border_value,
                                         origin_convention='corner',
                                         backend=backend,
                                         )
@@ -1748,7 +1756,7 @@ class DelayedWarp(DelayedImage):
             final = kwimage.warp_affine(prewarp, M, dsize=dsize,
                                         interpolation=interpolation,
                                         antialias=use_antialias,
-                                        border_value=border_value,
+                                        border_value=warp_border_value,
                                         origin_convention='corner',
                                         backend=backend,
                                         )

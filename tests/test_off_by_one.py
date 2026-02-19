@@ -92,10 +92,12 @@ def test_off_by_one_with_small_img():
         kwplot.imshow(kwimage.fill_nans_with_checkers(data3.copy()), pnum=pnum_(), title='imresize scale by 2', show_ticks=True, origin_convention='corner')
 
     raw.shape
-    assert np.all(np.unique(raw) == np.unique(data1)), (
+    raw_unique = np.unique(raw)
+    data1_unique = np.unique(data1)
+    assert raw_unique.shape == data1_unique.shape and np.all(raw_unique == data1_unique), (
         'data1 should have exactly the same values as raw because it is '
         'just an upscale with nearest resampling. '
-        'It should not have any nan values')
+        'It should not have any nan values. '        f'raw_unique.shape={raw_unique.shape}, data1_unique.shape={data1_unique.shape}, '        f'raw_unique[:8]={raw_unique[:8]!r}, data1_unique[:8]={data1_unique[:8]!r}, '        f'data1 finite ratio={np.isfinite(data1).mean():.6f}')
 
     assert not np.any(np.isnan(data2[1:, 1:])), (
         'data2 should not have any nan values except in the first row / column '
