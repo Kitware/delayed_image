@@ -6,6 +6,7 @@ import kwarray
 import kwimage
 import copy
 import numpy as np
+import threading
 import ubelt as ub
 import warnings
 from delayed_image import delayed_base
@@ -23,6 +24,60 @@ from delayed_image.delayed_base import DelayedOperation
 
 TRACE_OPTIMIZE = 0  # TODO: make this a local setting
 IS_DEVELOPING = 0  # set to 1 if hacking in IPython, otherwise 0 for efficiency
+
+
+_WARP_AFFINE_MATRIX_MODE = {}
+_WARP_AFFINE_MATRIX_MODE_LOCK = threading.Lock()
+
+
+def _warp_affine_matrix_mode(dtype=np.float32, backend='auto'):
+    """
+    Determine if ``kwimage.warp_affine`` expects a forward or inverse matrix.
+
+    Notes:
+        Different kwimage / backend stacks have shown incompatible transform
+        conventions in practice. We probe behavior once and memoize.
+    """
+    global _WARP_AFFINE_MATRIX_MODE
+    key = (backend, np.dtype(dtype).str)
+    if key in _WARP_AFFINE_MATRIX_MODE:
+        return _WARP_AFFINE_MATRIX_MODE[key]
+
+    with _WARP_AFFINE_MATRIX_MODE_LOCK:
+        if key in _WARP_AFFINE_MATRIX_MODE:
+            return _WARP_AFFINE_MATRIX_MODE[key]
+
+        # Canonical nearest-upscale case for the current dtype.
+        src = np.linspace(0, 1, 36, dtype=np.dtype(dtype)).reshape(6, 6)
+        transform = kwimage.Affine.coerce(offset=(0, 0), scale=(8.6, 8.5))
+        dsize = (52, 51)
+        candidates = {
+            'forward': np.asarray(transform),
+            'inverse': np.asarray(transform.inv()),
+        }
+
+        mode_scores = {}
+        for mode, M in candidates.items():
+            try:
+                warped = kwimage.warp_affine(
+                    src, M, dsize=dsize,
+                    interpolation='nearest',
+                    antialias=False,
+                    border_value=(np.nan,),
+                    origin_convention='corner',
+                    backend=backend,
+                )
+            except Exception:
+                mode_scores[mode] = (-np.inf, -np.inf)
+                continue
+            finite = np.isfinite(warped)
+            finite_ratio = finite.mean()
+            unique_count = np.unique(warped[finite]).size if finite.any() else 0
+            mode_scores[mode] = (finite_ratio, unique_count)
+
+        mode = max(mode_scores.items(), key=lambda kv: kv[1])[0]
+        _WARP_AFFINE_MATRIX_MODE[key] = mode
+        return mode
 
 
 
@@ -1620,8 +1675,12 @@ class DelayedWarp(DelayedImage):
         dsize = _ensure_valid_dsize(dsize)
 
         # delayed_image stores forward transforms, but kwimage.warp_affine
-        # expects output->input mapping.
-        M = np.asarray(transform.inv())
+        # matrix semantics differ across some dependency stacks.
+        matrix_mode = _warp_affine_matrix_mode(dtype=prewarp.dtype, backend=backend)
+        if matrix_mode == 'forward':
+            M = np.asarray(transform)
+        else:
+            M = np.asarray(transform.inv())
 
         # Determine antialiasing from the forward transform semantics.
         # (Passing the inverse transform directly would invert this heuristic.)
