@@ -5,6 +5,7 @@ from __future__ import annotations
 import kwarray
 import kwimage
 import copy
+import os
 import numpy as np
 import threading
 import ubelt as ub
@@ -1679,8 +1680,11 @@ class DelayedWarp(DelayedImage):
         matrix_mode = _warp_affine_matrix_mode(dtype=prewarp.dtype, backend=backend)
         if matrix_mode == 'forward':
             M = np.asarray(transform)
+            alt_M = np.asarray(transform.inv())
         else:
             M = np.asarray(transform.inv())
+            alt_M = np.asarray(transform)
+
 
         # Determine antialiasing from the forward transform semantics.
         # (Passing the inverse transform directly would invert this heuristic.)
@@ -1694,38 +1698,50 @@ class DelayedWarp(DelayedImage):
         else:
             use_antialias = False
 
-        final = kwimage.warp_affine(prewarp, M, dsize=dsize,
-                                    interpolation=interpolation,
-                                    antialias=use_antialias,
-                                    border_value=border_value,
-                                    origin_convention='corner',
-                                    backend=backend,
-                                    )
-
-        # Runtime safeguard: some stacks can still choose the wrong matrix
-        # convention for nearest upscales, causing NaN-heavy outputs with very
-        # low value diversity (e.g. [0.8, nan]). Retry with the opposite matrix
-        # and keep whichever result has better finite coverage / uniqueness.
         if interpolation == 'nearest':
-            src_vals = np.unique(prewarp[np.isfinite(prewarp)])
-            if src_vals.size > 4:
-                fin = np.isfinite(final)
-                fin_ratio = fin.mean()
-                uniq = np.unique(final[fin]).size if fin.any() else 0
-                if fin_ratio < 0.95 or uniq <= 2:
-                    alt_M = np.asarray(transform.inv()) if matrix_mode == 'forward' else np.asarray(transform)
-                    alt = kwimage.warp_affine(prewarp, alt_M, dsize=dsize,
-                                              interpolation=interpolation,
-                                              antialias=use_antialias,
-                                              border_value=border_value,
-                                              origin_convention='corner',
-                                              backend=backend,
-                                              )
-                    alt_fin = np.isfinite(alt)
-                    alt_score = (alt_fin.mean(), np.unique(alt[alt_fin]).size if alt_fin.any() else 0)
-                    cur_score = (fin_ratio, uniq)
-                    if alt_score > cur_score:
-                        final = alt
+            # Robustness for runtime convention mismatches: evaluate both
+            # conventions and keep the better-scoring result.
+            cand1 = kwimage.warp_affine(prewarp, M, dsize=dsize,
+                                        interpolation=interpolation,
+                                        antialias=use_antialias,
+                                        border_value=border_value,
+                                        origin_convention='corner',
+                                        backend=backend,
+                                        )
+            cand2 = kwimage.warp_affine(prewarp, alt_M, dsize=dsize,
+                                        interpolation=interpolation,
+                                        antialias=use_antialias,
+                                        border_value=border_value,
+                                        origin_convention='corner',
+                                        backend=backend,
+                                        )
+
+            def _score(arr):
+                fin = np.isfinite(arr)
+                if not fin.any():
+                    return (0.0, 0)
+                return (float(fin.mean()), int(np.unique(arr[fin]).size))
+
+            score1 = _score(cand1)
+            score2 = _score(cand2)
+            final = cand1 if score1 >= score2 else cand2
+            if os.environ.get('DELAYED_IMAGE_WARP_DEBUG', ''):
+                print('DelayedWarp nearest matrix debug:', {
+                    'dtype': str(prewarp.dtype),
+                    'backend': backend,
+                    'matrix_mode': matrix_mode,
+                    'score_primary': score1,
+                    'score_alt': score2,
+                    'chosen': 'primary' if score1 >= score2 else 'alt',
+                })
+        else:
+            final = kwimage.warp_affine(prewarp, M, dsize=dsize,
+                                        interpolation=interpolation,
+                                        antialias=use_antialias,
+                                        border_value=border_value,
+                                        origin_convention='corner',
+                                        backend=backend,
+                                        )
 
         # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
