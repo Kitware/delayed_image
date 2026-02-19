@@ -8,7 +8,6 @@ import copy
 import numpy as np
 import ubelt as ub
 import warnings
-from functools import lru_cache
 from delayed_image import delayed_base
 from delayed_image import delayed_leafs
 from delayed_image.channel_spec import FusedChannelSpec
@@ -25,11 +24,6 @@ from delayed_image.delayed_base import DelayedOperation
 TRACE_OPTIMIZE = 0  # TODO: make this a local setting
 IS_DEVELOPING = 0  # set to 1 if hacking in IPython, otherwise 0 for efficiency
 
-
-@lru_cache(maxsize=1)
-def _warp_affine_matrix_mode():
-    """Compatibility switch for kwimage warp matrix convention."""
-    return 'inverse'
 
 
 
@@ -1625,12 +1619,9 @@ class DelayedWarp(DelayedImage):
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
 
-        # kwimage changed matrix convention across versions / backends. Detect
-        # behavior once and choose a compatible matrix mapping.
-        if _warp_affine_matrix_mode() == 'inverse':
-            M = np.asarray(transform.inv())
-        else:
-            M = np.asarray(transform)
+        # delayed_image stores forward transforms, but kwimage.warp_affine
+        # expects output->input mapping.
+        M = np.asarray(transform.inv())
 
         # Determine antialiasing from the forward transform semantics.
         # (Passing the inverse transform directly would invert this heuristic.)
