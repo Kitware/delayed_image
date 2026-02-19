@@ -1676,17 +1676,11 @@ class DelayedWarp(DelayedImage):
 
         # delayed_image stores forward transforms, but kwimage.warp_affine
         # matrix semantics differ across some dependency stacks.
-        # Empirically, float64 paths can disagree with float32 in some
-        # dependency stacks; preserve historical behavior for float64 by
-        # preferring inverse mapping.
-        if prewarp.dtype.kind == 'f' and prewarp.dtype.itemsize >= 8:
-            M = np.asarray(transform.inv())
+        matrix_mode = _warp_affine_matrix_mode(dtype=prewarp.dtype, backend=backend)
+        if matrix_mode == 'forward':
+            M = np.asarray(transform)
         else:
-            matrix_mode = _warp_affine_matrix_mode(dtype=prewarp.dtype, backend=backend)
-            if matrix_mode == 'forward':
-                M = np.asarray(transform)
-            else:
-                M = np.asarray(transform.inv())
+            M = np.asarray(transform.inv())
 
         # Determine antialiasing from the forward transform semantics.
         # (Passing the inverse transform directly would invert this heuristic.)
