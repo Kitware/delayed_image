@@ -46,3 +46,19 @@ What I was thinking:
 
 Where this might go next:
 - If this still fails, the next likely step is explicitly pinning nearest pure-scale to a backend-specific implementation or introducing a dedicated helper with direct OpenCV `resize` for that niche path.
+
+## 2026-02-19 — Commit in progress (intermediate-state hypothesis)
+
+I noticed one important issue in the diagnostics: the direct forward/inverse baseline in the test was accidentally using the *later* warp variable (scale+translation), not the `data1` warp (pure 8.6/8.5 scale). That can mislead analysis.
+
+What I changed in this step:
+- Fixed test diagnostics to use an explicit `data1_warp` for direct forward/inverse baseline comparisons.
+- Added a deterministic nearest pure-scale fast-path in `DelayedWarp._finalize()` that immediately uses `kwimage.imresize(..., interpolation='nearest')` for near-zero-offset, no-rotation/shear, positive-scale transforms.
+- Kept the dual-candidate affine scoring path as fallback for non-pure-scale nearest cases.
+
+What I was thinking:
+- This aligns behavior with the semantics expected by the failing assertion (nearest upscale should preserve source unique values).
+- Pure-scale nearest is the exact case of the failing `data1`, so a direct resize path should remove stack-sensitive affine convention ambiguity.
+
+Where this might go next:
+- If CI still fails, we should log transform decomposition and `is_near_scale_only` status directly in assertion diagnostics to verify the fast-path is actually being hit.

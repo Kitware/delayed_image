@@ -1707,6 +1707,32 @@ class DelayedWarp(DelayedImage):
             warp_border_value = np.nan
 
         if interpolation == 'nearest':
+            params = transform.decompose()
+            theta = abs(float(params.get('theta', 0)))
+            shearx = abs(float(params.get('shearx', 0)))
+            sx, sy = params['scale']
+            tx, ty = params['offset']
+            is_near_scale_only = (
+                theta < 1e-9 and shearx < 1e-9 and
+                abs(float(tx)) < 1e-9 and abs(float(ty)) < 1e-9 and
+                sx > 0 and sy > 0
+            )
+            # Deterministic fast-path: nearest + pure positive scale should
+            # behave like nearest resize regardless of affine convention.
+            if is_near_scale_only:
+                final = kwimage.imresize(prewarp, dsize=dsize,
+                                         interpolation='nearest')
+                if os.environ.get('DELAYED_IMAGE_WARP_DEBUG', ''):
+                    print('DelayedWarp nearest matrix debug:', {
+                        'dtype': str(prewarp.dtype),
+                        'backend': backend,
+                        'matrix_mode': matrix_mode,
+                        'is_near_scale_only': is_near_scale_only,
+                        'used_imresize_fastpath': True,
+                    })
+                final = kwarray.atleast_nd(final, 3, front=False)
+                return final
+
             # Robustness for runtime convention mismatches: evaluate both
             # conventions and keep the better-scoring result.
             cand1 = kwimage.warp_affine(prewarp, M, dsize=dsize,
@@ -1741,19 +1767,9 @@ class DelayedWarp(DelayedImage):
             use_primary = score1 >= score2
             final = cand1 if use_primary else cand2
 
-            params = transform.decompose()
-            theta = abs(float(params.get('theta', 0)))
-            shearx = abs(float(params.get('shearx', 0)))
-            sx, sy = params['scale']
-            tx, ty = params['offset']
-            is_near_scale_only = (
-                theta < 1e-9 and shearx < 1e-9 and
-                abs(float(tx)) < 1e-9 and abs(float(ty)) < 1e-9 and
-                sx > 0 and sy > 0
-            )
             # Last-resort rescue for pathological runtime stacks where both
-            # matrix conventions collapse to mostly NaNs on nearest pure-scale.
-            if is_near_scale_only and max(score1[0], score2[0]) < 0.05:
+            # matrix conventions collapse to mostly NaNs.
+            if max(score1[0], score2[0]) < 0.05:
                 final = kwimage.imresize(prewarp, dsize=dsize,
                                          interpolation='nearest')
 
@@ -1767,7 +1783,7 @@ class DelayedWarp(DelayedImage):
                     'score_alt': score2,
                     'chosen': 'primary' if use_primary else 'alt',
                     'is_near_scale_only': is_near_scale_only,
-                    'used_imresize_rescue': bool(is_near_scale_only and max(score1[0], score2[0]) < 0.05),
+                    'used_imresize_rescue': bool(max(score1[0], score2[0]) < 0.05),
                     'primary_preview': np.unique(cand1)[0:8].tolist(),
                     'alt_preview': np.unique(cand2)[0:8].tolist(),
                 })

@@ -95,11 +95,12 @@ def test_off_by_one_with_small_img():
     raw_unique = np.unique(raw)
     data1_unique = np.unique(data1)
 
-    fwd = kwimage.warp_affine(raw, np.asarray(warp), dsize=x.dsize,
+    data1_warp = kwimage.Affine.coerce(offset=(0, 0), scale=(8.6, 8.5))
+    fwd = kwimage.warp_affine(raw, np.asarray(data1_warp), dsize=x.dsize,
                               interpolation='nearest', antialias=False,
                               border_value=np.nan, origin_convention='corner',
                               backend='auto')
-    inv = kwimage.warp_affine(raw, np.asarray(warp.inv()), dsize=x.dsize,
+    inv = kwimage.warp_affine(raw, np.asarray(data1_warp.inv()), dsize=x.dsize,
                               interpolation='nearest', antialias=False,
                               border_value=np.nan, origin_convention='corner',
                               backend='auto')
