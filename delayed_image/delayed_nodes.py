@@ -1675,17 +1675,23 @@ class DelayedWarp(DelayedImage):
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
 
-        # Deterministic nearest path for axis-aligned affine transforms.
-        if interpolation == 'nearest':
+        params = None
+        if interpolation == 'nearest' or bool(antialias):
             params = transform.decompose()
+
+        # Deterministic nearest path for translated axis-aligned affines.
+        # Pure positive scales use the imresize fastpath below, which is
+        # substantially faster than the generic NumPy sampler.
+        if interpolation == 'nearest':
             theta = abs(float(params.get('theta', 0)))
             shearx = abs(float(params.get('shearx', 0)))
             sx, sy = map(float, params['scale'])
-            tx, ty = map(float, params['offset'])
+            tx, ty = map(float, params.get('offset', (0, 0)))
             is_axis_aligned = (
                 theta < 1e-9 and shearx < 1e-9 and sx > 0 and sy > 0
             )
-            if is_axis_aligned and not isinstance(border_value, str):
+            has_translation = abs(tx) > 1e-9 or abs(ty) > 1e-9
+            if is_axis_aligned and has_translation and not isinstance(border_value, str):
                 out_w, out_h = map(int, dsize)
                 in_h, in_w = prewarp.shape[0:2]
                 x_in = (np.arange(out_w) - tx) / sx
@@ -1738,7 +1744,6 @@ class DelayedWarp(DelayedImage):
         if interpolation == 'nearest':
             use_antialias = False
         elif bool(antialias):
-            params = transform.decompose()
             sx, sy = params['scale']
             use_antialias = (sx < 1) or (sy < 1)
         else:
@@ -1753,7 +1758,6 @@ class DelayedWarp(DelayedImage):
             warp_border_value = np.nan
 
         if interpolation == 'nearest':
-            params = transform.decompose()
             theta = abs(float(params.get('theta', 0)))
             shearx = abs(float(params.get('shearx', 0)))
             sx, sy = params['scale']
@@ -2535,10 +2539,13 @@ class DelayedCrop(DelayedImage):
             crop_kwargs = ub.dict_isect(self.meta, {'space_slice', 'chan_idxs'})
             new = new.subdata._optimized_crop(**crop_kwargs).optimize(ctx)
         if isinstance2(new.subdata, DelayedWarp):
-            # NOTE: keep crop-after-warp order for correctness. Rewriting this
-            # path is sensitive to warp sampling conventions and can introduce
-            # off-by-one / border artifacts in optimized output.
-            pass
+            # Nearest-neighbor reorderings are sensitive to pixel-center /
+            # pixel-corner conventions. Keep them in-place, but allow the
+            # rewrite for non-nearest warps where it recovers much smaller
+            # intermediates without tripping the nearest off-by-one cases.
+            interp = new.subdata.meta.get('interpolation', None)
+            if interp != 'nearest':
+                new = new._opt_warp_after_crop().optimize(ctx)
         elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_crop()
             new = new.optimize(ctx)
@@ -2718,13 +2725,67 @@ class DelayedCrop(DelayedImage):
         outer_chan_idxs = self.meta['chan_idxs']
         inner_transform = self.subdata.meta['transform']
 
-        outer_region = kwimage.Boxes.from_slice(outer_slices)
-        outer_region = outer_region.to_polygons()[0]
+        # Fast path for positive axis-aligned affine transforms.
+        params = inner_transform.decompose()
+        theta = abs(float(params.get('theta', 0)))
+        shearx = abs(float(params.get('shearx', 0)))
+        sx, sy = map(float, params['scale'])
+        tx, ty = map(float, params.get('offset', (0, 0)))
+        is_axis_aligned = theta < 1e-9 and shearx < 1e-9 and sx > 0 and sy > 0
+        if is_axis_aligned:
+            src_w, src_h = self.subdata.subdata.dsize
+            sl_y, sl_x = outer_slices
+            root_x0 = 0 if sl_x.start is None else int(sl_x.start)
+            root_y0 = 0 if sl_y.start is None else int(sl_y.start)
+            root_x1 = self.dsize[0] if sl_x.stop is None else int(sl_x.stop)
+            root_y1 = self.dsize[1] if sl_y.stop is None else int(sl_y.stop)
+            root_w = max(root_x1 - root_x0, 0)
+            root_h = max(root_y1 - root_y0, 0)
 
-        from delayed_image.helpers import _swap_warp_after_crop
-        # Should origin_convention be configurable? I think no for now.
-        inner_slice, outer_transform = _swap_warp_after_crop(
-            outer_region, inner_transform, origin_convention='corner')
+            leaf_x0_f = (root_x0 - tx) / sx
+            leaf_y0_f = (root_y0 - ty) / sy
+            leaf_x1_f = (root_x1 - tx) / sx
+            leaf_y1_f = (root_y1 - ty) / sy
+            leaf_w = max(leaf_x1_f - leaf_x0_f, 0.0)
+            leaf_h = max(leaf_y1_f - leaf_y0_f, 0.0)
+
+            leaf_x0_q = max(int(np.floor(leaf_x0_f)), 0)
+            leaf_y0_q = max(int(np.floor(leaf_y0_f)), 0)
+            leaf_x1_q = min(int(np.ceil(leaf_x1_f)), src_w)
+            leaf_y1_q = min(int(np.ceil(leaf_y1_f)), src_h)
+
+            if root_w == 0:
+                padw = 0
+            else:
+                padw = int(np.ceil(leaf_w / root_w))
+            if root_h == 0:
+                padh = 0
+            else:
+                padh = int(np.ceil(leaf_h / root_h))
+
+            lt_pad_w = min(leaf_x0_q, 1)
+            lt_pad_h = min(leaf_y0_q, 1)
+            leaf_x0 = leaf_x0_q - lt_pad_w
+            leaf_y0 = leaf_y0_q - lt_pad_h
+            leaf_x1 = min(leaf_x1_q + padw, src_w)
+            leaf_y1 = min(leaf_y1_q + padh, src_h)
+
+            inner_slice = (slice(leaf_y0, leaf_y1), slice(leaf_x0, leaf_x1))
+            outer_transform = kwimage.Affine.affine(
+                scale=(sx, sy),
+                offset=(
+                    tx + sx * leaf_x0 - root_x0,
+                    ty + sy * leaf_y0 - root_y0,
+                ),
+            )
+        else:
+            outer_region = kwimage.Boxes.from_slice(outer_slices)
+            outer_region = outer_region.to_polygons()[0]
+
+            from delayed_image.helpers import _swap_warp_after_crop
+            # Should origin_convention be configurable? I think no for now.
+            inner_slice, outer_transform = _swap_warp_after_crop(
+                outer_region, inner_transform, origin_convention='corner')
 
         warp_meta = ub.dict_isect(self.meta, {'dsize'})
         warp_meta.update(ub.dict_isect(

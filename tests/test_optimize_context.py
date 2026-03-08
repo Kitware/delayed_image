@@ -129,3 +129,27 @@ def test_optimize_preserves_metadata(tmp_path):
                   if isinstance(n, delayed_image.DelayedLoad)]
     assert load_nodes, 'optimized graph should retain a load node'
     assert load_nodes[0].meta['nodata_method'] == 'float'
+
+
+def test_linear_crop_after_warp_rewrite_equivalence():
+    _require_warp_backend()
+    rng = np.random.default_rng(4)
+    data = rng.random((96, 96, 3), dtype=np.float32)
+    base = delayed_image.DelayedIdentity(data, channels='r|g|b')
+
+    node = base.warp({'scale': 0.75}, interpolation='linear')
+    node = node.crop((slice(8, 60), slice(5, 58)))
+    node = node.warp({'scale': 1.35, 'offset': (2.5, -3.5)},
+                     interpolation='linear')
+    node = node.crop((slice(0, 40), slice(0, 40)))
+    node = node.take_channels([0, 1])
+
+    opt = node.optimize()
+    final_raw = _finalize_ignoring_warnings(node)
+    final_opt = _finalize_ignoring_warnings(opt)
+
+    assert np.allclose(final_raw, final_opt, equal_nan=True)
+
+    warp_nodes = [n for _, n in opt._traverse()
+                  if isinstance(n, delayed_image.DelayedWarp)]
+    assert len(warp_nodes) == 1

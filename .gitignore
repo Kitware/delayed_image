@@ -96,3 +96,5 @@ _skbuild
 pip-wheel-metadata/
 
 wheelhouse
+dev/benchmarks/_cache/
+dev/benchmarks/results/
