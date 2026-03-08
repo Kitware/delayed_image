@@ -434,6 +434,89 @@ class LazyGDalFrameFile(ub.NiceRepr):
         ds = self._ds_cache
         return ds
 
+    @ub.memoize_property
+    def _interleave(self):
+        return self._ds.GetMetadata('IMAGE_STRUCTURE').get('INTERLEAVE', '')
+
+    @ub.memoize_property
+    def _read_ds(self):
+        """
+        The dataset corresponding to the requested overview.
+
+        Reading directly from the overview dataset preserves GDAL's exact
+        overview edge semantics on odd-sized images, and it lets us read
+        multiple bands in a single dataset-level call.
+        """
+        ds = self._ds
+        overview = self.overview
+        if overview <= 0:
+            return ds
+
+        default_band0 = ds.GetRasterBand(1)
+        overview_count = default_band0.GetOverviewCount()
+        if overview > overview_count:
+            raise ValueError('Image has no overview={}'.format(overview))
+
+        overview_band0 = default_band0.GetOverview(overview - 1)
+        overview_ds = overview_band0.GetDataset()
+        if overview_ds is None:
+            return ds
+        return overview_ds
+
+    def _dataset_read_as_array(self, band_indices, gdalkw, nodata_method=None):
+        """
+        Fast dataset-level GDAL read for the common multi-band path.
+
+        This avoids Python-level per-band loops in ``kwimage.im_io._gdal_read``
+        while keeping behavior consistent for overview reads.
+        """
+        band_indices = list(band_indices)
+        xsize = gdalkw.get('win_xsize', 0)
+        ysize = gdalkw.get('win_ysize', 0)
+        if not band_indices:
+            return np.empty((ysize, xsize, 0), dtype=self.dtype)
+
+        gdal_dset = self._read_ds
+        band_list = [idx + 1 for idx in band_indices]
+        readkw = {
+            'xoff': gdalkw.get('xoff', 0),
+            'yoff': gdalkw.get('yoff', 0),
+            'xsize': xsize,
+            'ysize': ysize,
+            'band_list': band_list,
+            'interleave': 'band',
+        }
+        image = gdal_dset.ReadAsArray(**readkw)
+        if image is None:
+            raise IOError('GDAL dataset-level read failed for {!r}'.format(self.fpath))
+
+        if image.ndim == 3:
+            image = image.transpose(1, 2, 0)
+
+        if nodata_method is not None:
+            if image.ndim == 2:
+                band_nodata = gdal_dset.GetRasterBand(band_list[0]).GetNoDataValue()
+                mask = np.zeros(image.shape, dtype=bool)
+                if band_nodata is not None:
+                    np.equal(image, band_nodata, out=mask)
+            else:
+                mask = np.zeros(image.shape, dtype=bool)
+                for idx, band_num in enumerate(band_list):
+                    band_nodata = gdal_dset.GetRasterBand(band_num).GetNoDataValue()
+                    if band_nodata is not None:
+                        np.equal(image[..., idx], band_nodata, out=mask[..., idx])
+
+            if nodata_method == 'ma':
+                image = np.ma.array(image, mask=mask)
+            elif nodata_method in {'float', 'nan'}:
+                promote_dtype = np.result_type(image.dtype, np.float32)
+                image = image.astype(promote_dtype)
+                image[mask] = np.nan
+            else:
+                raise KeyError('nodata_method={}'.format(nodata_method))
+
+        return image
+
     @classmethod
     def demo(cls, key='astro', dsize=None):
         """
@@ -599,11 +682,9 @@ class LazyGDalFrameFile(ub.NiceRepr):
         ds = self._ds
         height, width, C = self.shape
 
-        if 1:
-            INTERLEAVE = ds.GetMetadata('IMAGE_STRUCTURE').get('INTERLEAVE', '')
-            if INTERLEAVE == 'BAND':
-                if len(ds.GetSubDatasets()) > 0:
-                    raise NotImplementedError('Cannot handle interleaved files yet')
+        if self._interleave == 'BAND':
+            if len(ds.GetSubDatasets()) > 0:
+                raise NotImplementedError('Cannot handle interleaved files yet')
 
         if not ub.iterable(index):
             index = [index]
@@ -654,18 +735,25 @@ class LazyGDalFrameFile(ub.NiceRepr):
         gdalkw = dict(xoff=xstart, yoff=ystart,
                       win_xsize=xsize, win_ysize=ysize)
 
-        from kwimage.im_io import _gdal_read
-        gdal_dset = ds
         nodata_method = self.nodata_method
         if nodata_method == 'auto':
             nodata_method = 'float'  # just use floats
-        ignore_color_table = True
-        overview = self.overview
-        imdata, _ = _gdal_read(gdal_dset=gdal_dset, overview=overview,
-                               nodata_method=nodata_method,
-                               nodata_value=None,
-                               ignore_color_table=ignore_color_table,
-                               band_indices=band_indices, gdalkw=gdalkw)
+        try:
+            imdata = self._dataset_read_as_array(
+                band_indices=band_indices,
+                gdalkw=gdalkw,
+                nodata_method=nodata_method,
+            )
+        except Exception:
+            from kwimage.im_io import _gdal_read
+            gdal_dset = ds
+            ignore_color_table = True
+            overview = self.overview
+            imdata, _ = _gdal_read(gdal_dset=gdal_dset, overview=overview,
+                                   nodata_method=nodata_method,
+                                   nodata_value=None,
+                                   ignore_color_table=ignore_color_table,
+                                   band_indices=band_indices, gdalkw=gdalkw)
         return imdata
 
     def __array__(self):
