@@ -2545,7 +2545,11 @@ class DelayedCrop(DelayedImage):
             # intermediates without tripping the nearest off-by-one cases.
             interp = new.subdata.meta.get('interpolation', None)
             if interp != 'nearest':
-                new = new._opt_warp_after_crop().optimize(ctx)
+                pushed = new._opt_warp_after_crop()
+                if pushed is not new:
+                    new = pushed.optimize(ctx)
+                else:
+                    new = pushed
         elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_crop()
             new = new.optimize(ctx)
