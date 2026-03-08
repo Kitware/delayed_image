@@ -62,3 +62,18 @@ What I was thinking:
 
 Where this might go next:
 - If CI still fails, we should log transform decomposition and `is_near_scale_only` status directly in assertion diagnostics to verify the fast-path is actually being hit.
+
+## 2026-02-19 — Commit in progress (deeper intermediate inspection)
+
+I found another subtle diagnostics issue: the baseline forward/inverse checks were using `x.dsize` after `x` had been reassigned for `data2`, so the baseline canvas size could be wrong for `data1` comparisons.
+
+What I changed in this step:
+- Introduced a deterministic axis-aligned nearest path in `DelayedWarp._finalize()` that performs manual corner-based nearest sampling (using floor on transformed coordinates) with explicit border fill.
+- Fixed `test_off_by_one_with_small_img` diagnostics to capture `data1_dsize` immediately after computing `data1` and use that size for baseline forward/inverse checks.
+
+What I was thinking:
+- A manual nearest sampler avoids backend quirks and matrix-convention ambiguity for the exact class of transforms we care about.
+- Correct diagnostic canvas size is essential; otherwise we may draw conclusions from mismatched outputs.
+
+Where this might go next:
+- If this finally stabilizes CI, we should consider extracting the deterministic nearest sampler into a helper and adding focused unit tests around it.

@@ -1675,6 +1675,52 @@ class DelayedWarp(DelayedImage):
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
 
+        # Deterministic nearest path for axis-aligned affine transforms.
+        if interpolation == 'nearest':
+            params = transform.decompose()
+            theta = abs(float(params.get('theta', 0)))
+            shearx = abs(float(params.get('shearx', 0)))
+            sx, sy = map(float, params['scale'])
+            tx, ty = map(float, params['offset'])
+            is_axis_aligned = (
+                theta < 1e-9 and shearx < 1e-9 and sx > 0 and sy > 0
+            )
+            if is_axis_aligned and not isinstance(border_value, str):
+                out_w, out_h = map(int, dsize)
+                in_h, in_w = prewarp.shape[0:2]
+                x_in = (np.arange(out_w) - tx) / sx
+                y_in = (np.arange(out_h) - ty) / sy
+                xi = np.floor(x_in).astype(int)
+                yi = np.floor(y_in).astype(int)
+                valid_x = (xi >= 0) & (xi < in_w)
+                valid_y = (yi >= 0) & (yi < in_h)
+                valid = valid_y[:, None] & valid_x[None, :]
+
+                fill = border_value[0] if ub.iterable(border_value) else border_value
+                if prewarp.ndim == 2:
+                    final = np.full((out_h, out_w), fill, dtype=prewarp.dtype)
+                    if valid.any():
+                        yy = yi[:, None]
+                        xx = xi[None, :]
+                        final[valid] = prewarp[yy, xx][valid]
+                else:
+                    num_chan = prewarp.shape[2]
+                    final = np.full((out_h, out_w, num_chan), fill, dtype=prewarp.dtype)
+                    if valid.any():
+                        yy = yi[:, None]
+                        xx = xi[None, :]
+                        sampled = prewarp[yy, xx]
+                        final[valid, :] = sampled[valid, :]
+                if os.environ.get('DELAYED_IMAGE_WARP_DEBUG', ''):
+                    print('DelayedWarp nearest axis-aligned fastpath:', {
+                        'dtype': str(prewarp.dtype),
+                        'backend': backend,
+                        'scale': (sx, sy),
+                        'offset': (tx, ty),
+                    })
+                final = kwarray.atleast_nd(final, 3, front=False)
+                return final
+
         # delayed_image stores forward transforms, but kwimage.warp_affine
         # matrix semantics differ across some dependency stacks.
         matrix_mode = _warp_affine_matrix_mode(dtype=prewarp.dtype, backend=backend)

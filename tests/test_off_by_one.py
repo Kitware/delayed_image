@@ -72,6 +72,7 @@ def test_off_by_one_with_small_img():
     warp = kwimage.Affine.coerce(offset=(0, 0), scale=(8.6, 8.5))
     x = delayed.warp(warp)
     data1 = x.finalize(interpolation='nearest')
+    data1_dsize = x.dsize
 
     warp = kwimage.Affine.coerce(offset=(0, 0), scale=(2, 2))
     warp = warp @ kwimage.Affine.translate((0.5, 0.5))
@@ -96,11 +97,11 @@ def test_off_by_one_with_small_img():
     data1_unique = np.unique(data1)
 
     data1_warp = kwimage.Affine.coerce(offset=(0, 0), scale=(8.6, 8.5))
-    fwd = kwimage.warp_affine(raw, np.asarray(data1_warp), dsize=x.dsize,
+    fwd = kwimage.warp_affine(raw, np.asarray(data1_warp), dsize=data1_dsize,
                               interpolation='nearest', antialias=False,
                               border_value=np.nan, origin_convention='corner',
                               backend='auto')
-    inv = kwimage.warp_affine(raw, np.asarray(data1_warp.inv()), dsize=x.dsize,
+    inv = kwimage.warp_affine(raw, np.asarray(data1_warp.inv()), dsize=data1_dsize,
                               interpolation='nearest', antialias=False,
                               border_value=np.nan, origin_convention='corner',
                               backend='auto')
