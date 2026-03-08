@@ -103,12 +103,20 @@ stages:
         item = cls(fpath)
         print(item.version)
     ")
+  - |-
+    export WHEEL_FPATH_URL=$(python -c "if 1:
+        import pathlib
+        print(pathlib.Path('$WHEEL_FPATH').resolve().as_uri())
+    ")
+  - export INSTALL_TARGET="delayed_image[$INSTALL_EXTRAS] @ $WHEEL_FPATH_URL"
   - python -m uv pip install -r requirements/gdal.txt
   - echo "WHEEL_FPATH=$WHEEL_FPATH"
+  - echo "WHEEL_FPATH_URL=$WHEEL_FPATH_URL"
   - echo "INSTALL_EXTRAS=$INSTALL_EXTRAS"
+  - echo "INSTALL_TARGET=$INSTALL_TARGET"
   - echo "UV_RESOLUTION=$UV_RESOLUTION"
   - echo "MOD_VERSION=$MOD_VERSION"
-  - python -m uv pip install --prerelease=allow "delayed_image[$INSTALL_EXTRAS]==$MOD_VERSION" -f dist
+  - python -m uv pip install --prerelease=allow "$INSTALL_TARGET"
   - echo "Install finished."
   - echo "Creating test sandbox directory"
   - export WORKSPACE_DNAME="sandbox"
@@ -174,12 +182,20 @@ stages:
         item = cls(fpath)
         print(item.version)
     ")
+  - |-
+    export WHEEL_FPATH_URL=$(python -c "if 1:
+        import pathlib
+        print(pathlib.Path('$WHEEL_FPATH').resolve().as_uri())
+    ")
+  - export INSTALL_TARGET="delayed_image[$INSTALL_EXTRAS] @ $WHEEL_FPATH_URL"
   - python -m uv pip install -r requirements/gdal.txt
   - echo "WHEEL_FPATH=$WHEEL_FPATH"
+  - echo "WHEEL_FPATH_URL=$WHEEL_FPATH_URL"
   - echo "INSTALL_EXTRAS=$INSTALL_EXTRAS"
+  - echo "INSTALL_TARGET=$INSTALL_TARGET"
   - echo "UV_RESOLUTION=$UV_RESOLUTION"
   - echo "MOD_VERSION=$MOD_VERSION"
-  - python -m uv pip install --prerelease=allow "delayed_image[$INSTALL_EXTRAS]==$MOD_VERSION" -f dist
+  - python -m uv pip install --prerelease=allow "$INSTALL_TARGET"
   - echo "Install finished."
   - echo "Creating test sandbox directory"
   - export WORKSPACE_DNAME="sandbox"
@@ -245,13 +261,21 @@ stages:
         item = cls(fpath)
         print(item.version)
     ")
+  - |-
+    export WHEEL_FPATH_URL=$(python -c "if 1:
+        import pathlib
+        print(pathlib.Path('$WHEEL_FPATH').resolve().as_uri())
+    ")
+  - export INSTALL_TARGET="delayed_image[$INSTALL_EXTRAS] @ $WHEEL_FPATH_URL"
   - sed 's/>=/==/' "requirements/gdal.txt" > "requirements/gdal-strict.txt"
   - python -m uv pip install -r requirements/gdal-strict.txt
   - echo "WHEEL_FPATH=$WHEEL_FPATH"
+  - echo "WHEEL_FPATH_URL=$WHEEL_FPATH_URL"
   - echo "INSTALL_EXTRAS=$INSTALL_EXTRAS"
+  - echo "INSTALL_TARGET=$INSTALL_TARGET"
   - echo "UV_RESOLUTION=$UV_RESOLUTION"
   - echo "MOD_VERSION=$MOD_VERSION"
-  - python -m uv pip install --prerelease=allow "delayed_image[$INSTALL_EXTRAS]==$MOD_VERSION" -f dist
+  - python -m uv pip install --prerelease=allow "$INSTALL_TARGET"
   - echo "Install finished."
   - echo "Creating test sandbox directory"
   - export WORKSPACE_DNAME="sandbox"
@@ -317,13 +341,21 @@ stages:
         item = cls(fpath)
         print(item.version)
     ")
+  - |-
+    export WHEEL_FPATH_URL=$(python -c "if 1:
+        import pathlib
+        print(pathlib.Path('$WHEEL_FPATH').resolve().as_uri())
+    ")
+  - export INSTALL_TARGET="delayed_image[$INSTALL_EXTRAS] @ $WHEEL_FPATH_URL"
   - sed 's/>=/==/' "requirements/gdal.txt" > "requirements/gdal-strict.txt"
   - python -m uv pip install -r requirements/gdal-strict.txt
   - echo "WHEEL_FPATH=$WHEEL_FPATH"
+  - echo "WHEEL_FPATH_URL=$WHEEL_FPATH_URL"
   - echo "INSTALL_EXTRAS=$INSTALL_EXTRAS"
+  - echo "INSTALL_TARGET=$INSTALL_TARGET"
   - echo "UV_RESOLUTION=$UV_RESOLUTION"
   - echo "MOD_VERSION=$MOD_VERSION"
-  - python -m uv pip install --prerelease=allow "delayed_image[$INSTALL_EXTRAS]==$MOD_VERSION" -f dist
+  - python -m uv pip install --prerelease=allow "$INSTALL_TARGET"
   - echo "Install finished."
   - echo "Creating test sandbox directory"
   - export WORKSPACE_DNAME="sandbox"
