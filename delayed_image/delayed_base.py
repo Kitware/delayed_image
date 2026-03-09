@@ -3,7 +3,7 @@ Abstract nodes
 """
 from __future__ import annotations
 from collections.abc import Generator, Iterable
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 import ubelt as ub
@@ -15,7 +15,6 @@ except Exception:
 
 # Flag to evaluate if slots are helping us at all
 USE_SLOTS = True
-
 
 # Per-call optimization context
 class OptimizeContext:
@@ -234,11 +233,10 @@ class DelayedOperation:
                         part = prev
                     else:
                         if prev is not None:
-                            part_any = cast(Any, part)
-                            if hasattr(part_any, 'subdata') and part_any.subdata is not prev:
+                            if isinstance(part, DelayedUnaryOperation) and part.subdata is not prev:
                                 # The subdata was a skipped node, we need to
                                 # contract the operation edge.
-                                part = copy.copy(part_any)
+                                part = copy.copy(part)
                                 part.subdata = prev
                         prev = part
                 yield leaf, part

@@ -134,6 +134,7 @@ import abc
 import functools
 from typing import Any, cast
 
+import numpy as np
 import ubelt as ub
 import warnings
 
@@ -1435,7 +1436,7 @@ class ChannelSpec(BaseChannelSpec):
             >>> ChannelSpec.coerce('gray')._demo_item(dims, rng=0)
         """
         import kwarray
-        rng = cast(Any, kwarray.ensure_rng(rng, api='numpy'))
+        rng = cast(np.random.RandomState, kwarray.ensure_rng(rng, api='numpy'))
         item_shapes = self._item_shapes(dims)
         item = {
             key: rng.random_sample(shape)
