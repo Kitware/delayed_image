@@ -1,6 +1,8 @@
 """
 Text-based visual representations of graphs
 """
+from __future__ import annotations
+
 import sys
 import warnings
 from collections import defaultdict

@@ -2,8 +2,11 @@
 Intermediate operations
 """
 from __future__ import annotations
+from collections.abc import Iterable as IterableABC
+from typing import TYPE_CHECKING, cast
+
 import kwarray
-import kwimage
+import kwimage  # type: ignore[import-not-found]
 import copy
 import os
 import numpy as np
@@ -19,12 +22,7 @@ from delayed_image.constants import IS_DEVELOPING, TRACE_OPTIMIZE
 # Stacking
 # --------
 
-__docstubs__ = """
-from delayed_image.delayed_leafs import DelayedIdentity
-from delayed_image.delayed_base import DelayedOperation
-"""
-
-_WARP_AFFINE_MATRIX_MODE = {}
+_WARP_AFFINE_MATRIX_MODE: dict[tuple[str, str], str] = {}
 _WARP_AFFINE_MATRIX_MODE_LOCK = threading.Lock()
 
 
@@ -149,6 +147,14 @@ class DelayedFrameStack(DelayedStack):
 class ImageOpsMixin:
     if delayed_base.USE_SLOTS:
         __slots__ = tuple()
+
+    if TYPE_CHECKING:
+        dsize: tuple[int | None, int | None] | None
+        channels: FusedChannelSpec | None
+        num_channels: int | None
+
+        def get_transform_from_leaf(self): ...
+        def _leaf_paths(self): ...
 
     def crop(self, space_slice=None, chan_idxs=None, clip=True, wrap=True,
              pad=0, lazy=False):
@@ -276,6 +282,9 @@ class ImageOpsMixin:
         if lazy:
             # If we are in lazy mode and we can detect the crop wont do
             # anything then skip it.
+            assert self.dsize is not None
+            assert all(d is not None for d in self.dsize)
+            assert space_slice is not None
             w, h = self.dsize
             sl_y, sl_x = space_slice
             is_noop = (
@@ -371,7 +380,10 @@ class ImageOpsMixin:
         """
         if self.dsize is None:
             raise Exception('dsize must be populated to do a padded crop')
-        data_dims = self.dsize[::-1]
+        w, h = self.dsize
+        assert w is not None
+        assert h is not None
+        data_dims = (h, w)
         _data_slice, _extra_padding = kwarray.embed_slice(
             space_slice, data_dims, pad)
         offset_d0, extra_d0 = _extra_padding[0]
@@ -474,6 +486,7 @@ class ImageOpsMixin:
         Resize an image to a specific width/height by scaling it.
         Backend is simply a call to :func:`ImageOpsMixin.warp`.
         """
+        assert self.dsize is not None
         old_dsize = np.array(self.dsize)
         new_dsize = np.array(dsize)
         scale = new_dsize / old_dsize
@@ -698,6 +711,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
         Returns:
             Tuple[int | None, int | None, int | None]
         """
+        assert self.dsize is not None
         w, h = self.dsize
         return (h, w, self.num_channels)
 
@@ -856,6 +870,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             ...
         elif missing_channel_policy == 'error':
             # do a quick check for missing channels outside of the core logic
+            assert request_codes is not None
             missing_channels = [code for idx, code in zip(top_idx_mapping, request_codes)
                                 if idx is None]
             if missing_channels:
@@ -1659,7 +1674,10 @@ class DelayedWarp(DelayedImage):
                 # Can only have at most 4 components to border_value and
                 # then they start to wrap around. This is fine if we are only
                 # specifying a single number for all channels
-                border_value = (border_value,) * min(4, num_chan)
+                border_values = (border_value,) * min(4, num_chan)
+            else:
+                border_values = tuple(cast(IterableABC, border_value))
+            border_value = border_values
             if len(border_value) > 4:
                 raise ValueError('borderValue cannot have more than 4 components. '
                                  'OpenCV #22283 describes why')
@@ -1680,6 +1698,7 @@ class DelayedWarp(DelayedImage):
         # Pure positive scales use the imresize fastpath below, which is
         # substantially faster than the generic NumPy sampler.
         if interpolation == 'nearest':
+            assert params is not None
             theta = abs(float(params.get('theta', 0)))
             shearx = abs(float(params.get('shearx', 0)))
             sx, sy = map(float, params['scale'])
@@ -1741,6 +1760,7 @@ class DelayedWarp(DelayedImage):
         if interpolation == 'nearest':
             use_antialias = False
         elif bool(antialias):
+            assert params is not None
             sx, sy = params['scale']
             use_antialias = (sx < 1) or (sy < 1)
         else:
@@ -1755,6 +1775,7 @@ class DelayedWarp(DelayedImage):
             warp_border_value = np.nan
 
         if interpolation == 'nearest':
+            assert params is not None
             theta = abs(float(params.get('theta', 0)))
             shearx = abs(float(params.get('shearx', 0)))
             sx, sy = params['scale']
@@ -3170,6 +3191,8 @@ class _InnerAccumSegment:
             else:
                 # In this case we could take the parts as a contiguous
                 # slice, but just return indexes for now
+                assert curr.start is not None
+                assert curr.stop is not None
                 sub_idxs = list(range(curr.start, curr.stop))
                 assert sub_idxs == curr.indexes
         else:

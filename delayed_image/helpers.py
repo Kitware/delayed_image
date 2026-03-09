@@ -1,4 +1,6 @@
-import kwimage
+from __future__ import annotations
+
+import kwimage  # type: ignore[import-not-found]
 import ubelt as ub
 import numpy as np
 import math

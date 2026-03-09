@@ -2,19 +2,20 @@
 Ducktyped interfaces for loading subregions of images with standard slice
 syntax
 """
+from __future__ import annotations
+
 import os
+from typing import Any
+
 import ubelt as ub
 import numpy as np
-import kwimage
+import kwimage  # type: ignore[import-not-found]
 from delayed_image.constants import DEBUG_ARRAY_EVENTS, GDAL_FAST_PATH
 from delayed_image.debug_utils import debug_array_event
 from os.path import join, exists
 from collections import OrderedDict
 
-try:
-    from functools import cache
-except ImportError:
-    from ubelt import memoize as cache
+cache: Any = getattr(__import__('functools'), 'cache', ub.memoize)
 
 
 class CacheDict(OrderedDict):
@@ -79,7 +80,7 @@ def _have_gdal():
 @cache
 def _have_rasterio():
     try:
-        import rasterio
+        import rasterio  # type: ignore[import-not-found]
     except ImportError:
         return False
     else:
@@ -89,16 +90,13 @@ def _have_rasterio():
 @cache
 def _have_spectral():
     try:
-        import spectral
+        import spectral  # type: ignore[import-not-found]
     except ImportError:
         return False
     else:
         return spectral is not None
 
-try:
-    complex_ = np.complex
-except AttributeError:
-    complex_ = np.complex128
+complex_ = np.complex128
 
 _GDAL_DTYPE_LUT = {
     1: np.uint8,     2: np.uint16,
@@ -269,7 +267,7 @@ class LazySpectralFrameFile(ub.NiceRepr):
 
     @ub.memoize_property
     def _ds(self):
-        import spectral
+        import spectral  # type: ignore[import-not-found]
         from os.path import exists
         if not exists(self.fpath):
             raise Exception('File does not exist: {}'.format(self.fpath))
@@ -346,7 +344,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
         # Can rasterio read multiple bands at once?
         # Seems like that is an overhead for hyperspectral images
 
-        import rasterio
+        import rasterio  # type: ignore[import-not-found]
         riods = rasterio.open(fpath)
         import timerit
 
@@ -379,7 +377,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
 
     @ub.memoize_property
     def _ds(self):
-        import rasterio
+        import rasterio  # type: ignore[import-not-found]
         from os.path import exists
         if not exists(self.fpath):
             raise Exception('File does not exist: {}'.format(self.fpath))
@@ -451,7 +449,7 @@ def _demo_geoimg_with_nodata():
         self = LazyGDalFrameFile.demo()
 
     """
-    import kwimage
+    import kwimage  # type: ignore[import-not-found]
     from osgeo import osr
     # gdal.UseExceptions()
 
@@ -601,7 +599,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         multiple bands in a single dataset-level call.
         """
         ds = self._ds
-        overview = self.overview
+        overview = self.overview or 0
         if overview <= 0:
             return ds
 
@@ -620,7 +618,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
     def _read_bands(self):
         ds = self._ds
         default_bands = tuple(ds.GetRasterBand(i + 1) for i in range(ds.RasterCount))
-        overview = self.overview
+        overview = self.overview or 0
         if overview <= 0:
             return default_bands
 
@@ -734,7 +732,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
             )
             log_label = 'gdal-vendored-read'
         except Exception:
-            from kwimage.im_io import _gdal_read
+            from kwimage.im_io import _gdal_read  # type: ignore[import-not-found]
             imdata, _ = _gdal_read(
                 gdal_dset=ds,
                 overview=self.overview,
@@ -769,7 +767,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         """
         cache_dpath = ub.Path.appdir('delayed_image/demo').ensuredir()
         fpath = join(cache_dpath, key + '.cog.tiff')
-        depends = ub.odict(dsize=dsize)
+        depends = None if dsize is None else [str(tuple(dsize))]
         stamp = ub.CacheStamp(fname=key, depends=depends, dpath=cache_dpath,
                               product=[fpath])
         if stamp.expired():

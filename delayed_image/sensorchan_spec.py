@@ -12,25 +12,29 @@ Example:
     >>> self = delayed_image.SensorChanSpec.coerce('sensor0:B1|B8|B8a|B10|B11,sensor1:B11|X.2|Y:2:6,sensor2:r|g|b|disparity|gauss|B8|B11,sensor3:r|g|b|flowx|flowy|distri|B10|B11')
     >>> self.normalize()
 """
+from __future__ import annotations
 
 import ubelt as ub
 import itertools as it
 import functools
+from typing import Any, cast
 
 
+_cache: Any
 try:
-    cache = functools.cache
+    _cache = functools.cache
 except AttributeError:
-    cache = ub.memoize
-
+    _cache = ub.memoize
+cache: Any = _cache
+_TRANSFORMER_BASE: Any
 try:
-    from lark import Transformer
+    from lark import Transformer as _LarkTransformer
 except ImportError:
     class FakeTransformer:
         pass
-    # TODO: get xdev typetubs to ignore this
-    # probably need some kind of directive.
-    Transformer = FakeTransformer
+    _TRANSFORMER_BASE = cast(Any, FakeTransformer)
+else:
+    _TRANSFORMER_BASE = cast(Any, _LarkTransformer)
 
 SENSOR_CHAN_GRAMMAR = ub.codeblock(
     '''
@@ -614,7 +618,7 @@ class FusedChanNode:
         return self.data.spec
 
 
-class SensorChanTransformer(Transformer):
+class SensorChanTransformer(_TRANSFORMER_BASE):
     """
     Given a parsed tree for a sensor-chan spec, can transform it into useful
     forms.
