@@ -2,6 +2,7 @@
 Intermediate operations
 """
 from __future__ import annotations
+from collections.abc import Iterable as IterableABC
 from typing import TYPE_CHECKING, cast
 
 import kwarray
@@ -379,8 +380,10 @@ class ImageOpsMixin:
         """
         if self.dsize is None:
             raise Exception('dsize must be populated to do a padded crop')
-        assert all(d is not None for d in self.dsize)
-        data_dims = cast(tuple[int, int], self.dsize[::-1])
+        w, h = self.dsize
+        assert w is not None
+        assert h is not None
+        data_dims = (h, w)
         _data_slice, _extra_padding = kwarray.embed_slice(
             space_slice, data_dims, pad)
         offset_d0, extra_d0 = _extra_padding[0]
@@ -1673,7 +1676,7 @@ class DelayedWarp(DelayedImage):
                 # specifying a single number for all channels
                 border_values = (border_value,) * min(4, num_chan)
             else:
-                border_values = tuple(cast(tuple[object, ...] | list[object], border_value))
+                border_values = tuple(cast(IterableABC, border_value))
             border_value = border_values
             if len(border_value) > 4:
                 raise ValueError('borderValue cannot have more than 4 components. '
