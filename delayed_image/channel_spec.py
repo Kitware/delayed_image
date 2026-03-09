@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 This module defines the KWCOCO Channel Specification and API.
 
@@ -130,6 +132,8 @@ Example:
 """
 import abc
 import functools
+from typing import Any, cast
+
 import ubelt as ub
 import warnings
 
@@ -199,7 +203,7 @@ class BaseChannelSpec:
         ...
 
     @abc.abstractmethod
-    def difference(self):
+    def difference(self, other):
         ...
 
     @abc.abstractmethod
@@ -208,6 +212,10 @@ class BaseChannelSpec:
 
     @abc.abstractmethod
     def issuperset(self, other):
+        ...
+
+    @abc.abstractmethod
+    def numel(self) -> int:
         ...
 
     def __sub__(self, other):
@@ -326,7 +334,7 @@ class BaseChannelSpec:
             >>> print(delayed_image.ChannelSpec.coerce('foo.0:256').normalize().path_sanitize(24))
             tuuxtfnrsvdhezkdndysxo_256
         """
-        pname = _path_sanitize_v2(self.spec, maxlen=maxlen, hash_suffix=self.numel)
+        pname = _path_sanitize_v2(self.spec, maxlen=maxlen, hash_suffix=self.numel())
         return pname
 
 
@@ -385,7 +393,7 @@ class FusedChannelSpec(BaseChannelSpec):
     }
 
     # Efficiency memorization of coerced string codes
-    _memo = {}
+    _memo: dict[Any, FusedChannelSpec] = {}
 
     _size_lut = {k: len(v) for k, v in _alias_lut.items()}
 
@@ -499,7 +507,7 @@ class FusedChannelSpec(BaseChannelSpec):
         elif isinstance(data, ChannelSpec):
             parsed = data.parse()
             if len(parsed) == 1:
-                _first = ub.peek(parsed.values())
+                _first = cast(FusedChannelSpec, ub.peek(parsed.values()))
                 _parsed = _first.parsed
                 self = cls(_parsed)
             else:
@@ -648,7 +656,7 @@ class FusedChannelSpec(BaseChannelSpec):
         needed_normalization = False
         for v in self.parsed:
             if v in self._alias_lut:
-                norm_parsed.extend(self._alias_lut.get(v))
+                norm_parsed.extend(self._alias_lut[v])
                 needed_normalization = True
             else:
                 # Handle concise slice notation
@@ -698,7 +706,7 @@ class FusedChannelSpec(BaseChannelSpec):
         size_list = []
         for v in self.parsed:
             if v in self._alias_lut:
-                num = len(self._alias_lut.get(v))
+                num = len(self._alias_lut[v])
             else:
                 if ':' in v:
                     root, start, stop, step = _parse_concise_slice_syntax(v)
@@ -1427,10 +1435,10 @@ class ChannelSpec(BaseChannelSpec):
             >>> ChannelSpec.coerce('gray')._demo_item(dims, rng=0)
         """
         import kwarray
-        rng = kwarray.ensure_rng(rng)
+        rng = cast(Any, kwarray.ensure_rng(rng, api='numpy'))
         item_shapes = self._item_shapes(dims)
         item = {
-            key: rng.rand(*shape)
+            key: rng.random_sample(shape)
             for key, shape in item_shapes.items()
         }
         return item
@@ -1653,7 +1661,7 @@ def _cached_single_fused_mapping(item_keys, parsed_items, axis=0):
         accepted = []
         accum = []
         for item_key, item_sl in idx_list:
-            if prev_key == item_key:
+            if prev_key == item_key and prev_sl is not None:
                 if prev_sl.stop == item_sl[-1].start and prev_sl.step == item_sl[-1].step:
                     accum.append((item_key, item_sl))
                     continue

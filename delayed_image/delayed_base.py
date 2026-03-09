@@ -2,11 +2,14 @@
 Abstract nodes
 """
 from __future__ import annotations
+from collections.abc import Generator, Iterable
+from typing import Any, cast
+
 import numpy as np
 import ubelt as ub
 
 try:
-    import rich as rich_mod
+    import rich as rich_mod  # type: ignore[import-not-found]
 except Exception:
     rich_mod = None
 
@@ -22,6 +25,8 @@ class OptimizeContext:
     if USE_SLOTS:
         __slots__ = ('memo',)
 
+    memo: dict[DelayedOperation, DelayedOperation]
+
     def __init__(self):
         self.memo = {}
 
@@ -34,6 +39,9 @@ class DelayedOperation:
     """
     if USE_SLOTS:
         __slots__ = ('meta', '_opt_logs')
+
+    meta: dict[str, Any]
+    _opt_logs: list[str]
 
     def __init__(self):
         self.meta = {}
@@ -64,19 +72,20 @@ class DelayedOperation:
         nice = self.__nice__()
         return '<{0}({1})>'.format(classname, nice)
 
-    def nesting(self):
+    def nesting(self) -> dict[str, Any]:
         """
         Returns:
             Dict[str, dict]
         """
-        def _child_nesting(child):
+        def _child_nesting(child: Any) -> dict[str, Any] | None:
             if hasattr(child, 'nesting'):
                 return child.nesting()
             elif isinstance(child, np.ndarray):
                 return {
                     'type': 'ndarray',
-                    'shape': self.subdata.shape,
+                    'shape': child.shape,
                 }
+            return None
         # from kwcoco.util import ensure_json_serializable
         meta = self.meta.copy()
         try:
@@ -87,7 +96,7 @@ class DelayedOperation:
             meta['channels'] = meta['channels'].concise().spec
         except (AttributeError, KeyError):
             pass
-        item = {
+        item: dict[str, Any] = {
             'type': self.__class__.__name__,
             'meta': meta,
         }
@@ -136,7 +145,7 @@ class DelayedOperation:
             node_data['label'] = f'{short_type} {param_key}'
         return graph
 
-    def _traverse(self):
+    def _traverse(self) -> Generator[tuple[DelayedOperation | None, DelayedOperation], None, None]:
         """
         A flat list of all descendent nodes and their parents
 
@@ -147,14 +156,14 @@ class DelayedOperation:
         """
         # Might be useful in _set_nested_params or other functions that
         # need to touch all descendants. This will be faster than recursion
-        stack = [(None, self)]
+        stack: list[tuple[DelayedOperation | None, DelayedOperation]] = [(None, self)]
         while stack:
             parent, item = stack.pop()
             yield parent, item
             for child in item.children():
                 stack.append((item, child))
 
-    def leafs(self):
+    def leafs(self) -> Generator[DelayedOperation, None, None]:
         """
         Iterates over all leafs in the tree.
 
@@ -163,7 +172,7 @@ class DelayedOperation:
         """
         # Might be useful in _set_nested_params or other functions that
         # need to touch all descendants. This will be faster than recursion
-        stack = [self]
+        stack: list[DelayedOperation] = [self]
         while stack:
             item = stack.pop()
             children = list(item.children())
@@ -175,7 +184,7 @@ class DelayedOperation:
 
     _leafs = leafs
 
-    def _leaf_paths(self):
+    def _leaf_paths(self) -> Generator[tuple[DelayedOperation, DelayedOperation], None, None]:
         """
         Builds all independent paths to leafs.
 
@@ -204,7 +213,7 @@ class DelayedOperation:
         # Might be useful in _set_nested_params or other functions that
         # need to touch all descendants. This will be faster than recursion
         import copy
-        stack = [[self]]
+        stack: list[list[DelayedOperation]] = [[self]]
         while stack:
             path = stack.pop()
             item = path[-1]
@@ -215,19 +224,21 @@ class DelayedOperation:
             else:
                 leaf = item
                 # We found a path to a leaf, we now need to process it
-                prev = None
+                prev: DelayedOperation | None = None
                 assert len(path)
                 for part in path[::-1]:
                     if hasattr(part, 'parts'):
                         # Skip concats (todo assert it really is a concat and
                         # not an unhandled op)
+                        assert prev is not None
                         part = prev
                     else:
                         if prev is not None:
-                            if part.subdata is not prev:
+                            part_any = cast(Any, part)
+                            if hasattr(part_any, 'subdata') and part_any.subdata is not prev:
                                 # The subdata was a skipped node, we need to
                                 # contract the operation edge.
-                                part = copy.copy(part)
+                                part = copy.copy(part_any)
                                 part.subdata = prev
                         prev = part
                 yield leaf, part
@@ -243,7 +254,7 @@ class DelayedOperation:
         graph = nx.DiGraph()
         ndigits = int(math.log10(max(1, len(graph.nodes)))) + 1
         # Can't reuse traverse unfortunately
-        stack = [(None, self)]
+        stack: list[tuple[str | None, DelayedOperation]] = [(None, self)]
         while stack:
             parent_id, item = stack.pop()
 
@@ -301,7 +312,7 @@ class DelayedOperation:
         end = '\n'
         if rich == 'auto':
             rich = rich_mod is not None
-        if rich:
+        if rich and rich_mod is not None:
             path = rich_mod.print
             end = ''
         write_network_text(graph, with_labels=with_labels, path=path, end=end,
@@ -315,7 +326,7 @@ class DelayedOperation:
         """
         raise NotImplementedError
 
-    def children(self):
+    def children(self) -> Iterable[Any]:
         """
         Yields:
             Any:
@@ -426,11 +437,13 @@ class DelayedNaryOperation(DelayedOperation):
     """
     if USE_SLOTS:
         __slots__ = DelayedOperation.__slots__ + ('parts',)
+    parts: list[Any]
+
     def __init__(self, parts):
         super().__init__()
         self.parts = parts
 
-    def children(self):
+    def children(self) -> Iterable[Any]:
         """
         Yields:
             Any:
@@ -444,11 +457,13 @@ class DelayedUnaryOperation(DelayedOperation):
     """
     if USE_SLOTS:
         __slots__ = DelayedOperation.__slots__ + ('subdata',)
+    subdata: Any
+
     def __init__(self, subdata):
         super().__init__()
         self.subdata = subdata
 
-    def children(self):
+    def children(self) -> Iterable[Any]:
         """
         Yields:
             Any:

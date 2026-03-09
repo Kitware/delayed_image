@@ -264,6 +264,6 @@ if __name__ == "__main__":
     ]
     setupkw["package_data"] = {
         "": ["requirements/*.txt"],
-        "delayed_image": ["py.typed", "*.pyi"],
+        "delayed_image": ["py.typed"],
     }
     setup(**setupkw)

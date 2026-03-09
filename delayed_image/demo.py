@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 def non_aligned_leafs():
     from delayed_image import DelayedLoad
     from delayed_image import DelayedChannelConcat

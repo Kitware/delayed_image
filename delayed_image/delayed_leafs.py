@@ -3,8 +3,10 @@ Terminal nodes
 """
 from __future__ import annotations
 
+from typing import cast
+
 import kwarray
-import kwimage
+import kwimage  # type: ignore[import-not-found]
 import numpy as np
 import warnings
 from delayed_image import delayed_nodes
@@ -267,14 +269,16 @@ class DelayedLoad(DelayedImageLeaf):
             if not any(d is None for d in self.dsize):
                 return self
         self._load_reference()
-        if self.lazy_ref is NotImplemented:
+        ref = self.lazy_ref
+        if ref is NotImplemented:
             shape = kwimage.load_image_shape(self.fpath)
             if len(shape) == 2:
                 shape = shape + (1,)
             num_overviews = 0
         else:
-            shape = self.lazy_ref.shape
-            num_overviews = self.lazy_ref.num_overviews
+            assert ref is not None
+            shape = ref.shape
+            num_overviews = ref.num_overviews
         h, w, c = shape
         if self.dsize is None or any(d is None for d in self.dsize):
             self.meta['dsize'] = (w, h)
@@ -309,8 +313,10 @@ class DelayedLoad(DelayedImageLeaf):
         else:
             # Need to ensure that if any metadata changed, we modify the
             # underlying lazy ref.
-            self.lazy_ref.nodata_method = self.meta.get('nodata_method', None)
-            return self.lazy_ref
+            ref = self.lazy_ref
+            assert ref is not None
+            ref.nodata_method = self.meta.get('nodata_method', None)
+            return ref
 
     # Reimplementations of existing properties with specialized logic for speed
     # @property
@@ -386,11 +392,14 @@ class DelayedNans(DelayedImageLeaf):
         Returns:
             DelayedImage
         """
+        assert space_slice is not None
         if chan_idxs is None:
             channels = self.channels
         else:
             channels = self.channels[chan_idxs]
         dsize = self.dsize
+        assert dsize is not None
+        assert all(d is not None for d in dsize)
         data_dims = dsize[::-1]
         data_slice, extra_pad = kwarray.embed_slice(space_slice, data_dims)
         box = kwimage.Boxes.from_slice(data_slice)
