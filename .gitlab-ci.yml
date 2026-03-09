@@ -131,12 +131,20 @@ stages:
   - export MOD_NAME=delayed_image
   - export PYTHONFAULTHANDLER=1
   - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - export PYTEST_CAPTURE_FLAGS="--capture=no -s"
   - |-
     python - <<'PY'
     import sys
+    import inspect
     import numpy
+    import delayed_image.helpers as delayed_helpers
+    import delayed_image.lazy_loaders as delayed_lazy_loaders
     print(f"PYTHON={sys.version}")
     print(f"NUMPY={numpy.__version__}")
+    print(f"DELAYED_HELPERS={delayed_helpers.__file__}")
+    print(f"DELAYED_LAZY_LOADERS={delayed_lazy_loaders.__file__}")
+    print(f"HAS_DEBUG_DEQUANTIZE={'debug_array_event' in inspect.getsource(delayed_helpers.dequantize)}")
+    print(f"HAS_DEBUG_GDAL={'gdal-fast-read' in inspect.getsource(delayed_lazy_loaders.LazyGDalFrameFile._dataset_read_as_array)}")
     try:
         from osgeo import gdal
     except Exception as ex:
@@ -154,7 +162,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
+    python -m pytest --verbose $PYTEST_CAPTURE_FLAGS -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 .test_full-loose_template: &test_full-loose_template
   <<: *common_test_template
@@ -226,12 +234,20 @@ stages:
   - export MOD_NAME=delayed_image
   - export PYTHONFAULTHANDLER=1
   - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - export PYTEST_CAPTURE_FLAGS="--capture=no -s"
   - |-
     python - <<'PY'
     import sys
+    import inspect
     import numpy
+    import delayed_image.helpers as delayed_helpers
+    import delayed_image.lazy_loaders as delayed_lazy_loaders
     print(f"PYTHON={sys.version}")
     print(f"NUMPY={numpy.__version__}")
+    print(f"DELAYED_HELPERS={delayed_helpers.__file__}")
+    print(f"DELAYED_LAZY_LOADERS={delayed_lazy_loaders.__file__}")
+    print(f"HAS_DEBUG_DEQUANTIZE={'debug_array_event' in inspect.getsource(delayed_helpers.dequantize)}")
+    print(f"HAS_DEBUG_GDAL={'gdal-fast-read' in inspect.getsource(delayed_lazy_loaders.LazyGDalFrameFile._dataset_read_as_array)}")
     try:
         from osgeo import gdal
     except Exception as ex:
@@ -249,7 +265,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
+    python -m pytest --verbose $PYTEST_CAPTURE_FLAGS -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 .test_minimal-strict_template: &test_minimal-strict_template
   <<: *common_test_template
@@ -322,12 +338,20 @@ stages:
   - export MOD_NAME=delayed_image
   - export PYTHONFAULTHANDLER=1
   - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - export PYTEST_CAPTURE_FLAGS="--capture=no -s"
   - |-
     python - <<'PY'
     import sys
+    import inspect
     import numpy
+    import delayed_image.helpers as delayed_helpers
+    import delayed_image.lazy_loaders as delayed_lazy_loaders
     print(f"PYTHON={sys.version}")
     print(f"NUMPY={numpy.__version__}")
+    print(f"DELAYED_HELPERS={delayed_helpers.__file__}")
+    print(f"DELAYED_LAZY_LOADERS={delayed_lazy_loaders.__file__}")
+    print(f"HAS_DEBUG_DEQUANTIZE={'debug_array_event' in inspect.getsource(delayed_helpers.dequantize)}")
+    print(f"HAS_DEBUG_GDAL={'gdal-fast-read' in inspect.getsource(delayed_lazy_loaders.LazyGDalFrameFile._dataset_read_as_array)}")
     try:
         from osgeo import gdal
     except Exception as ex:
@@ -345,7 +369,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
+    python -m pytest --verbose $PYTEST_CAPTURE_FLAGS -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 .test_full-strict_template: &test_full-strict_template
   <<: *common_test_template
@@ -418,12 +442,20 @@ stages:
   - export MOD_NAME=delayed_image
   - export PYTHONFAULTHANDLER=1
   - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - export PYTEST_CAPTURE_FLAGS="--capture=no -s"
   - |-
     python - <<'PY'
     import sys
+    import inspect
     import numpy
+    import delayed_image.helpers as delayed_helpers
+    import delayed_image.lazy_loaders as delayed_lazy_loaders
     print(f"PYTHON={sys.version}")
     print(f"NUMPY={numpy.__version__}")
+    print(f"DELAYED_HELPERS={delayed_helpers.__file__}")
+    print(f"DELAYED_LAZY_LOADERS={delayed_lazy_loaders.__file__}")
+    print(f"HAS_DEBUG_DEQUANTIZE={'debug_array_event' in inspect.getsource(delayed_helpers.dequantize)}")
+    print(f"HAS_DEBUG_GDAL={'gdal-fast-read' in inspect.getsource(delayed_lazy_loaders.LazyGDalFrameFile._dataset_read_as_array)}")
     try:
         from osgeo import gdal
     except Exception as ex:
@@ -441,7 +473,7 @@ stages:
     ---
     "
   - |-
-    python -m pytest --verbose -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
+    python -m pytest --verbose $PYTEST_CAPTURE_FLAGS -p pytester -p no:doctest --xdoctest --cov-config ../pyproject.toml --cov-report term --durations=100 --cov="$MOD_NAME" "$MOD_DPATH" ../tests
   - echo "pytest command finished, moving the coverage file to the repo root"
 build/sdist:
   <<: *build_sdist_template

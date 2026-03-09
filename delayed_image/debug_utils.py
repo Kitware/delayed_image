@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 
 import numpy as np
 
@@ -61,5 +60,5 @@ def debug_array_event(label, arr=None, **info):
     payload.update(info)
     if arr is not None:
         payload['array'] = _array_info(arr)
-    sys.stderr.write('[delayed_image.debug] ' + json.dumps(payload, sort_keys=True, default=str) + '\n')
-    sys.stderr.flush()
+    text = '[delayed_image.debug] ' + json.dumps(payload, sort_keys=True, default=str) + '\n'
+    os.write(2, text.encode('utf8', errors='replace'))
