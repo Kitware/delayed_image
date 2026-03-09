@@ -486,12 +486,18 @@ class LazyGDalFrameFile(ub.NiceRepr):
             'band_list': band_list,
             'interleave': 'band',
         }
-        image = gdal_dset.ReadAsArray(**readkw)
-        if image is None:
-            raise IOError('GDAL dataset-level read failed for {!r}'.format(self.fpath))
-
-        if image.ndim == 3:
-            image = image.transpose(1, 2, 0)
+        if len(band_list) == 1:
+            image = gdal_dset.ReadAsArray(**readkw)
+            if image is None:
+                raise IOError('GDAL dataset-level read failed for {!r}'.format(self.fpath))
+        else:
+            # Populate our own band-major array so the returned HWC view is
+            # backed by NumPy-owned memory rather than a GDAL-managed buffer.
+            image_bands = np.empty((len(band_list), ysize, xsize), dtype=self.dtype)
+            ret = gdal_dset.ReadAsArray(buf_obj=image_bands, **readkw)
+            if ret is None:
+                raise IOError('GDAL dataset-level read failed for {!r}'.format(self.fpath))
+            image = image_bands.transpose(1, 2, 0)
 
         if nodata_method is not None:
             if image.ndim == 2:

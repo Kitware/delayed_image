@@ -65,3 +65,7 @@ def test_lazy_gdal_multiband_overview_matches_reference(tmp_path):
 
         assert got.shape == want.shape
         assert np.allclose(got, want)
+        assert (
+            got.flags['OWNDATA'] or
+            (isinstance(got.base, np.ndarray) and got.base.flags['OWNDATA'])
+        )
