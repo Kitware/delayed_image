@@ -18,7 +18,10 @@ def _scalar_is_representable_in_dtype(value, dtype):
     if kind == 'b':
         return value in {False, True, 0, 1}
     if kind in {'u', 'i'}:
-        if isinstance(value, (float, np.floating)) and not float(value).is_integer():
+        if (
+            isinstance(value, (float, np.floating))
+            and not float(value).is_integer()
+        ):
             return False
         try:
             ival = int(value)
@@ -44,8 +47,8 @@ def _scalar_is_representable_in_dtype(value, dtype):
             return True
         info = np.finfo(dtype)
         return (
-            -info.max <= cval.real <= info.max and
-            -info.max <= cval.imag <= info.max
+            -info.max <= cval.real <= info.max
+            and -info.max <= cval.imag <= info.max
         )
     return True
 
@@ -67,8 +70,7 @@ def _auto_dsize(transform, sub_dsize):
 
     if 0:
         sub_bounds = kwimage.Coords(
-            np.array([[0,     0], [sub_w, 0],
-                      [0, sub_h], [sub_w, sub_h]])
+            np.array([[0, 0], [sub_w, 0], [0, sub_h], [sub_w, sub_h]])
         )
         bounds = sub_bounds.warp(transform.matrix)
         max_xy = np.ceil(bounds.data.max(axis=0))
@@ -78,12 +80,9 @@ def _auto_dsize(transform, sub_dsize):
 
         # note: this is faster than the above variant but will break on
         # non-affine (i.e. homogenous) transforms.
-        sub_bounds = np.array([
-            [0,     0, 1],
-            [sub_w, 0, 1],
-            [0, sub_h, 1],
-            [sub_w, sub_h, 1]
-        ])
+        sub_bounds = np.array(
+            [[0, 0, 1], [sub_w, 0, 1], [0, sub_h, 1], [sub_w, sub_h, 1]]
+        )
         # bounds = kwimage.warp_points(transform.matrix, sub_bounds)[0:2]
         bounds = (transform.matrix[0:2] @ sub_bounds.T).T
         max_xy = np.ceil(bounds.max(axis=0))
@@ -133,11 +132,14 @@ def _largest_shape(shapes):
         >>> print('largest = {!r}'.format(largest))
         >>> assert largest == (100, 50, 60, None)
     """
+
     def _nonemax(a, b):
         if a is None or b is None:
             return a or b
         return max(a, b)
+
     import itertools as it
+
     largest = []
     for shape in shapes:
         if shape is not None:
@@ -272,9 +274,7 @@ def _swap_warp_after_crop(in_crop2, in_warp1, origin_convention='corner'):
     # Resample the smaller region to align it with the root region
     # Note: The right most transform is applied first
     tf_newleaf_to_newroot = (
-        tf_root_to_newroot @
-        tf_leaf_to_root @
-        tf_newleaf_to_leaf
+        tf_root_to_newroot @ tf_leaf_to_root @ tf_newleaf_to_leaf
     )
 
     lt_x, lt_y, rb_x, rb_y = leaf_crop_box.data
@@ -324,14 +324,16 @@ def _swap_warp_after_crop(in_crop2, in_warp1, origin_convention='corner'):
         lt_y_start_index = lt_y - lt_pad_h
         lt_x_start_index = lt_x - lt_pad_w
         lt_offset = kwimage.Affine.translate((-lt_pad_w, -lt_pad_h))
-        out_warp2 =  tf_newleaf_to_newroot @ lt_offset.matrix
+        out_warp2 = tf_newleaf_to_newroot @ lt_offset.matrix
     else:
         lt_y_start_index = lt_y
         lt_x_start_index = lt_x
         out_warp2 = tf_newleaf_to_newroot
 
-    out_crop1 = (slice(lt_y_start_index, rb_y_stop_index),
-                 slice(lt_x_start_index, rb_x_stop_index))
+    out_crop1 = (
+        slice(lt_y_start_index, rb_y_stop_index),
+        slice(lt_x_start_index, rb_x_stop_index),
+    )
     return out_crop1, out_warp2
 
 
@@ -394,9 +396,7 @@ def _swap_crop_after_warp(inner_region, outer_transform):
 
     # Compute the extra transform that will realign the quantized croped data
     # with the original warped inner crop.
-    tf_crop_to_box = kwimage.Affine.affine(
-        offset=crop_offset - outer_offset
-    )
+    tf_crop_to_box = kwimage.Affine.affine(offset=crop_offset - outer_offset)
 
     lt_x, lt_y, rb_x, rb_y = outer_crop_box.data
     outer_crop = (slice(lt_y, rb_y), slice(lt_x, rb_x))
@@ -464,7 +464,7 @@ def dequantize(quant_data, quantization):
     if quant_extent == 0:
         scale = 0
     else:
-        scale = (orig_extent / quant_extent)
+        scale = orig_extent / quant_extent
     if DEBUG_ARRAY_EVENTS:
         debug_array_event(
             'dequantize-input',
@@ -481,7 +481,9 @@ def dequantize(quant_data, quantization):
     if nodata is not None:
         if _scalar_is_representable_in_dtype(nodata, quant_data.dtype):
             if DEBUG_ARRAY_EVENTS:
-                debug_array_event('dequantize-before-mask', quant_data, nodata=nodata)
+                debug_array_event(
+                    'dequantize-before-mask', quant_data, nodata=nodata
+                )
             mask = quant_data == nodata
             dequant[mask] = np.nan
         else:
@@ -556,13 +558,15 @@ def quantize_float01(imdata, old_min=0, old_max=1, quantize_dtype=np.int16):
         'nodata': quantize_nan,
     }
 
-    old_extent = (old_max - old_min)
-    new_extent = (quantize_max - quantize_min)
+    old_extent = old_max - old_min
+    new_extent = quantize_max - quantize_min
     quant_factor = new_extent / old_extent
 
     if imdata is not None:
         invalid_mask = np.isnan(imdata)
-        new_imdata = (imdata.clip(old_min, old_max) - old_min) * quant_factor + quantize_min
+        new_imdata = (
+            imdata.clip(old_min, old_max) - old_min
+        ) * quant_factor + quantize_min
         new_imdata = new_imdata.astype(quantize_dtype)
         new_imdata[invalid_mask] = quantize_nan
     else:
@@ -585,13 +589,17 @@ class mkslice_cls:
         >>> m()[0:3, 0:5]
         (slice(0, 3, None), slice(0, 5, None))
     """
+
     def __class_getitem__(self, index):
         # Doesnt exist in older Python versions
         return index
+
     def __getitem__(self, index):
         return index
+
     def __call__(self):
         return self
+
 
 mkslice = mkslice_cls()
 
@@ -605,7 +613,7 @@ def _decompose_scale(self):
         self (kwimage.Affine): affine matrix to decompose
     """
     if self.matrix is None:
-        return (1., 1.)
+        return (1.0, 1.0)
     a11, a12, _, a21, a22 = self.matrix.ravel()[0:5]
     # (a11, a12), (a21, a22) = self.matrix[0:2, 0:2]
     sx = math.sqrt(a11 * a11 + a21 * a21)

@@ -1,6 +1,7 @@
 """
 Helpers for opt-in low-level debugging in CI.
 """
+
 from __future__ import annotations
 
 import json
@@ -61,5 +62,9 @@ def debug_array_event(label, arr=None, **info):
     payload.update(info)
     if arr is not None:
         payload['array'] = _array_info(arr)
-    text = '[delayed_image.debug] ' + json.dumps(payload, sort_keys=True, default=str) + '\n'
+    text = (
+        '[delayed_image.debug] '
+        + json.dumps(payload, sort_keys=True, default=str)
+        + '\n'
+    )
     os.write(2, text.encode('utf8', errors='replace'))

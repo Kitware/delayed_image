@@ -147,6 +147,7 @@ class BaseChannelSpec:
         - [ ] Keep working on this base spec and ensure the inheriting classes
               conform to it.
     """
+
     # __slots__ = tuple()
 
     @property
@@ -196,28 +197,22 @@ class BaseChannelSpec:
         ...
 
     @abc.abstractmethod
-    def intersection(self, other):
-        ...
+    def intersection(self, other): ...
 
     @abc.abstractmethod
-    def union(self, other):
-        ...
+    def union(self, other): ...
 
     @abc.abstractmethod
-    def difference(self, other):
-        ...
+    def difference(self, other): ...
 
     @abc.abstractmethod
-    def issubset(self, other):
-        ...
+    def issubset(self, other): ...
 
     @abc.abstractmethod
-    def issuperset(self, other):
-        ...
+    def issuperset(self, other): ...
 
     @abc.abstractmethod
-    def numel(self) -> int:
-        ...
+    def numel(self) -> int: ...
 
     def __sub__(self, other):
         return self.difference(other)
@@ -335,7 +330,9 @@ class BaseChannelSpec:
             >>> print(delayed_image.ChannelSpec.coerce('foo.0:256').normalize().path_sanitize(24))
             tuuxtfnrsvdhezkdndysxo_256
         """
-        pname = _path_sanitize_v2(self.spec, maxlen=maxlen, hash_suffix=self.numel())
+        pname = _path_sanitize_v2(
+            self.spec, maxlen=maxlen, hash_suffix=self.numel()
+        )
         return pname
 
 
@@ -384,6 +381,7 @@ class FusedChannelSpec(BaseChannelSpec):
         >>> self = ChannelSpec.coerce('a|b,c|d')
         >>> recon = pickle.loads(pickle.dumps(self))
     """
+
     # __slots__ = ('parsed', '_is_normalized')
 
     _alias_lut = {
@@ -410,7 +408,7 @@ class FusedChannelSpec(BaseChannelSpec):
     def __len__(self):
         if not self._is_normalized:
             text = ub.paragraph(
-                '''
+                """
                 Length Definition for unormalized FusedChannelSpec is in flux.
 
                 It is unclear if it should be the (1) number of atomic codes or
@@ -418,7 +416,8 @@ class FusedChannelSpec(BaseChannelSpec):
                 atomic codes. Currently it returns the number "unnormalized"
                 atomic codes. Normalizing the FusedChannelSpec object or using
                 "numel" will supress this warning.
-                ''')
+                """
+            )
             warnings.warn(text)
         return len(self.parsed)
 
@@ -514,7 +513,8 @@ class FusedChannelSpec(BaseChannelSpec):
             else:
                 raise ValueError(
                     'Cannot coerce ChannelSpec to a FusedChannelSpec '
-                    'when there are multiple streams')
+                    'when there are multiple streams'
+                )
         elif isinstance(data, int):
             # we know the number of channels, but not their names
             self = cls.from_int(data)
@@ -522,7 +522,11 @@ class FusedChannelSpec(BaseChannelSpec):
             if data is None:
                 raise TypeError('Cannot coerce None to {}'.format(cls))
             else:
-                raise TypeError('Cannot coerce unknown type {} to {}'.format(type(data), cls))
+                raise TypeError(
+                    'Cannot coerce unknown type {} to {}'.format(
+                        type(data), cls
+                    )
+                )
         return self
 
     def concise(self) -> 'FusedChannelSpec':
@@ -586,7 +590,9 @@ class FusedChannelSpec(BaseChannelSpec):
                         accum_stop = index + 1
                     else:
                         # print('cannot continue, v1')
-                        ready = format_ready(accum_root, accum_start, accum_stop)
+                        ready = format_ready(
+                            accum_root, accum_start, accum_stop
+                        )
                         accum_root = None
                 elif accum_root is not None:
                     # print('cannot continue, v2')
@@ -1002,6 +1008,7 @@ class ChannelSpec(BaseChannelSpec):
         >>>     print('component_shapes = {}'.format(ub.urepr(component_shapes, nl=1)))
 
     """
+
     # __slots__ = ('_spec', '_info')
 
     def __init__(self, spec, parsed=None):
@@ -1028,10 +1035,13 @@ class ChannelSpec(BaseChannelSpec):
 
     @property
     def info(self):
-        return ub.dict_union(self._info, {
-            'unique': self.unique(),
-            'normed': self.normalize(),
-        })
+        return ub.dict_union(
+            self._info,
+            {
+                'unique': self.unique(),
+                'normed': self.normalize(),
+            },
+        )
 
     @classmethod
     def from_spec(cls, spec: str) -> 'ChannelSpec':
@@ -1077,8 +1087,11 @@ class ChannelSpec(BaseChannelSpec):
         elif isinstance(data, str):
             self = cls.from_spec(data)
         else:
-            raise TypeError('Cannot coerce type(data)={}, data={!r} to {}'.format(
-                type(data), data, cls))
+            raise TypeError(
+                'Cannot coerce type(data)={}, data={!r} to {}'.format(
+                    type(data), data, cls
+                )
+            )
         return self
 
     def parse(self):
@@ -1103,8 +1116,7 @@ class ChannelSpec(BaseChannelSpec):
             stream_specs = self.spec.split(',')
             # parsed = {ss: ss.split('|') for ss in stream_specs}
             parsed = {
-                ss: FusedChannelSpec(ss.split('|'))
-                for ss in stream_specs if ss
+                ss: FusedChannelSpec(ss.split('|')) for ss in stream_specs if ss
             }
             self._info['parsed'] = parsed
         return self._info['parsed']
@@ -1221,7 +1233,8 @@ class ChannelSpec(BaseChannelSpec):
         if len(parsed) > 1:
             raise Exception(
                 'Can only work on single-streams. '
-                'TODO make class for single streams')
+                'TODO make class for single streams'
+            )
         return ub.peek(parsed.values())
 
     def as_path(self):
@@ -1355,10 +1368,14 @@ class ChannelSpec(BaseChannelSpec):
         return new
 
     def issubset(self, other):
-        raise NotImplementedError('Implemention of subset for a general channel spec is unclear. The fused implemenation does exist')
+        raise NotImplementedError(
+            'Implemention of subset for a general channel spec is unclear. The fused implemenation does exist'
+        )
 
     def issuperset(self, other):
-        raise NotImplementedError('Implemention of superset for a general channel spec is unclear. The fused implemenation does exist')
+        raise NotImplementedError(
+            'Implemention of superset for a general channel spec is unclear. The fused implemenation does exist'
+        )
 
     def numel(self):
         """
@@ -1379,10 +1396,7 @@ class ChannelSpec(BaseChannelSpec):
             >>> self.sizes()
             {'rgb|disparity': 4, 'flowx|flowy': 2, 'B:10': 10}
         """
-        sizes = {
-            key: vals.numel()
-            for key, vals in self.parse().items()
-        }
+        sizes = {key: vals.numel() for key, vals in self.parse().items()}
         return sizes
 
     def unique(self, normalize=False):
@@ -1390,9 +1404,11 @@ class ChannelSpec(BaseChannelSpec):
         Returns the unique channels that will need to be given or loaded
         """
         import warnings
+
         if normalize:
             warnings.warn(
-                'FIXME: These kwargs are broken, but does anything use it?')
+                'FIXME: These kwargs are broken, but does anything use it?'
+            )
         if normalize:
             return set(ub.flatten(self.parse().values()))
         else:
@@ -1436,11 +1452,11 @@ class ChannelSpec(BaseChannelSpec):
             >>> ChannelSpec.coerce('gray')._demo_item(dims, rng=0)
         """
         import kwarray
+
         rng = cast(np.random.RandomState, kwarray.ensure_rng(rng, api='numpy'))
         item_shapes = self._item_shapes(dims)
         item = {
-            key: rng.random_sample(shape)
-            for key, shape in item_shapes.items()
+            key: rng.random_sample(shape) for key, shape in item_shapes.items()
         }
         return item
 
@@ -1512,6 +1528,7 @@ class ChannelSpec(BaseChannelSpec):
             _ = xdev.profile_now(self.encode)(item, mode=1)
         """
         import kwarray
+
         if len(item) == 0:
             raise ValueError('Cannot encode empty item')
         _impl = kwarray.ArrayAPI.coerce(ub.peek(item.values()))
@@ -1527,14 +1544,18 @@ class ChannelSpec(BaseChannelSpec):
             # Slightly more complex implementation that attempts to minimize
             # concat operations.
             item_keys = tuple(sorted(item.keys()))
-            parsed_items = tuple(sorted([(k, tuple(v.parsed))
-                                         for k, v in parsed.items()]))
+            parsed_items = tuple(
+                sorted([(k, tuple(v.parsed)) for k, v in parsed.items()])
+            )
             new_fused_indices = _cached_single_fused_mapping(
-                item_keys, parsed_items, axis=axis)
+                item_keys, parsed_items, axis=axis
+            )
 
             fused = {}
             for key, idx_list in new_fused_indices.items():
-                parts = [item[item_key][item_sl] for item_key, item_sl in idx_list]
+                parts = [
+                    item[item_key][item_sl] for item_key, item_sl in idx_list
+                ]
                 if len(parts) == 1:
                     fused[key] = parts[0]
                 else:
@@ -1552,7 +1573,9 @@ class ChannelSpec(BaseChannelSpec):
 
             fused = {}
             for key, parts in parsed.items():
-                fused[key] = _impl.cat([components[k] for k in parts], axis=axis)
+                fused[key] = _impl.cat(
+                    [components[k] for k in parts], axis=axis
+                )
         else:
             raise KeyError(mode)
 
@@ -1663,7 +1686,10 @@ def _cached_single_fused_mapping(item_keys, parsed_items, axis=0):
         accum = []
         for item_key, item_sl in idx_list:
             if prev_key == item_key and prev_sl is not None:
-                if prev_sl.stop == item_sl[-1].start and prev_sl.step == item_sl[-1].step:
+                if (
+                    prev_sl.stop == item_sl[-1].start
+                    and prev_sl.step == item_sl[-1].step
+                ):
                     accum.append((item_key, item_sl))
                     continue
             if accum:
@@ -1684,7 +1710,9 @@ def _cached_single_fused_mapping(item_keys, parsed_items, axis=0):
                 first = accum[0][1]
                 last = accum[-1][1]
                 new_sl = list(first)
-                new_sl[-1] = slice(first[-1].start, last[-1].stop, last[-1].step)
+                new_sl[-1] = slice(
+                    first[-1].start, last[-1].stop, last[-1].step
+                )
                 new_sl = tuple(new_sl)
                 new_idx_list.append((item_key, new_sl))
             else:
@@ -1812,7 +1840,7 @@ def _parse_concise_slice_syntax(v):
         slice_args = slice_suffix.split(':')
     if len(slice_args) == 1:
         start = 0
-        stop, = map(int, slice_args)
+        (stop,) = map(int, slice_args)
         step = 1
     elif len(slice_args) == 2:
         start = int(slice_args[0]) if slice_args[0] else 0
@@ -1929,15 +1957,19 @@ def oset_delitem(self, index):
     else:
         if ub.orderedset.is_iterable(index):
             to_remove = [self.items[i] for i in index]
-        elif isinstance(index, slice) or hasattr(index, "__index__"):
+        elif isinstance(index, slice) or hasattr(index, '__index__'):
             to_remove = self.items[index]
         else:
-            raise TypeError("Don't know how to index an OrderedSet by %r" % index)
+            raise TypeError(
+                "Don't know how to index an OrderedSet by %r" % index
+            )
 
         if isinstance(to_remove, list):
             # Modified version of discard slightly more efficient for multiple
             # items
-            remove_idxs = sorted([self.map[key] for key in to_remove], reverse=True)
+            remove_idxs = sorted(
+                [self.map[key] for key in to_remove], reverse=True
+            )
 
             for key in to_remove:
                 del self.map[key]

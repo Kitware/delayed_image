@@ -1,6 +1,7 @@
 """
 Text-based visual representations of graphs
 """
+
 from __future__ import annotations
 
 import sys
@@ -10,7 +11,7 @@ from collections import defaultdict
 import networkx as nx
 from networkx.utils import open_file
 
-__all__ = ["forest_str", "generate_network_text", "write_network_text"]
+__all__ = ['forest_str', 'generate_network_text', 'write_network_text']
 
 
 class BaseGlyphs:
@@ -19,57 +20,57 @@ class BaseGlyphs:
         return {
             a: getattr(cls, a)
             for a in dir(cls)
-            if not a.startswith("_") and a != "as_dict"
+            if not a.startswith('_') and a != 'as_dict'
         }
 
 
 class AsciiBaseGlyphs(BaseGlyphs):
-    empty: str = "+"
-    newtree_last: str = "+-- "
-    newtree_mid: str = "+-- "
-    endof_forest: str = "    "
-    within_forest: str = ":   "
-    within_tree: str = "|   "
+    empty: str = '+'
+    newtree_last: str = '+-- '
+    newtree_mid: str = '+-- '
+    endof_forest: str = '    '
+    within_forest: str = ':   '
+    within_tree: str = '|   '
 
 
 class AsciiDirectedGlyphs(AsciiBaseGlyphs):
-    last: str = "L-> "
-    mid: str = "|-> "
-    backedge: str = "<-"
-    vertical_edge: str = "!"
+    last: str = 'L-> '
+    mid: str = '|-> '
+    backedge: str = '<-'
+    vertical_edge: str = '!'
 
 
 class AsciiUndirectedGlyphs(AsciiBaseGlyphs):
-    last: str = "L-- "
-    mid: str = "|-- "
-    backedge: str = "-"
-    vertical_edge: str = "|"
+    last: str = 'L-- '
+    mid: str = '|-- '
+    backedge: str = '-'
+    vertical_edge: str = '|'
 
 
 class UtfBaseGlyphs(BaseGlyphs):
     # Notes on available box and arrow characters
     # https://en.wikipedia.org/wiki/Box-drawing_character
     # https://stackoverflow.com/questions/2701192/triangle-arrow
-    empty: str = "╙"
-    newtree_last: str = "╙── "
-    newtree_mid: str = "╟── "
-    endof_forest: str = "    "
-    within_forest: str = "╎   "
-    within_tree: str = "│   "
+    empty: str = '╙'
+    newtree_last: str = '╙── '
+    newtree_mid: str = '╟── '
+    endof_forest: str = '    '
+    within_forest: str = '╎   '
+    within_tree: str = '│   '
 
 
 class UtfDirectedGlyphs(UtfBaseGlyphs):
-    last: str = "└─╼ "
-    mid: str = "├─╼ "
-    backedge: str = "╾"
-    vertical_edge: str = "╽"
+    last: str = '└─╼ '
+    mid: str = '├─╼ '
+    backedge: str = '╾'
+    vertical_edge: str = '╽'
 
 
 class UtfUndirectedGlyphs(UtfBaseGlyphs):
-    last: str = "└── "
-    mid: str = "├── "
-    backedge: str = "─"
-    vertical_edge: str = "│"
+    last: str = '└── '
+    mid: str = '├── '
+    backedge: str = '─'
+    vertical_edge: str = '│'
 
 
 def generate_network_text(
@@ -222,7 +223,7 @@ def generate_network_text(
         this_islast: bool
         this_vertical: bool
 
-    collapse_attr = "collapse"
+    collapse_attr = 'collapse'
 
     is_directed = graph.is_directed()
 
@@ -238,12 +239,12 @@ def generate_network_text(
     if isinstance(with_labels, str):
         label_attr = with_labels
     elif with_labels:
-        label_attr = "label"
+        label_attr = 'label'
     else:
         label_attr = None
 
     if max_depth == 0:
-        yield glyphs.empty + " ..."
+        yield glyphs.empty + ' ...'
     elif len(graph.nodes) == 0:
         yield glyphs.empty
     else:
@@ -324,8 +325,8 @@ def generate_network_text(
                         next_prefix = indents + [glyphs.within_tree]
 
             if node is Ellipsis:
-                label = " ..."
-                suffix = ""
+                label = ' ...'
+                suffix = ''
                 children = []
             else:
                 if label_attr is not None:
@@ -376,29 +377,33 @@ def generate_network_text(
 
                 # The other parents are other predecessors of this node that
                 # are not handled elsewhere.
-                other_parents = [p for p in pred[node] if p not in handled_parents]
+                other_parents = [
+                    p for p in pred[node] if p not in handled_parents
+                ]
                 if other_parents:
                     if label_attr is not None:
-                        other_parents_labels = ", ".join(
+                        other_parents_labels = ', '.join(
                             [
                                 str(graph.nodes[p].get(label_attr, p))
                                 for p in other_parents
                             ]
                         )
                     else:
-                        other_parents_labels = ", ".join(
+                        other_parents_labels = ', '.join(
                             [str(p) for p in other_parents]
                         )
-                    suffix = " ".join(["", glyphs.backedge, other_parents_labels])
+                    suffix = ' '.join(
+                        ['', glyphs.backedge, other_parents_labels]
+                    )
                 else:
-                    suffix = ""
+                    suffix = ''
 
             # Emit the line for this node, this will be called for each node
             # exactly once.
             if this_vertical:
-                yield "".join(this_prefix + [glyphs.vertical_edge])
+                yield ''.join(this_prefix + [glyphs.vertical_edge])
 
-            yield "".join(this_prefix + [label, suffix])
+            yield ''.join(this_prefix + [label, suffix])
 
             if vertical_chains:
                 if is_directed:
@@ -421,7 +426,7 @@ def generate_network_text(
                 stack.append(try_frame)
 
 
-@open_file(1, "w")
+@open_file(1, 'w')
 def write_network_text(
     graph,
     path=None,
@@ -429,7 +434,7 @@ def write_network_text(
     sources=None,
     max_depth=None,
     ascii_only=False,
-    end="\n",
+    end='\n',
     vertical_chains=False,
 ):
     """Creates a nice text representation of a graph
@@ -589,7 +594,7 @@ def write_network_text(
     if path is None:
         # The path is unspecified, write to stdout
         _write = sys.stdout.write
-    elif hasattr(path, "write"):
+    elif hasattr(path, 'write'):
         # The path is already an open file
         _write = path.write
     elif callable(path):
@@ -625,7 +630,7 @@ def _find_sources(graph):
         supernode_to_nodes = {sn: [] for sn in scc_graph.nodes()}
         # Note: the order of mapping differs between pypy and cpython
         # so we have to loop over graph nodes for consistency
-        mapping = scc_graph.graph["mapping"]
+        mapping = scc_graph.graph['mapping']
         for n in graph.nodes:
             sn = mapping[n]
             supernode_to_nodes[sn].append(n)
@@ -646,7 +651,9 @@ def _find_sources(graph):
     return sources
 
 
-def forest_str(graph, with_labels=True, sources=None, write=None, ascii_only=False):
+def forest_str(
+    graph, with_labels=True, sources=None, write=None, ascii_only=False
+):
     """Creates a nice utf8 representation of a forest
 
     This function has been superseded by
@@ -715,15 +722,17 @@ def forest_str(graph, with_labels=True, sources=None, write=None, ascii_only=Fal
             L-- 2
     """
     msg = (
-        "\nforest_str is deprecated as of version 3.1 and will be removed "
-        "in version 3.3. Use generate_network_text or write_network_text "
-        "instead.\n"
+        '\nforest_str is deprecated as of version 3.1 and will be removed '
+        'in version 3.3. Use generate_network_text or write_network_text '
+        'instead.\n'
     )
     warnings.warn(msg, DeprecationWarning)
 
     if len(graph.nodes) > 0:
         if not nx.is_forest(graph):
-            raise nx.NetworkXNotImplemented("input must be a forest or the empty graph")
+            raise nx.NetworkXNotImplemented(
+                'input must be a forest or the empty graph'
+            )
 
     printbuf = []
     if write is None:
@@ -737,12 +746,12 @@ def forest_str(graph, with_labels=True, sources=None, write=None, ascii_only=Fal
         with_labels=with_labels,
         sources=sources,
         ascii_only=ascii_only,
-        end="",
+        end='',
     )
 
     if write is None:
         # Only return a string if the custom write function was not specified
-        return "\n".join(printbuf)
+        return '\n'.join(printbuf)
 
 
 def parse_network_text(lines):
@@ -806,7 +815,7 @@ def parse_network_text(lines):
         }:
             is_ascii = True
         else:
-            raise AssertionError(f"Unexpected first character: {first_char}")
+            raise AssertionError(f'Unexpected first character: {first_char}')
 
     if is_ascii:
         directed_glyphs = AsciiDirectedGlyphs.as_dict()
@@ -851,7 +860,7 @@ def parse_network_text(lines):
 
     # the backedge symbol by itself can be ambiguous, but with spaces around it
     # becomes unambiguous.
-    backedge_symbol = " " + glyphs["backedge"] + " "
+    backedge_symbol = ' ' + glyphs['backedge'] + ' '
 
     # Reconstruct an iterator over all of the lines.
     parsing_line_iter = chain(initial_lines, initial_line_iter)
@@ -870,7 +879,7 @@ def parse_network_text(lines):
     stack = [ParseStackFrame(noparent, -1, None)]
 
     for line in parsing_line_iter:
-        if line == glyphs["empty"]:
+        if line == glyphs['empty']:
             # If the line is the empty glyph, we are done.
             # There shouldn't be anything else after this.
             is_empty = True
@@ -879,21 +888,21 @@ def parse_network_text(lines):
         if backedge_symbol in line:
             # This line has one or more backedges, separate those out
             node_part, backedge_part = line.split(backedge_symbol)
-            backedge_nodes = [u.strip() for u in backedge_part.split(", ")]
+            backedge_nodes = [u.strip() for u in backedge_part.split(', ')]
             # Now the node can be parsed
             node_part = node_part.rstrip()
-            prefix, node = node_part.rsplit(" ", 1)
+            prefix, node = node_part.rsplit(' ', 1)
             node = node.strip()
             # Add the backedges to the edge list
             edges.extend([(u, node) for u in backedge_nodes])
         else:
             # No backedge, the tail of this line is the node
-            prefix, node = line.rsplit(" ", 1)
+            prefix, node = line.rsplit(' ', 1)
             node = node.strip()
 
         prev = stack.pop()
 
-        if node in glyphs["vertical_edge"]:
+        if node in glyphs['vertical_edge']:
             # Previous node is still the previous node, but we know it will
             # have exactly one child, which will need to have its nesting level
             # adjusted.
@@ -925,7 +934,7 @@ def parse_network_text(lines):
             while curr.indent <= prev.indent:
                 prev = stack.pop()
 
-        if node == "...":
+        if node == '...':
             # The current previous node is no longer a valid parent,
             # keep it popped from the stack.
             stack.append(prev)

@@ -9,6 +9,7 @@ def skip_if_missing_itk():
         import itk  # NOQA
     except ImportError:
         import pytest
+
         pytest.skip('requires itk to test')
 
 
@@ -16,12 +17,15 @@ def test_itk_warp():
     skip_if_missing_itk()
 
     from delayed_image import DelayedLoad
+
     self = DelayedLoad.demo().prepare()
     backend = 'itk'
     # backend = 'cv2'
     # dsize = (15, 15)
     dsize = 'auto'
-    new = self.warp({'scale': 1 / 30}, backend=backend, dsize=dsize, antialias=0)
+    new = self.warp(
+        {'scale': 1 / 30}, backend=backend, dsize=dsize, antialias=0
+    )
     new.print_graph(fields='all')
     opt = new.optimize()
     opt.print_graph(fields='all')
@@ -45,14 +49,17 @@ def fuzz_test_itk_warp():
     import numpy as np
     from delayed_image import DelayedLoad
     import kwimage
+
     self = DelayedLoad.demo().prepare()
 
     import kwarray
+
     rng = kwarray.ensure_rng(414321)
 
     INTERACTIVE_DEBUG = 0
     if INTERACTIVE_DEBUG:
         import xdev
+
         num_trials = 1000
         trial_iter = list(range(num_trials))
         trial_iter = xdev.InteractiveIter(trial_iter)
@@ -60,7 +67,6 @@ def fuzz_test_itk_warp():
         trial_iter = range(10)
 
     for _ in trial_iter:
-
         transform = kwimage.Affine.random(rng=rng)
 
         if rng.rand() > 0.9:
@@ -84,12 +90,15 @@ def fuzz_test_itk_warp():
 
         # Results between backends should be very close
         delta = result2 - result1
-        rmse = np.sqrt((delta ** 2).mean())
-        assert rmse < 10, 'RMSE is above 10, this should be very unlikely to happen'
+        rmse = np.sqrt((delta**2).mean())
+        assert rmse < 10, (
+            'RMSE is above 10, this should be very unlikely to happen'
+        )
         print(f'rmse={rmse}')
 
         if INTERACTIVE_DEBUG:
             import kwplot
+
             kwplot.autompl()
             kwplot.imshow(result1, pnum=(1, 3, 1), fnum=1, doclf=1)
             kwplot.imshow(result2, pnum=(1, 3, 2), fnum=1)

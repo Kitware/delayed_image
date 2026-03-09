@@ -1,8 +1,7 @@
-
-
 def simple_benchmark():
     from delayed_image.channel_spec import FusedChannelSpec
     import ubelt as ub
+
     self = FusedChannelSpec.coerce('red|green|blue').normalize()
     other = FusedChannelSpec.coerce('red|green|blue').normalize()
 
@@ -48,6 +47,7 @@ def simple_benchmark():
         return new
 
     import timerit
+
     ti = timerit.Timerit(100, bestof=10, verbose=3)
     for timer in ti.reset('intersection_v0'):
         with timer:

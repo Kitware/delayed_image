@@ -1,16 +1,18 @@
-
 def test_delayed_load_int_nodata():
     import ubelt as ub
+
     dpath = ub.Path.appdir('delayed_image/test/nodata_test').ensuredir()
 
     try:
         from osgeo import gdal  # NOQA
     except ImportError:
         import pytest
+
         pytest.skip('requires gdal')
 
     # Create an image on disk with encoded integer nodata.
     import kwimage
+
     im = kwimage.grab_test_image()
     im = kwimage.ensure_uint255(im)
 
@@ -23,10 +25,12 @@ def test_delayed_load_int_nodata():
     new_im_flt = kwimage.imread(fpath, nodata_method='float')
 
     import numpy as np
+
     assert np.all(new_im_int.mask == np.isnan(new_im_flt))
     assert np.all(new_im_int.mask == (im == 0))
 
     import delayed_image
+
     delayed = delayed_image.DelayedLoad(fpath)
 
     final_nod = delayed.finalize(nodata_method='ma')
@@ -37,16 +41,19 @@ def test_delayed_load_int_nodata():
 
 def test_delayed_cat_int_nodata():
     import ubelt as ub
+
     dpath = ub.Path.appdir('delayed_image/test/nodata_test').ensuredir()
 
     try:
         from osgeo import gdal  # NOQA
     except ImportError:
         import pytest
+
         pytest.skip('requires gdal')
 
     # Create an image on disk with encoded integer nodata.
     import kwimage
+
     im = kwimage.grab_test_image()
     im = kwimage.ensure_uint255(im)
 
@@ -59,10 +66,12 @@ def test_delayed_cat_int_nodata():
     new_im_flt = kwimage.imread(fpath, nodata_method='float')
 
     import numpy as np
+
     assert np.all(new_im_int.mask == np.isnan(new_im_flt))
     assert np.all(new_im_int.mask == (im == 0))
 
     import delayed_image
+
     delayed = delayed_image.DelayedLoad(fpath)
     delayed.print_graph()
     delayed.prepare()
@@ -71,7 +80,9 @@ def test_delayed_cat_int_nodata():
     nodata1 = delayed_image.DelayedNodata(dsize=delayed.dsize, channels=1)
     nodata1.print_graph()
 
-    nodata2 = delayed_image.DelayedNodata(dsize=delayed.dsize, channels=1, nodata_method='ma')
+    nodata2 = delayed_image.DelayedNodata(
+        dsize=delayed.dsize, channels=1, nodata_method='ma'
+    )
     purenans = delayed_image.DelayedNans(dsize=delayed.dsize, channels=1)
 
     cat1 = delayed_image.DelayedChannelConcat([delayed, nodata1])

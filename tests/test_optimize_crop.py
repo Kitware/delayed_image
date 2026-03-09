@@ -29,10 +29,12 @@ def test_optimize_crop_without_clip_reproduction():
     """
     import delayed_image
     import kwimage
+
     try:
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip()
     fpath = kwimage.grab_test_image_fpath(overviews=3, dsize=(4032, 3024))
     base = delayed_image.DelayedLoad(fpath, channels='r|g|b').prepare()
@@ -53,8 +55,8 @@ def test_optimize_crop_without_clip_reproduction():
         for n in chain1:
             print(n._opt_logs)
 
-    assert delayed.dsize == (416, 416), ('original image has a specific size')
-    assert optimize.dsize == (416, 416), ('optimization should keep that size')
+    assert delayed.dsize == (416, 416), 'original image has a specific size'
+    assert optimize.dsize == (416, 416), 'optimization should keep that size'
 
 
 def test_optimize_crop_without_clip_simplified():
@@ -63,10 +65,12 @@ def test_optimize_crop_without_clip_simplified():
     """
     import delayed_image
     import kwimage
+
     try:
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip()
     fpath = kwimage.grab_test_image_fpath(overviews=0, dsize=(416, 416))
     base = delayed_image.DelayedLoad(fpath, channels='r|g|b').prepare()
@@ -78,8 +82,8 @@ def test_optimize_crop_without_clip_simplified():
     optimize = delayed.optimize()
     optimize.print_graph()
 
-    assert delayed.dsize == (416, 416), ('original image has a specific size')
-    assert optimize.dsize == (416, 416), ('optimization should keep that size')
+    assert delayed.dsize == (416, 416), 'original image has a specific size'
+    assert optimize.dsize == (416, 416), 'optimization should keep that size'
 
 
 def test_optimize_crop_without_clip_minimal():
@@ -88,10 +92,12 @@ def test_optimize_crop_without_clip_minimal():
     """
     import delayed_image
     import kwimage
+
     try:
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip()
     fpath = kwimage.grab_test_image_fpath(overviews=3, dsize=(4032, 3024))
     base = delayed_image.DelayedLoad(fpath, channels='r|g|b').prepare()
@@ -110,5 +116,5 @@ def test_optimize_crop_without_clip_minimal():
         for n in chain1:
             print(n._opt_logs)
 
-    assert delayed.dsize == (416, 416), ('original image has a specific size')
-    assert optimize.dsize == (416, 416), ('optimization should keep that size')
+    assert delayed.dsize == (416, 416), 'original image has a specific size'
+    assert optimize.dsize == (416, 416), 'optimization should keep that size'

@@ -59,7 +59,9 @@ def test_vendored_gdal_read_matches_kwimage_reference(tmp_path):
             ignore_color_table=True,
             band_indices=band_indices,
             gdalkw=gdalkw,
-            preloaded_bands=tuple(reader._read_bands[idx] for idx in band_indices),
+            preloaded_bands=tuple(
+                reader._read_bands[idx] for idx in band_indices
+            ),
             preloaded_band_nodata_values=tuple(
                 reader._read_band_nodata_values[idx] for idx in band_indices
             ),
@@ -77,8 +79,12 @@ def test_vendored_gdal_read_matches_kwimage_reference(tmp_path):
         assert got_num_channels == want_num_channels
         if np.ma.isMaskedArray(want):
             assert np.ma.isMaskedArray(got)
-            assert np.array_equal(np.ma.getmaskarray(got), np.ma.getmaskarray(want))
-            assert np.allclose(np.ma.getdata(got), np.ma.getdata(want), equal_nan=True)
+            assert np.array_equal(
+                np.ma.getmaskarray(got), np.ma.getmaskarray(want)
+            )
+            assert np.allclose(
+                np.ma.getdata(got), np.ma.getdata(want), equal_nan=True
+            )
         else:
             assert not np.ma.isMaskedArray(got)
             assert np.allclose(got, want, equal_nan=True)
@@ -147,7 +153,6 @@ def test_lazy_gdal_multiband_overview_matches_reference(tmp_path):
 
         assert got.shape == want.shape
         assert np.allclose(got, want)
-        assert (
-            got.flags['OWNDATA'] or
-            (isinstance(got.base, np.ndarray) and got.base.flags['OWNDATA'])
+        assert got.flags['OWNDATA'] or (
+            isinstance(got.base, np.ndarray) and got.base.flags['OWNDATA']
         )

@@ -283,7 +283,6 @@ Example:
 
 """
 
-
 from __future__ import annotations
 
 __version__ = '0.4.6'
@@ -311,36 +310,69 @@ from delayed_image import delayed_leafs
 from delayed_image import delayed_nodes
 from delayed_image import helpers
 
-from delayed_image.channel_spec import (ChannelSpec, FusedChannelSpec,)
-from delayed_image.sensorchan_spec import (SensorChanSpec, FusedSensorChanSpec,)
+from delayed_image.channel_spec import (
+    ChannelSpec,
+    FusedChannelSpec,
+)
+from delayed_image.sensorchan_spec import (
+    SensorChanSpec,
+    FusedSensorChanSpec,
+)
 
-from delayed_image.delayed_base import (DelayedNaryOperation,
-                                        DelayedOperation,
-                                        DelayedUnaryOperation)
-from delayed_image.delayed_leafs import (DelayedIdentity,
-                                         DelayedImageLeaf,
-                                         DelayedLoad,
-                                         DelayedNans,
-                                         DelayedNodata, )
-from delayed_image.delayed_nodes import (DelayedArray,
-                                         DelayedAsXarray,
-                                         DelayedChannelConcat,
-                                         DelayedConcat,
-                                         DelayedCrop,
-                                         DelayedDequantize,
-                                         DelayedFrameStack,
-                                         DelayedImage,
-                                         DelayedOverview,
-                                         DelayedStack,
-                                         DelayedWarp,
-                                         ImageOpsMixin,)
+from delayed_image.delayed_base import (
+    DelayedNaryOperation,
+    DelayedOperation,
+    DelayedUnaryOperation,
+)
+from delayed_image.delayed_leafs import (
+    DelayedIdentity,
+    DelayedImageLeaf,
+    DelayedLoad,
+    DelayedNans,
+    DelayedNodata,
+)
+from delayed_image.delayed_nodes import (
+    DelayedArray,
+    DelayedAsXarray,
+    DelayedChannelConcat,
+    DelayedConcat,
+    DelayedCrop,
+    DelayedDequantize,
+    DelayedFrameStack,
+    DelayedImage,
+    DelayedOverview,
+    DelayedStack,
+    DelayedWarp,
+    ImageOpsMixin,
+)
 
-__all__ = ['DelayedArray', 'DelayedAsXarray', 'DelayedChannelConcat',
-           'DelayedConcat', 'DelayedCrop', 'DelayedDequantize',
-           'DelayedFrameStack', 'DelayedIdentity', 'DelayedImage',
-           'DelayedImageLeaf', 'DelayedLoad', 'DelayedNans',
-           'DelayedNodata', 'DelayedNaryOperation', 'DelayedOperation',
-           'DelayedOverview', 'DelayedStack', 'DelayedUnaryOperation',
-           'DelayedWarp', 'ImageOpsMixin', 'delayed_base', 'delayed_leafs',
-           'delayed_nodes', 'helpers', 'FusedSensorChanSpec', 'ChannelSpec',
-           'FusedChannelSpec', 'SensorChanSpec']
+__all__ = [
+    'DelayedArray',
+    'DelayedAsXarray',
+    'DelayedChannelConcat',
+    'DelayedConcat',
+    'DelayedCrop',
+    'DelayedDequantize',
+    'DelayedFrameStack',
+    'DelayedIdentity',
+    'DelayedImage',
+    'DelayedImageLeaf',
+    'DelayedLoad',
+    'DelayedNans',
+    'DelayedNodata',
+    'DelayedNaryOperation',
+    'DelayedOperation',
+    'DelayedOverview',
+    'DelayedStack',
+    'DelayedUnaryOperation',
+    'DelayedWarp',
+    'ImageOpsMixin',
+    'delayed_base',
+    'delayed_leafs',
+    'delayed_nodes',
+    'helpers',
+    'FusedSensorChanSpec',
+    'ChannelSpec',
+    'FusedChannelSpec',
+    'SensorChanSpec',
+]

@@ -12,6 +12,7 @@ Example:
     >>> self = delayed_image.SensorChanSpec.coerce('sensor0:B1|B8|B8a|B10|B11,sensor1:B11|X.2|Y:2:6,sensor2:r|g|b|disparity|gauss|B8|B11,sensor3:r|g|b|flowx|flowy|distri|B10|B11')
     >>> self.normalize()
 """
+
 from __future__ import annotations
 
 import ubelt as ub
@@ -30,14 +31,16 @@ _TRANSFORMER_BASE: Any
 try:
     from lark import Transformer as _LarkTransformer
 except ImportError:
+
     class FakeTransformer:
         pass
+
     _TRANSFORMER_BASE = cast(Any, FakeTransformer)
 else:
     _TRANSFORMER_BASE = cast(Any, _LarkTransformer)
 
 SENSOR_CHAN_GRAMMAR = ub.codeblock(
-    '''
+    """
     // SENSOR_CHAN_GRAMMAR
     ?start: stream
 
@@ -81,7 +84,8 @@ SENSOR_CHAN_GRAMMAR = ub.codeblock(
     %import common.DIGIT
     %import common.LETTER
     %import common.INT
-    ''')
+    """
+)
 
 
 """
@@ -116,6 +120,7 @@ class SensorSpec(ub.NiceRepr):
     A simple wrapper for sensors in case we want to do anything fancy with them
     later. For now they are just a string.
     """
+
     def __init__(self, spec):
         self.spec = spec
 
@@ -190,6 +195,7 @@ class SensorChanSpec(ub.NiceRepr):
         >>> print(SensorChanSpec.from_spec('sen:').concise().normalize().concise())
         sen:
     """
+
     def __init__(self, spec: str):
         self.spec: str = spec
 
@@ -234,6 +240,7 @@ class SensorChanSpec(ub.NiceRepr):
             >>> assert data.normalize().spec == '*:u.0|u.1|u.2'
         """
         import delayed_image
+
         if isinstance(data, cls):
             self = data
             return self
@@ -289,7 +296,8 @@ class SensorChanSpec(ub.NiceRepr):
         parts = sensorchan_normalized_parts(self.spec)
         streams = [
             FusedSensorChanSpec(SensorSpec(part.sensor), part.chan.data)
-            for part in parts]
+            for part in parts
+        ]
         return streams
 
     def split(self) -> 'SensorChanSpec':
@@ -381,6 +389,7 @@ class SensorChanSpec(ub.NiceRepr):
             A|B|C,edf,A12,rgb
         """
         import itertools as it
+
         args = it.chain([self], others)
         specs = [s.spec for s in args if s.spec]
         new_spec = ','.join(specs)
@@ -435,13 +444,17 @@ class SensorChanSpec(ub.NiceRepr):
         #     if s.sensor.spec == sensor:
         #         matching_streams.append(s)
         matching_streams = [
-            s for s in self.streams()
+            s
+            for s in self.streams()
             if s.sensor.spec == sensor or s.sensor.spec == '*'
         ]
         new = sum(matching_streams)
         if new == 0:
             import delayed_image
-            new = FusedSensorChanSpec(SensorSpec(sensor), delayed_image.FusedChannelSpec.coerce(''))
+
+            new = FusedSensorChanSpec(
+                SensorSpec(sensor), delayed_image.FusedChannelSpec.coerce('')
+            )
         return new
 
     @property
@@ -467,7 +480,9 @@ class SensorChanSpec(ub.NiceRepr):
             sensor_specs.append(s.sensor.spec)
             channel_specs.append(s.chans)
         if not ub.allsame(sensor_specs):
-            raise Exception('Can only take pure channel specs when all sensors are the same')
+            raise Exception(
+                'Can only take pure channel specs when all sensors are the same'
+            )
         return sum(channel_specs)
 
 
@@ -487,6 +502,7 @@ class FusedSensorChanSpec(SensorChanSpec):
         >>> assert FusedSensorChanSpec.coerce('sensor:a|b|c.0|c.1|c.2').spec == 'sensor:a|b|c.0|c.1|c.2'
         >>> assert FusedSensorChanSpec.coerce('a|b|c.0|c.1|c.2').spec == '*:a|b|c.0|c.1|c.2'
     """
+
     def __init__(self, sensor, chans):
         # Fixme, this signature does not agree with the parent
         self.sensor = sensor
@@ -495,6 +511,7 @@ class FusedSensorChanSpec(SensorChanSpec):
     @classmethod
     def from_spec(cls, spec: str) -> 'FusedSensorChanSpec':
         import delayed_image
+
         parts = sensorchan_normalized_parts(spec)
         if not len(parts) == 1:
             raise ValueError('must be a single fused set')
@@ -575,13 +592,14 @@ class SensorChanNode:
     """
     TODO: just replace this with the spec class itself?
     """
+
     def __init__(self, sensor, chan):
         self.sensor = sensor
         self.chan = chan
 
     @property
     def spec(self):
-        return f"{self.sensor}:{self.chan}"
+        return f'{self.sensor}:{self.chan}'
 
     def __repr__(self):
         return self.spec
@@ -600,8 +618,10 @@ class FusedChanNode:
         print(s)
         print(c)
     """
+
     def __init__(self, chan):
         import delayed_image
+
         self.data = delayed_image.FusedChannelSpec.coerce(chan)
 
     @property
@@ -663,11 +683,11 @@ class SensorChanTransformer(_TRANSFORMER_BASE):
         self.concise_sensors = concise_sensors
 
     def chan_id(self, items):
-        code, = items
+        (code,) = items
         return code.value
 
     def chan_single(self, items):
-        code, = items
+        (code,) = items
         return [code.value]
 
     def chan_getitem(self, items):
@@ -680,7 +700,10 @@ class SensorChanTransformer(_TRANSFORMER_BASE):
 
     def chan_getslice_ab(self, items):
         code, atok, btok = items
-        return ['{}.{}'.format(code, index) for index in range(int(atok.value), int(btok.value))]
+        return [
+            '{}.{}'.format(code, index)
+            for index in range(int(atok.value), int(btok.value))
+        ]
 
     def chan_code(self, items):
         return items[0]
@@ -717,7 +740,7 @@ class SensorChanTransformer(_TRANSFORMER_BASE):
         return flat
 
     def nosensor_chan(self, items):
-        item, = items
+        (item,) = items
         return [SensorChanNode('*', c) for c in item]
 
     def sensor_chan(self, items) -> list:
@@ -732,7 +755,7 @@ class SensorChanTransformer(_TRANSFORMER_BASE):
         return new
 
     def stream_item(self, items):
-        item, = items
+        (item,) = items
         return item
 
     def stream(self, items):
@@ -771,11 +794,20 @@ class SensorChanTransformer(_TRANSFORMER_BASE):
 def _global_sensor_chan_parser():
     # https://github.com/lark-parser/lark/blob/master/docs/_static/lark_cheatsheet.pdf
     import lark
+
     try:
         import lark_cython
-        sensor_channel_parser = lark.Lark(SENSOR_CHAN_GRAMMAR,  start='start', parser='lalr', _plugins=lark_cython.plugins)
+
+        sensor_channel_parser = lark.Lark(
+            SENSOR_CHAN_GRAMMAR,
+            start='start',
+            parser='lalr',
+            _plugins=lark_cython.plugins,
+        )
     except ImportError:
-        sensor_channel_parser = lark.Lark(SENSOR_CHAN_GRAMMAR,  start='start', parser='lalr')
+        sensor_channel_parser = lark.Lark(
+            SENSOR_CHAN_GRAMMAR, start='start', parser='lalr'
+        )
     return sensor_channel_parser
 
 
@@ -837,7 +869,9 @@ def sensorchan_concise_parts(spec: str):
     try:
         sensor_channel_parser = _global_sensor_chan_parser()
         tree = _string_safe_parse(sensor_channel_parser, spec)
-        transformed = SensorChanTransformer(concise_sensors=1, concise_channels=1).transform(tree)
+        transformed = SensorChanTransformer(
+            concise_sensors=1, concise_channels=1
+        ).transform(tree)
     except Exception:
         print(f'ERROR: Failed to condense spec={spec}')
         raise
@@ -854,7 +888,9 @@ def sensorchan_normalized_parts(spec: str):
     try:
         sensor_channel_parser = _global_sensor_chan_parser()
         tree = _string_safe_parse(sensor_channel_parser, spec)
-        transformed = SensorChanTransformer(concise_sensors=0, concise_channels=0).transform(tree)
+        transformed = SensorChanTransformer(
+            concise_sensors=0, concise_channels=0
+        ).transform(tree)
     except Exception:
         print(f'ERROR: Failed to normalize spec={spec}')
         raise

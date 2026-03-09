@@ -16,7 +16,8 @@ def benchmark_lots_of_objects():
     with ub.Timer('making lots of objects'):
         for index in ub.ProgIter(range(num_loads), desc='iterating'):
             delayed = DelayedLoad(
-                fpath, dsize=(512, 512), channels='red|green|blue')
+                fpath, dsize=(512, 512), channels='red|green|blue'
+            )
             # delayed = delayed.prepare()
             delayed = delayed.crop(slice(None, None))
             delayed = delayed.warp({'scale': 2.0})

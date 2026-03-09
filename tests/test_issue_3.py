@@ -1,4 +1,3 @@
-
 def mwe_issue_3():
     """
     Ran into an issue in production where optimize was different between two
@@ -70,9 +69,9 @@ def mwe_issue_3():
 
     overviews = 3
 
-    leaf = delayed_image.DelayedLoad.demo(channels='r|g|b',
-                                          overviews=overviews,
-                                          dsize=(1140, 554))
+    leaf = delayed_image.DelayedLoad.demo(
+        channels='r|g|b', overviews=overviews, dsize=(1140, 554)
+    )
     leaf.prepare()
 
     sf1 = (0.1764, 0.1753)
@@ -89,7 +88,7 @@ def mwe_issue_3():
         'nodata': None,
     }
 
-    def make_operation_tree(leaf, take_channels : bool):
+    def make_operation_tree(leaf, take_channels: bool):
         delayed = leaf
         delayed = delayed.scale(sf1)
         delayed = delayed.dequantize(quantization)
@@ -143,6 +142,7 @@ def mwe_issue_3():
 
     if 0:
         import kwplot
+
         kwplot.autoplt()
         im1 = delayed1.finalize()
         im2 = delayed2.finalize()

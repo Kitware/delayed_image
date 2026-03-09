@@ -1,6 +1,7 @@
 """
 Abstract nodes
 """
+
 from __future__ import annotations
 from collections.abc import Generator, Iterable
 from types import ModuleType
@@ -24,11 +25,13 @@ rich_mod = _import_rich()
 # Flag to evaluate if slots are helping us at all
 USE_SLOTS = True
 
+
 # Per-call optimization context
 class OptimizeContext:
     """
     Holds per-call optimization state to avoid repeated work.
     """
+
     if USE_SLOTS:
         __slots__ = ('memo',)
 
@@ -44,6 +47,7 @@ class DelayedOperation:
     """
     Base class for all Delayed Nodes
     """
+
     if USE_SLOTS:
         __slots__ = ('meta', '_opt_logs')
 
@@ -84,6 +88,7 @@ class DelayedOperation:
         Returns:
             Dict[str, dict]
         """
+
         def _child_nesting(child: Any) -> dict[str, Any] | None:
             if hasattr(child, 'nesting'):
                 return child.nesting()
@@ -93,6 +98,7 @@ class DelayedOperation:
                     'shape': child.shape,
                 }
             return None
+
         # from kwcoco.util import ensure_json_serializable
         meta = self.meta.copy()
         try:
@@ -152,7 +158,11 @@ class DelayedOperation:
             node_data['label'] = f'{short_type} {param_key}'
         return graph
 
-    def _traverse(self) -> Generator[tuple[DelayedOperation | None, DelayedOperation], None, None]:
+    def _traverse(
+        self,
+    ) -> Generator[
+        tuple[DelayedOperation | None, DelayedOperation], None, None
+    ]:
         """
         A flat list of all descendent nodes and their parents
 
@@ -163,7 +173,9 @@ class DelayedOperation:
         """
         # Might be useful in _set_nested_params or other functions that
         # need to touch all descendants. This will be faster than recursion
-        stack: list[tuple[DelayedOperation | None, DelayedOperation]] = [(None, self)]
+        stack: list[tuple[DelayedOperation | None, DelayedOperation]] = [
+            (None, self)
+        ]
         while stack:
             parent, item = stack.pop()
             yield parent, item
@@ -191,7 +203,9 @@ class DelayedOperation:
 
     _leafs = leafs
 
-    def _leaf_paths(self) -> Generator[tuple[DelayedOperation, DelayedOperation], None, None]:
+    def _leaf_paths(
+        self,
+    ) -> Generator[tuple[DelayedOperation, DelayedOperation], None, None]:
         """
         Builds all independent paths to leafs.
 
@@ -220,6 +234,7 @@ class DelayedOperation:
         # Might be useful in _set_nested_params or other functions that
         # need to touch all descendants. This will be faster than recursion
         import copy
+
         stack: list[list[DelayedOperation]] = [[self]]
         while stack:
             path = stack.pop()
@@ -241,7 +256,10 @@ class DelayedOperation:
                         part = prev
                     else:
                         if prev is not None:
-                            if isinstance(part, DelayedUnaryOperation) and part.subdata is not prev:
+                            if (
+                                isinstance(part, DelayedUnaryOperation)
+                                and part.subdata is not prev
+                            ):
                                 # The subdata was a skipped node, we need to
                                 # contract the operation edge.
                                 part = copy.copy(part)
@@ -256,6 +274,7 @@ class DelayedOperation:
         import networkx as nx
         import itertools as it
         import math
+
         counter = it.count(0)
         graph = nx.DiGraph()
         ndigits = int(math.log10(max(1, len(graph.nodes)))) + 1
@@ -283,8 +302,9 @@ class DelayedOperation:
                 stack.append((node_id, child))
         return graph
 
-    def print_graph(self, fields='auto', with_labels=True, rich='auto',
-                    vertical_chains=True):
+    def print_graph(
+        self, fields='auto', with_labels=True, rich='auto', vertical_chains=True
+    ):
         """
         Alias for write_network_text
 
@@ -303,16 +323,22 @@ class DelayedOperation:
                 Defaults to True. Set to false to save vertical space at the
                 cost of horizontal space.
         """
-        self.write_network_text(fields=fields, with_labels=with_labels,
-                                rich=rich, vertical_chains=vertical_chains)
+        self.write_network_text(
+            fields=fields,
+            with_labels=with_labels,
+            rich=rich,
+            vertical_chains=vertical_chains,
+        )
 
-    def write_network_text(self, fields='auto', with_labels=True, rich='auto',
-                           vertical_chains=True):
+    def write_network_text(
+        self, fields='auto', with_labels=True, rich='auto', vertical_chains=True
+    ):
         """
         Alias for :func:`DelayedOperation.print_graph`
         """
         # TODO: remove once this is merged into networkx itself
         from delayed_image.util.util_network_text import write_network_text
+
         graph = self.as_graph(fields=fields)
         path = None
         end = '\n'
@@ -321,8 +347,13 @@ class DelayedOperation:
         if rich and rich_mod is not None:
             path = rich_mod.print
             end = ''
-        write_network_text(graph, with_labels=with_labels, path=path, end=end,
-                           vertical_chains=vertical_chains)
+        write_network_text(
+            graph,
+            with_labels=with_labels,
+            path=path,
+            end=end,
+            vertical_chains=vertical_chains,
+        )
 
     @property
     def shape(self):
@@ -441,6 +472,7 @@ class DelayedNaryOperation(DelayedOperation):
     """
     For operations that have multiple input arrays
     """
+
     if USE_SLOTS:
         __slots__ = DelayedOperation.__slots__ + ('parts',)
     parts: list[Any]
@@ -461,6 +493,7 @@ class DelayedUnaryOperation(DelayedOperation):
     """
     For operations that have a single input array
     """
+
     if USE_SLOTS:
         __slots__ = DelayedOperation.__slots__ + ('subdata',)
     subdata: Any

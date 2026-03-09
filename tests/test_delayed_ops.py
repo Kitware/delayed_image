@@ -62,11 +62,15 @@ def test_shuffle_delayed_operations():
 
         # We always expect that we will get a sequence in the form
         expected_sequence = [
-            'DelayedWarp', 'DelayedDequantize', 'DelayedCrop',
-            'DelayedOverview', 'DelayedLoad'
+            'DelayedWarp',
+            'DelayedDequantize',
+            'DelayedCrop',
+            'DelayedOverview',
+            'DelayedLoad',
         ]
         # But we are allowed to skip steps
         import networkx as nx
+
         graph = opt.as_graph()
         node_order = list(nx.topological_sort(graph))
         opname_order = [graph.nodes[n]['type'] for n in node_order]
@@ -105,6 +109,7 @@ def test_static_operation_optimize_single_chain():
         import osgeo  # NOQA
     except ImportError:
         import pytest
+
         pytest.skip()
 
     # Grab a test image that contains 3 precomputed overviews
@@ -123,9 +128,11 @@ def test_static_operation_optimize_single_chain():
     """
 
     class mkslice:
-        """ Helper to build slices """
+        """Helper to build slices"""
+
         def __class_getitem__(self, index):
             return index
+
         def __getitem__(self, index):
             return index
 
@@ -133,12 +140,18 @@ def test_static_operation_optimize_single_chain():
     delayed = base
     delayed = delayed.get_overview(1)
     delayed = delayed.scale(0.4)
-    delayed = delayed.crop(mkslice()[0:1024, 0:1024], chan_idxs=[0, 2], clip=False, wrap=False)
-    delayed = delayed.dequantize({
-        'orig_min': 0, 'orig_max': 1,
-        'quant_min': 0, 'quant_max': 255,
-        'nodata': 0
-    })
+    delayed = delayed.crop(
+        mkslice()[0:1024, 0:1024], chan_idxs=[0, 2], clip=False, wrap=False
+    )
+    delayed = delayed.dequantize(
+        {
+            'orig_min': 0,
+            'orig_max': 1,
+            'quant_min': 0,
+            'quant_max': 255,
+            'nodata': 0,
+        }
+    )
     delayed = delayed.warp(kwimage.Affine.random(rng=0))
     delayed = delayed.warp(kwimage.Affine.random(rng=1))
     delayed = delayed.warp(kwimage.Affine.random(rng=2))

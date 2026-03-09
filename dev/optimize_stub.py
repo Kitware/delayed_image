@@ -1,6 +1,7 @@
 """
 Stub that lays out the current structure of optimize calls.
 """
+
 import ubelt as ub
 import copy
 from delayed_image.delayed_nodes import ImageOpsMixin
@@ -9,7 +10,6 @@ from delayed_image.delayed_nodes import DelayedArray
 
 
 class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):
-
     def optimize(self):
         """
         Returns:
@@ -33,7 +33,6 @@ class DelayedImage(ImageOpsMixin, DelayedArray):
 
 
 class DelayedCrop(DelayedImage):
-
     def optimize(self):
         """
         Returns:
@@ -75,7 +74,11 @@ class DelayedCrop(DelayedImage):
                 if chan_idxs is not None:
                     taken = new.subdata.take_channels(chan_idxs).optimize()
                 if space_slice is not None:
-                    taken = taken.crop(space_slice)._opt_push_under_concat().optimize()
+                    taken = (
+                        taken.crop(space_slice)
+                        ._opt_push_under_concat()
+                        .optimize()
+                    )
                 new = taken
             else:
                 new = new._opt_push_under_concat().optimize()
@@ -99,7 +102,7 @@ class DelayedCrop(DelayedImage):
         ...
 
     def _opt_dequant_after_crop(self):
-        """ Swap order so dequantize is after the crop """
+        """Swap order so dequantize is after the crop"""
 
 
 class DelayedWarp(DelayedImage):
@@ -132,8 +135,8 @@ class DelayedWarp(DelayedImage):
         # negligable.
         noop_eps = new.meta['noop_eps']
         is_negligable = (
-            new.dsize == new.subdata.dsize and
-            new.transform.isclose_identity(rtol=noop_eps, atol=noop_eps)
+            new.dsize == new.subdata.dsize
+            and new.transform.isclose_identity(rtol=noop_eps, atol=noop_eps)
         )
         if is_negligable:
             new = new.subdata
@@ -143,7 +146,8 @@ class DelayedWarp(DelayedImage):
             # The subdata knows how to optimize itself wrt a warp
             # (currently only exist for nans and constant leafs)
             warp_kwargs = ub.dict_isect(
-                self.meta, self._data_keys + self._algo_keys)
+                self.meta, self._data_keys + self._algo_keys
+            )
             new = new.subdata._optimized_warp(**warp_kwargs).optimize()
         else:
             split = new._opt_split_warp_overview()
@@ -219,11 +223,9 @@ class DelayedOverview(DelayedImage):
         overview to be as close to the load as possible.
         """
 
-    def _opt_fuse_overview(self):
-        ...
+    def _opt_fuse_overview(self): ...
 
-    def _opt_dequant_after_overview(self):
-        ...
+    def _opt_dequant_after_overview(self): ...
 
     def _opt_warp_after_overview(self):
         """
@@ -254,5 +256,4 @@ class DelayedDequantize(DelayedImage):
             new = new._opt_push_under_concat().optimize()
         return new
 
-    def _opt_dequant_before_other(self):
-        ...
+    def _opt_dequant_before_other(self): ...
