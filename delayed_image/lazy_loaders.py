@@ -57,6 +57,10 @@ class CacheDict(OrderedDict):
 # GLOBAL_GDAL_CACHE = CacheDict(cache_len=100_000)
 GLOBAL_GDAL_CACHE = None
 
+# Temporary kill switch for the dataset-level GDAL fast path while debugging
+# CI-only segfaults in the dequantize path.
+GDAL_FAST_PATH = False
+
 
 @cache
 def _import_gdal():
@@ -758,13 +762,36 @@ class LazyGDalFrameFile(ub.NiceRepr):
         nodata_method = self.nodata_method
         if nodata_method == 'auto':
             nodata_method = 'float'  # just use floats
-        try:
-            imdata = self._dataset_read_as_array(
-                band_indices=band_indices,
-                gdalkw=gdalkw,
-                nodata_method=nodata_method,
-            )
-        except Exception:
+        if GDAL_FAST_PATH:
+            try:
+                imdata = self._dataset_read_as_array(
+                    band_indices=band_indices,
+                    gdalkw=gdalkw,
+                    nodata_method=nodata_method,
+                )
+            except Exception:
+                from kwimage.im_io import _gdal_read
+                gdal_dset = ds
+                ignore_color_table = True
+                overview = self.overview
+                imdata, _ = _gdal_read(gdal_dset=gdal_dset, overview=overview,
+                                       nodata_method=nodata_method,
+                                       nodata_value=None,
+                                       ignore_color_table=ignore_color_table,
+                                       band_indices=band_indices, gdalkw=gdalkw)
+                debug_array_event(
+                    'gdal-fallback-read',
+                    imdata,
+                    fpath=os.path.basename(os.fspath(self.fpath)),
+                    overview=self.overview,
+                    band_list=list(b + 1 for b in band_indices),
+                    xoff=gdalkw['xoff'],
+                    yoff=gdalkw['yoff'],
+                    xsize=gdalkw['win_xsize'],
+                    ysize=gdalkw['win_ysize'],
+                    nodata_method=nodata_method,
+                )
+        else:
             from kwimage.im_io import _gdal_read
             gdal_dset = ds
             ignore_color_table = True
