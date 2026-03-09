@@ -18,6 +18,7 @@ Welcome to delayed_image's documentation!
 .. toctree::
    :maxdepth: 5
 
+   manual/index
    auto/delayed_image
    auto/modules
 
