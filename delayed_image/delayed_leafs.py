@@ -12,11 +12,6 @@ import warnings
 from delayed_image import delayed_nodes
 from delayed_image import delayed_base
 
-__docstubs__ = """
-from delayed_image.channel_spec import FusedChannelSpec
-"""
-
-
 TRACE_OPTIMIZE = delayed_nodes.TRACE_OPTIMIZE
 
 

@@ -21,11 +21,6 @@ from delayed_image.constants import IS_DEVELOPING, TRACE_OPTIMIZE
 # Stacking
 # --------
 
-__docstubs__ = """
-from delayed_image.delayed_leafs import DelayedIdentity
-from delayed_image.delayed_base import DelayedOperation
-"""
-
 _WARP_AFFINE_MATRIX_MODE: dict[tuple[str, str], str] = {}
 _WARP_AFFINE_MATRIX_MODE_LOCK = threading.Lock()
 
