@@ -52,6 +52,10 @@ def _git_output(args):
     return _run(["git", *args], cwd=REPO_DPATH, capture=True).strip()
 
 
+def _is_working_tree_ref(ref: str) -> bool:
+    return ref.lower() in {"working-tree", "worktree", "workspace", "worktree+"}
+
+
 def resolve_default_refs():
     candidates = [["origin/main", "HEAD"], ["main", "HEAD"]]
     for refs in candidates:
@@ -73,6 +77,13 @@ def ensure_worktree(ref: str) -> tuple[str, pathlib.Path]:
         worktree_dpath.parent.mkdir(parents=True, exist_ok=True)
         _run(["git", "worktree", "add", "--detach", str(worktree_dpath), commit], cwd=REPO_DPATH)
     return commit, worktree_dpath
+
+
+def resolve_ref_repo(ref: str) -> tuple[str, pathlib.Path]:
+    if _is_working_tree_ref(ref):
+        commit = _git_output(["rev-parse", "HEAD"])
+        return commit, REPO_DPATH
+    return ensure_worktree(ref)
 
 
 def requirements_fingerprint(include_gdal: bool = False) -> str:
@@ -152,7 +163,7 @@ def _channel_spec(num_channels: int) -> str:
     return "|".join(f"c{i}" for i in range(num_channels))
 
 
-def _synth_raster(shape, num_channels, dtype_name):
+def _synth_raster(shape, num_channels, dtype_name, phase=0.0):
     import numpy as np
 
     h, w = shape
@@ -160,9 +171,9 @@ def _synth_raster(shape, num_channels, dtype_name):
     chans = []
     for idx in range(num_channels):
         ch = (
-            np.sin((xx + idx * 11) / (17.0 + idx)) +
-            np.cos((yy + idx * 7) / (23.0 + idx)) +
-            ((xx * (idx + 3) + yy * (idx + 5)) % (29 + idx)) / (29.0 + idx)
+            np.sin((xx + idx * 11 + phase * 3.0) / (17.0 + idx)) +
+            np.cos((yy + idx * 7 + phase * 5.0) / (23.0 + idx)) +
+            ((xx * (idx + 3) + yy * (idx + 5) + phase * 11.0) % (29 + idx)) / (29.0 + idx)
         )
         chans.append(ch)
     data = np.stack(chans, axis=2)
@@ -177,7 +188,7 @@ def _synth_raster(shape, num_channels, dtype_name):
     return data
 
 
-def ensure_gdal_benchmark_raster(name, shape, num_channels, dtype_name):
+def ensure_gdal_benchmark_raster(name, shape, num_channels, dtype_name, phase=0.0):
     import kwimage
 
     data_dpath = CACHE_DPATH / "data" / "gdal"
@@ -186,7 +197,12 @@ def ensure_gdal_benchmark_raster(name, shape, num_channels, dtype_name):
     if fpath.exists():
         return fpath
 
-    data = _synth_raster(shape=shape, num_channels=num_channels, dtype_name=dtype_name)
+    data = _synth_raster(
+        shape=shape,
+        num_channels=num_channels,
+        dtype_name=dtype_name,
+        phase=phase,
+    )
     tmp_fpath = data_dpath / f"{name}.tmp.tif"
     kwimage.imwrite(
         tmp_fpath,
@@ -246,6 +262,7 @@ def build_gdal_benchmark_cases(delayed_image, kwimage, np):
     dst_dsize = (256, 256)
     crop_size = 1024
     scale = dst_dsize[0] / crop_size
+    manyfiles_count = 4
 
     for config in configs:
         fpath = ensure_gdal_benchmark_raster(
@@ -260,6 +277,19 @@ def build_gdal_benchmark_cases(delayed_image, kwimage, np):
             channels=channels,
             nodata_method="float",
         ).prepare()
+        manyfile_specs = []
+        for file_idx in range(manyfiles_count):
+            manyfile_fpath = ensure_gdal_benchmark_raster(
+                name=f"bench_manyfiles_{config['tag']}_{file_idx:02d}",
+                shape=config["shape"],
+                num_channels=config["num_channels"],
+                dtype_name=config["dtype_name"],
+                phase=file_idx + 1,
+            )
+            x0 = int(rng.integers(96, 2048 - 96 - 1024))
+            y0 = int(rng.integers(96, 2048 - 96 - 1024))
+            theta = float(rng.uniform(-0.2, 0.2))
+            manyfile_specs.append((manyfile_fpath, x0, y0, theta))
 
         for with_rotation in [False, True]:
             label = "rotate" if with_rotation else "no_rotate"
@@ -295,6 +325,49 @@ def build_gdal_benchmark_cases(delayed_image, kwimage, np):
                     f"{config['num_channels']}-channel imagery with {label.replace('_', ' ')}."
                 ),
                 "fn": scenario,
+            })
+
+            def manyfiles_scenario(
+                channels=channels,
+                manyfile_specs=manyfile_specs,
+                with_rotation=with_rotation,
+            ):
+                total = 0.0
+                crop_center = (crop_size / 2.0, crop_size / 2.0)
+                dst_center = (dst_dsize[0] / 2.0, dst_dsize[1] / 2.0)
+                for fpath, x0, y0, theta in manyfile_specs:
+                    base = delayed_image.DelayedLoad(
+                        fpath,
+                        channels=channels,
+                        nodata_method="float",
+                    ).prepare()
+                    node = base.crop((slice(y0, y0 + crop_size), slice(x0, x0 + crop_size)))
+                    warp = (
+                        kwimage.Affine.translate(dst_center) @
+                        kwimage.Affine.rotate(theta if with_rotation else 0.0) @
+                        kwimage.Affine.scale(scale) @
+                        kwimage.Affine.translate((-crop_center[0], -crop_center[1]))
+                    )
+                    node = node.warp(
+                        warp,
+                        dsize=dst_dsize,
+                        interpolation="linear",
+                        antialias=True,
+                        border_value=0,
+                    )
+                    data = node.finalize(nodata_method="float")
+                    total += float(np.nanmean(data))
+                return total
+
+            cases.append({
+                "name": f"gdal_manyfiles_{config['tag']}_{label}",
+                "group": "gdal_manyfiles",
+                "description": (
+                    f"GDAL/COG-style random patch sampling that cycles across {manyfiles_count} "
+                    f"different {config['dtype_name']} {config['num_channels']}-channel images "
+                    f"with {label.replace('_', ' ')}."
+                ),
+                "fn": manyfiles_scenario,
             })
     return cases
 
@@ -629,7 +702,7 @@ def compare_main(args):
     }
 
     for ref in refs:
-        commit, worktree_dpath = ensure_worktree(ref)
+        commit, worktree_dpath = resolve_ref_repo(ref)
         out_fpath = run_dpath / f"{_slugify(ref)}-{commit[:12]}.json"
         cmd = [
             str(python_bin),

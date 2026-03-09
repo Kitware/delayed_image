@@ -57,8 +57,10 @@ class CacheDict(OrderedDict):
 # GLOBAL_GDAL_CACHE = CacheDict(cache_len=100_000)
 GLOBAL_GDAL_CACHE = None
 
-# Temporary kill switch for the dataset-level GDAL fast path while debugging
-# CI-only segfaults in the dequantize path.
+# Temporary kill switch for the dataset-level GDAL fast path.
+# The optimized dataset-level read is much faster, but it triggers CI-only
+# segfaults downstream in the dequantize path. The original kwimage `_gdal_read`
+# fallback is stable, so keep this disabled until the fast-path bug is isolated.
 GDAL_FAST_PATH = False
 
 
@@ -110,6 +112,158 @@ _GDAL_DTYPE_LUT = {
     6: np.float32,   7: np.float64,     8: complex_,
     9: complex_,    10: np.complex64,  11: np.complex128
 }
+
+
+def _gdal_read_kwimage_compatible(
+    gdal_dset,
+    overview,
+    nodata=None,
+    ignore_color_table=None,
+    band_indices=None,
+    gdalkw=None,
+    nodata_method=None,
+    nodata_value=None,
+    preloaded_bands=None,
+    preloaded_band_nodata_values=None,
+):
+    """
+    Vendored, behavior-compatible variant of ``kwimage.im_io._gdal_read``.
+
+    The main local optimization is that callers may provide pre-resolved band
+    handles and nodata values so repeated patch reads avoid per-call GDAL band
+    lookup and overview traversal.
+    """
+    if gdalkw is None:
+        gdalkw = {}
+
+    if nodata is not None:
+        nodata_method = nodata
+
+    if len(gdal_dset.GetSubDatasets()):
+        raise NotImplementedError('subdatasets are not handled correctly')
+
+    total_num_channels = gdal_dset.RasterCount
+
+    if preloaded_bands is not None:
+        bands = tuple(preloaded_bands)
+        num_channels = len(bands)
+    else:
+        if band_indices is None:
+            band_indices = range(total_num_channels)
+            num_channels = total_num_channels
+        else:
+            band_indices = tuple(band_indices)
+            num_channels = len(band_indices)
+
+        default_bands = [gdal_dset.GetRasterBand(i + 1) for i in band_indices]
+        default_band0 = default_bands[0]
+
+        if overview:
+            overview_count = default_band0.GetOverviewCount()
+            if isinstance(overview, str):
+                if overview == 'coarsest':
+                    overview = overview_count
+                else:
+                    raise KeyError(overview)
+            if overview < 0:
+                ub.schedule_deprecation(
+                    'kwimage', name='overviews',
+                    type='as a negative integer argument to kwimage.imread',
+                    migration='Use overviews="coarsest" to get the lowest resolution overview',
+                    deprecate='0.9.21', error='1.0.0', remove='1.1.0',
+                )
+                overview = max(overview_count + overview, 0)
+            if overview > overview_count:
+                raise ValueError('Image has no overview={}'.format(overview))
+            if overview > 0:
+                bands = [b.GetOverview(overview - 1) for b in default_bands]
+                if any(b is None for b in bands):
+                    raise AssertionError(
+                        'Band was None in {}'.format(gdal_dset.GetDescription()))
+            else:
+                bands = default_bands
+        else:
+            bands = default_bands
+
+    if num_channels == 1:
+        band = bands[0]
+        color_table = None if ignore_color_table else band.GetColorTable()
+        if color_table is None:
+            buf = band.ReadAsArray(**gdalkw)
+            if buf is None:
+                buf = band.ReadAsArray(**gdalkw)
+                if buf is None:
+                    raise IOError('GDal was unable to read this band')
+            image = np.array(buf)
+        else:
+            buf = band.ReadAsArray(**gdalkw)
+
+            gdal_dtype = color_table.GetPaletteInterpretation()
+            dtype = _GDAL_DTYPE_LUT[gdal_dtype]
+
+            num_colors = color_table.GetCount()
+            if num_colors <= 0:
+                raise AssertionError('invalid color table')
+            idx_to_color = []
+            for idx in range(num_colors):
+                color = color_table.GetColorEntry(idx)
+                idx_to_color.append(color)
+
+            num_channels = len(color)
+
+            idx_to_color = np.array(idx_to_color, dtype=dtype)
+            image = idx_to_color[buf]
+
+        if nodata_method is not None:
+            if preloaded_band_nodata_values is not None:
+                band_nodata = preloaded_band_nodata_values[0]
+            else:
+                band_nodata = band.GetNoDataValue()
+            if band_nodata is None:
+                mask = np.zeros(buf.shape, dtype=bool)
+            else:
+                mask = np.equal(buf, band_nodata)
+            if color_table is not None:
+                table_chans = idx_to_color.shape[1]
+                mask = np.tile(mask[:, :, None], (1, 1, table_chans))
+    else:
+        band0 = bands[0]
+        xsize = gdalkw.get('win_xsize', band0.XSize)
+        ysize = gdalkw.get('win_ysize', band0.YSize)
+        dtype = _GDAL_DTYPE_LUT[band0.DataType]
+        shape = (ysize, xsize, num_channels)
+        image = np.empty(shape, dtype=dtype)
+        if nodata_method is not None:
+            mask = np.zeros(shape, dtype=bool)
+            if preloaded_band_nodata_values is None:
+                band_nodata_values = [band.GetNoDataValue() for band in bands]
+            else:
+                band_nodata_values = preloaded_band_nodata_values
+        for idx, band in enumerate(bands):
+            buf = image[:, :, idx]
+            ret = band.ReadAsArray(buf_obj=buf, **gdalkw)
+            if ret is None:
+                raise IOError(ub.paragraph(
+                    '''
+                    GDAL was unable to read band: {}, {}
+                    from {!r}
+                    '''.format(idx, band, gdal_dset.GetDescription())))
+            if nodata_method is not None:
+                band_nodata = band_nodata_values[idx]
+                if band_nodata is not None:
+                    np.equal(buf, band_nodata, out=mask[:, :, idx])
+
+    if nodata_method is not None:
+        if nodata_method == 'ma':
+            image = np.ma.array(image, mask=mask)
+        elif nodata_method in {'float', 'nan'}:
+            promote_dtype = np.result_type(image.dtype, np.float32)
+            image = image.astype(promote_dtype)
+            image[mask] = np.nan
+        else:
+            raise KeyError('nodata_method={}'.format(nodata_method))
+
+    return image, num_channels
 
 
 class LazySpectralFrameFile(ub.NiceRepr):
@@ -468,6 +622,28 @@ class LazyGDalFrameFile(ub.NiceRepr):
             return ds
         return overview_ds
 
+    @ub.memoize_property
+    def _read_bands(self):
+        ds = self._ds
+        default_bands = tuple(ds.GetRasterBand(i + 1) for i in range(ds.RasterCount))
+        overview = self.overview
+        if overview <= 0:
+            return default_bands
+
+        overview_count = default_bands[0].GetOverviewCount()
+        if overview > overview_count:
+            raise ValueError('Image has no overview={}'.format(overview))
+
+        bands = tuple(b.GetOverview(overview - 1) for b in default_bands)
+        if any(b is None for b in bands):
+            raise AssertionError(
+                'Band was None in {}'.format(ds.GetDescription()))
+        return bands
+
+    @ub.memoize_property
+    def _read_band_nodata_values(self):
+        return tuple(b.GetNoDataValue() for b in self._read_bands)
+
     def _dataset_read_as_array(self, band_indices, gdalkw, nodata_method=None):
         """
         Fast dataset-level GDAL read for the common multi-band path.
@@ -540,6 +716,54 @@ class LazyGDalFrameFile(ub.NiceRepr):
         )
 
         return image
+
+    def _compat_gdal_read(self, ds, band_indices, gdalkw, nodata_method):
+        selected_bands = tuple(self._read_bands[idx] for idx in band_indices)
+        if nodata_method is None:
+            selected_nodata_values = None
+        else:
+            selected_nodata_values = tuple(
+                self._read_band_nodata_values[idx] for idx in band_indices
+            )
+        try:
+            imdata, _ = _gdal_read_kwimage_compatible(
+                gdal_dset=ds,
+                overview=self.overview,
+                nodata_method=nodata_method,
+                nodata_value=None,
+                ignore_color_table=True,
+                band_indices=band_indices,
+                gdalkw=gdalkw,
+                preloaded_bands=selected_bands,
+                preloaded_band_nodata_values=selected_nodata_values,
+            )
+            log_label = 'gdal-vendored-read'
+        except Exception:
+            from kwimage.im_io import _gdal_read
+            imdata, _ = _gdal_read(
+                gdal_dset=ds,
+                overview=self.overview,
+                nodata_method=nodata_method,
+                nodata_value=None,
+                ignore_color_table=True,
+                band_indices=band_indices,
+                gdalkw=gdalkw,
+            )
+            log_label = 'gdal-upstream-fallback-read'
+
+        debug_array_event(
+            log_label,
+            imdata,
+            fpath=os.path.basename(os.fspath(self.fpath)),
+            overview=self.overview,
+            band_list=list(b + 1 for b in band_indices),
+            xoff=gdalkw['xoff'],
+            yoff=gdalkw['yoff'],
+            xsize=gdalkw['win_xsize'],
+            ysize=gdalkw['win_ysize'],
+            nodata_method=nodata_method,
+        )
+        return imdata
 
     @classmethod
     def demo(cls, key='astro', dsize=None):
@@ -770,47 +994,17 @@ class LazyGDalFrameFile(ub.NiceRepr):
                     nodata_method=nodata_method,
                 )
             except Exception:
-                from kwimage.im_io import _gdal_read
-                gdal_dset = ds
-                ignore_color_table = True
-                overview = self.overview
-                imdata, _ = _gdal_read(gdal_dset=gdal_dset, overview=overview,
-                                       nodata_method=nodata_method,
-                                       nodata_value=None,
-                                       ignore_color_table=ignore_color_table,
-                                       band_indices=band_indices, gdalkw=gdalkw)
-                debug_array_event(
-                    'gdal-fallback-read',
-                    imdata,
-                    fpath=os.path.basename(os.fspath(self.fpath)),
-                    overview=self.overview,
-                    band_list=list(b + 1 for b in band_indices),
-                    xoff=gdalkw['xoff'],
-                    yoff=gdalkw['yoff'],
-                    xsize=gdalkw['win_xsize'],
-                    ysize=gdalkw['win_ysize'],
+                imdata = self._compat_gdal_read(
+                    ds=ds,
+                    band_indices=band_indices,
+                    gdalkw=gdalkw,
                     nodata_method=nodata_method,
                 )
         else:
-            from kwimage.im_io import _gdal_read
-            gdal_dset = ds
-            ignore_color_table = True
-            overview = self.overview
-            imdata, _ = _gdal_read(gdal_dset=gdal_dset, overview=overview,
-                                   nodata_method=nodata_method,
-                                   nodata_value=None,
-                                   ignore_color_table=ignore_color_table,
-                                   band_indices=band_indices, gdalkw=gdalkw)
-            debug_array_event(
-                'gdal-fallback-read',
-                imdata,
-                fpath=os.path.basename(os.fspath(self.fpath)),
-                overview=overview,
-                band_indices=list(band_indices),
-                xoff=gdalkw['xoff'],
-                yoff=gdalkw['yoff'],
-                xsize=gdalkw['win_xsize'],
-                ysize=gdalkw['win_ysize'],
+            imdata = self._compat_gdal_read(
+                ds=ds,
+                band_indices=band_indices,
+                gdalkw=gdalkw,
                 nodata_method=nodata_method,
             )
         return imdata

@@ -18,6 +18,12 @@ Include the GDAL / COG-style patch sampling cases:
 python dev/benchmarks/compare_branches.py compare --refs origin/main HEAD --include-gdal
 ```
 
+Compare `origin/main` against the current working tree, including uncommitted changes:
+
+```bash
+python dev/benchmarks/compare_branches.py compare --refs origin/main WORKTREE --include-gdal
+```
+
 Outputs are written under `dev/benchmarks/results/compare-<timestamp>/`:
 
 - `comparison.json`: raw measurements and metadata
