@@ -94,10 +94,11 @@ def test_issue4():
         so we just need to ensure the divide by zero doesn't happen.
 
     """
-    from delayed_image import DelayedChannelConcat
-    import delayed_image
     import kwimage
     import numpy as np
+
+    import delayed_image
+    from delayed_image import DelayedChannelConcat
 
     try:
         import osgeo
@@ -155,8 +156,9 @@ def test_clipped_negative_slice():
 
 
 def test_oob_crop_after_load():
-    import delayed_image
     import ubelt as ub
+
+    import delayed_image
     from delayed_image.helpers import mkslice
 
     base = delayed_image.DelayedLoad.demo(dsize=(256, 256))

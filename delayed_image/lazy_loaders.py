@@ -6,15 +6,16 @@ syntax
 from __future__ import annotations
 
 import os
+from collections import OrderedDict
+from os.path import exists, join
 from typing import Any
 
-import ubelt as ub
-import numpy as np
 import kwimage  # type: ignore[import-not-found]
+import numpy as np
+import ubelt as ub
+
 from delayed_image.constants import DEBUG_ARRAY_EVENTS, GDAL_FAST_PATH
 from delayed_image.debug_utils import debug_array_event
-from os.path import join, exists
-from collections import OrderedDict
 
 cache: Any = getattr(__import__('functools'), 'cache', ub.memoize)
 
@@ -286,8 +287,9 @@ class LazySpectralFrameFile(ub.NiceRepr):
 
     @ub.memoize_property
     def _ds(self):
-        import spectral  # type: ignore[import-not-found]
         from os.path import exists
+
+        import spectral  # type: ignore[import-not-found]
 
         if not exists(self.fpath):
             raise Exception('File does not exist: {}'.format(self.fpath))
@@ -401,8 +403,9 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
 
     @ub.memoize_property
     def _ds(self):
-        import rasterio  # type: ignore[import-not-found]
         from os.path import exists
+
+        import rasterio  # type: ignore[import-not-found]
 
         if not exists(self.fpath):
             raise Exception('File does not exist: {}'.format(self.fpath))
@@ -789,7 +792,9 @@ class LazyGDalFrameFile(ub.NiceRepr):
             )
             log_label = 'gdal-vendored-read'
         except Exception:
-            from kwimage.im_io import _gdal_read  # type: ignore[import-not-found]
+            from kwimage.im_io import (
+                _gdal_read,  # type: ignore[import-not-found]
+            )
 
             imdata, _ = _gdal_read(
                 gdal_dset=ds,

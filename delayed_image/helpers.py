@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-import kwimage  # type: ignore[import-not-found]
-import ubelt as ub
-import numpy as np
 import math
+
+import kwimage  # type: ignore[import-not-found]
+import numpy as np
+import ubelt as ub
+
 from delayed_image.constants import DEBUG_ARRAY_EVENTS
 from delayed_image.debug_utils import debug_array_event
 from delayed_image.util import util_network_text
-
 
 write_network_text = util_network_text.write_network_text
 

@@ -53,8 +53,8 @@ def demo_itk_backend():
         row['result_itk'] = result_itk
         results.append(row)
 
-    import kwplot
     import kwimage
+    import kwplot
 
     kwplot.autompl()
 

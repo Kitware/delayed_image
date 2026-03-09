@@ -29,8 +29,8 @@ SeeAlso:
 
 """
 
-import numpy as np
 import kwimage
+import numpy as np
 
 
 def main():
@@ -74,8 +74,8 @@ def main():
     )[0, :, :, 0].numpy()
 
     import pandas as pd
-    import ubelt as ub
     import rich
+    import ubelt as ub
 
     df = pd.DataFrame(ub.udict(results).map_values(lambda x: x.ravel()))
     rich.print(df.to_string())
@@ -126,8 +126,8 @@ def new_coordinate_understanding():
         If we are using integer-corners then the slice [0:10, 0:10]
         corresponds to coordinates [0.0, 10.0], [0.0, 10.0]
     """
-    import kwplot
     import kwimage
+    import kwplot
     import numpy as np
 
     kwplot.autompl()

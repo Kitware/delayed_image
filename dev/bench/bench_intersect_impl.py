@@ -1,6 +1,7 @@
 def simple_benchmark():
-    from delayed_image.channel_spec import FusedChannelSpec
     import ubelt as ub
+
+    from delayed_image.channel_spec import FusedChannelSpec
 
     self = FusedChannelSpec.coerce('red|green|blue').normalize()
     other = FusedChannelSpec.coerce('red|green|blue').normalize()

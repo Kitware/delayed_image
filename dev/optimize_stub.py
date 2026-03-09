@@ -2,11 +2,15 @@
 Stub that lays out the current structure of optimize calls.
 """
 
-import ubelt as ub
 import copy
-from delayed_image.delayed_nodes import ImageOpsMixin
-from delayed_image.delayed_nodes import DelayedConcat
-from delayed_image.delayed_nodes import DelayedArray
+
+import ubelt as ub
+
+from delayed_image.delayed_nodes import (
+    DelayedArray,
+    DelayedConcat,
+    ImageOpsMixin,
+)
 
 
 class DelayedChannelConcat(ImageOpsMixin, DelayedConcat):

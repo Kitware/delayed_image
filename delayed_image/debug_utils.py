@@ -8,6 +8,7 @@ import json
 import os
 
 import numpy as np
+
 from delayed_image.constants import DEBUG_ARRAY_EVENTS
 
 

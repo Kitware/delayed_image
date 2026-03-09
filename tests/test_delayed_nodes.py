@@ -21,18 +21,18 @@ def test_crop_optimize_issue():
     """
     # from delayed_image import demo
     # demo.non_aligned_leafs()
-    import delayed_image
     import numpy as np
-
     import pytest
+
+    import delayed_image
 
     try:
         from osgeo import gdal  # NOQA
     except ImportError:
         pytest.skip()
 
-    import ubelt as ub
     import kwimage
+    import ubelt as ub
 
     dpath = ub.Path.appdir('delayed_image/tests/test_crop_optimize_issue')
     dpath.ensuredir()
@@ -98,9 +98,10 @@ def test_lazy_warp_with_explicit_dsize():
     Test that this is fixed. This error showed up in the geowatch msi example
     when doing kwcoco msi image generation.
     """
-    import ubelt as ub
-    import numpy as np
     import kwimage
+    import numpy as np
+    import ubelt as ub
+
     from delayed_image import DelayedLoad
 
     dpath = ub.Path.appdir('delayed_image/tests/lazy_warp_with_explicit_dsize')

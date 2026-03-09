@@ -24,7 +24,6 @@ import sys
 import textwrap
 import time
 
-
 SCRIPT_FPATH = pathlib.Path(__file__).resolve()
 REPO_DPATH = SCRIPT_FPATH.parents[2]
 BENCH_DPATH = REPO_DPATH / 'dev' / 'benchmarks'
@@ -447,8 +446,9 @@ def build_gdal_benchmark_cases(delayed_image, kwimage, np):
 
 
 def build_benchmark_cases(include_gdal: bool = False):
-    import numpy as np
     import kwimage
+    import numpy as np
+
     import delayed_image
 
     rng = np.random.default_rng(0)

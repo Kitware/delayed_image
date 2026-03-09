@@ -22,8 +22,9 @@ def test_off_by_one_with_upscale():
 
 
 def test_off_by_one_with_multi_scale():
-    import delayed_image
     import numpy as np
+
+    import delayed_image
 
     delayed = delayed_image.DelayedLoad.demo(key='astro').prepare()
 
@@ -67,9 +68,10 @@ def test_off_by_one_with_small_img():
         ~/code/kwimage/kwimage/im_cv2.py
 
     """
-    import delayed_image
     import kwimage
     import numpy as np
+
+    import delayed_image
 
     raw = np.linspace(0, 1, 36).reshape(6, 6)
     delayed = delayed_image.DelayedIdentity(raw)

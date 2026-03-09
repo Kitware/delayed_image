@@ -2,9 +2,9 @@ from __future__ import annotations
 
 
 def non_aligned_leafs():
-    from delayed_image import DelayedLoad
-    from delayed_image import DelayedChannelConcat
     import numpy as np
+
+    from delayed_image import DelayedChannelConcat, DelayedLoad
 
     base = (
         DelayedLoad.demo(channels='r|g|b')

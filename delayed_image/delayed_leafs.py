@@ -3,12 +3,14 @@ Terminal nodes
 """
 
 from __future__ import annotations
+
+import warnings
+
 import kwarray
 import kwimage  # type: ignore[import-not-found]
 import numpy as np
-import warnings
-from delayed_image import delayed_nodes
-from delayed_image import delayed_base
+
+from delayed_image import delayed_base, delayed_nodes
 
 TRACE_OPTIMIZE = delayed_nodes.TRACE_OPTIMIZE
 

@@ -132,11 +132,11 @@ Example:
 """
 import abc
 import functools
+import warnings
 from typing import Any, cast
 
 import numpy as np
 import ubelt as ub
-import warnings
 
 
 class BaseChannelSpec:

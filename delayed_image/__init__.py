@@ -305,20 +305,11 @@ __protected__ = [
 ]
 
 
-from delayed_image import delayed_base
-from delayed_image import delayed_leafs
-from delayed_image import delayed_nodes
-from delayed_image import helpers
-
+from delayed_image import delayed_base, delayed_leafs, delayed_nodes, helpers
 from delayed_image.channel_spec import (
     ChannelSpec,
     FusedChannelSpec,
 )
-from delayed_image.sensorchan_spec import (
-    SensorChanSpec,
-    FusedSensorChanSpec,
-)
-
 from delayed_image.delayed_base import (
     DelayedNaryOperation,
     DelayedOperation,
@@ -344,6 +335,10 @@ from delayed_image.delayed_nodes import (
     DelayedStack,
     DelayedWarp,
     ImageOpsMixin,
+)
+from delayed_image.sensorchan_spec import (
+    FusedSensorChanSpec,
+    SensorChanSpec,
 )
 
 __all__ = [

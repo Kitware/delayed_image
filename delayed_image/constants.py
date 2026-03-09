@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 
-
 TRACE_OPTIMIZE = 0
 IS_DEVELOPING = 0
 DEBUG_ARRAY_EVENTS = int(

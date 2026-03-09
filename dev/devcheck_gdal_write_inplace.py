@@ -17,8 +17,8 @@ windowed write it ...
 oh, if I use r+ mode, it seems to work
 """
 
-import numpy as np
 import kwimage
+import numpy as np
 
 data = np.zeros((2048, 2048), dtype=np.uint8) + 1
 

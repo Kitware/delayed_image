@@ -61,8 +61,9 @@ def mwe_issue_3():
         Load channels=Site Preparation|Active Construction|Post Construction|No Activity,dsize=(1140,554),nodata_method=float,num_overviews=2,fname=crop__b54cf76afea0535b.tif
     """
 
-    import delayed_image
     import kwimage
+
+    import delayed_image
     from delayed_image import DelayedChannelConcat
 
     delayed_image.delayed_nodes.TRACE_OPTIMIZE = 0

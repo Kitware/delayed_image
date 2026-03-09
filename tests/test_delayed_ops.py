@@ -102,8 +102,9 @@ def test_static_operation_optimize_single_chain():
             before applying any sort of warping interpolation.
     """
 
-    from delayed_image.delayed_leafs import DelayedLoad
     import kwimage
+
+    from delayed_image.delayed_leafs import DelayedLoad
 
     try:
         import osgeo  # NOQA

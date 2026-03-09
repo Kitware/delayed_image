@@ -2,11 +2,12 @@ def demo_simple_tree():
     """
     This shows a simple tree of image operations
     """
-    from delayed_image import DelayedChannelConcat
-    import delayed_image
     import kwimage
     import numpy as np
     import ubelt as ub
+
+    import delayed_image
+    from delayed_image import DelayedChannelConcat
 
     r = delayed_image.DelayedLoad.demo(
         channels='rgb', overviews=3, dsize=(256, 256)

@@ -3,19 +3,20 @@ Intermediate operations
 """
 
 from __future__ import annotations
+
+import copy
+import os
+import threading
+import warnings
 from collections.abc import Iterable as IterableABC
 from typing import TYPE_CHECKING, cast
 
 import kwarray
 import kwimage  # type: ignore[import-not-found]
-import copy
-import os
 import numpy as np
-import threading
 import ubelt as ub
-import warnings
-from delayed_image import delayed_base
-from delayed_image import delayed_leafs
+
+from delayed_image import delayed_base, delayed_leafs
 from delayed_image.channel_spec import FusedChannelSpec
 from delayed_image.constants import IS_DEVELOPING, TRACE_OPTIMIZE
 

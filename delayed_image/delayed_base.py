@@ -3,6 +3,7 @@ Abstract nodes
 """
 
 from __future__ import annotations
+
 from collections.abc import Generator, Iterable
 from types import ModuleType
 from typing import Any
@@ -271,9 +272,10 @@ class DelayedOperation:
         """
         A flat list of all descendent nodes and their parents
         """
-        import networkx as nx
         import itertools as it
         import math
+
+        import networkx as nx
 
         counter = it.count(0)
         graph = nx.DiGraph()

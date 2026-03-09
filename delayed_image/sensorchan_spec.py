@@ -15,11 +15,11 @@ Example:
 
 from __future__ import annotations
 
-import ubelt as ub
-import itertools as it
 import functools
+import itertools as it
 from typing import Any, cast
 
+import ubelt as ub
 
 _cache: Any
 try:

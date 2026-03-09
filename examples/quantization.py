@@ -2,8 +2,9 @@
 Demo for how to treat a uint8 0-255 image on disk as if it was a float32 0-1 image.
 """
 
-import delayed_image
 import kwimage
+
+import delayed_image
 
 # Grab a test image
 fpath = kwimage.grab_test_image_fpath('amazon')

@@ -46,9 +46,10 @@ def fuzz_test_itk_warp():
     """
     skip_if_missing_itk()
 
-    import numpy as np
-    from delayed_image import DelayedLoad
     import kwimage
+    import numpy as np
+
+    from delayed_image import DelayedLoad
 
     self = DelayedLoad.demo().prepare()
 

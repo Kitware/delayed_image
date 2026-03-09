@@ -10,6 +10,7 @@ def test_vendored_gdal_read_matches_kwimage_reference(tmp_path):
 
     import kwimage
     from kwimage.im_io import _gdal_read
+
     from delayed_image.lazy_loaders import (
         LazyGDalFrameFile,
         _gdal_read_kwimage_compatible,
@@ -98,6 +99,7 @@ def test_lazy_gdal_multiband_overview_matches_reference(tmp_path):
 
     import kwimage
     from kwimage.im_io import _gdal_read
+
     from delayed_image.lazy_loaders import LazyGDalFrameFile
 
     rng = np.random.default_rng(0)

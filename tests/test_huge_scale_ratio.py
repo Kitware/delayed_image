@@ -14,8 +14,9 @@ def test_100x_scale_difference():
         https://forum.opencv.org/t/adapting-cv2-warpaffine-from-integer-corners-to-integer-centers-convention/15027/3
         https://ppwwyyxx.com/blog/2021/Where-are-Pixels/
     """
-    import delayed_image
     import kwimage
+
+    import delayed_image
     # import numpy as np
 
     def fancy_checkerboard(dsize, num_squares):
@@ -143,8 +144,9 @@ def test_100x_scale_difference():
         # Note the matplotlib grid (which has the center of the top left pixel
         # at 0,0) and the top left point is -0.5,-0.5, and the "delayed image
         # grid" might not agree
-        import kwplot
         import functools
+
+        import kwplot
 
         kwplot.autompl()
 

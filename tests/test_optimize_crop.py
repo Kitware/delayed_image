@@ -27,8 +27,9 @@ def test_optimize_crop_without_clip_reproduction():
             ╽
             Load channels=red|green|blue,dsize=(4032,3024),nodata_method=float,num_overviews=3,fname=PXL_20210127_145659342.jpg
     """
-    import delayed_image
     import kwimage
+
+    import delayed_image
 
     try:
         import osgeo
@@ -63,8 +64,9 @@ def test_optimize_crop_without_clip_simplified():
     """
     This reproduces a simplified minimal version of the issue
     """
-    import delayed_image
     import kwimage
+
+    import delayed_image
 
     try:
         import osgeo
@@ -90,8 +92,9 @@ def test_optimize_crop_without_clip_minimal():
     """
     Minimal operations that caused the issue
     """
-    import delayed_image
     import kwimage
+
+    import delayed_image
 
     try:
         import osgeo
