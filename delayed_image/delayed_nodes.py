@@ -35,7 +35,6 @@ def _warp_affine_matrix_mode(dtype=np.float32, backend='auto'):
         Different kwimage / backend stacks have shown incompatible transform
         conventions in practice. We probe behavior once and memoize.
     """
-    global _WARP_AFFINE_MATRIX_MODE
     key = (backend, np.dtype(dtype).str)
     if key in _WARP_AFFINE_MATRIX_MODE:
         return _WARP_AFFINE_MATRIX_MODE[key]

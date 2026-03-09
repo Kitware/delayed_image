@@ -3,9 +3,6 @@ Terminal nodes
 """
 
 from __future__ import annotations
-
-from typing import cast
-
 import kwarray
 import kwimage  # type: ignore[import-not-found]
 import numpy as np
