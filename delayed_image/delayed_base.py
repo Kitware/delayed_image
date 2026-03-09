@@ -1,6 +1,7 @@
 """
 Abstract nodes
 """
+from __future__ import annotations
 import numpy as np
 import ubelt as ub
 
@@ -11,6 +12,18 @@ except Exception:
 
 # Flag to evaluate if slots are helping us at all
 USE_SLOTS = True
+
+
+# Per-call optimization context
+class OptimizeContext:
+    """
+    Holds per-call optimization state to avoid repeated work.
+    """
+    if USE_SLOTS:
+        __slots__ = ('memo',)
+
+    def __init__(self):
+        self.memo = {}
 
 
 # from kwcoco.util.util_monkey import Reloadable  # NOQA
@@ -385,7 +398,7 @@ class DelayedOperation:
         # final = np.asanyarray(final) # does not work with xarray
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedOperation

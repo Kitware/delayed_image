@@ -1,0 +1,43 @@
+Antialias / warp weirdness notes (2026-02-02)
+===========================================
+
+Observed symptom
+----------------
+- In some environments (notably min requirement stacks), nearest-neighbor
+  upscales in DelayedWarp can produce outputs dominated by a single value
+  plus NaNs (e.g. [0.8, nan, nan, ...]) instead of reproducing all source
+  pixel values.
+
+Likely root causes
+------------------
+1) Transform convention mismatch:
+   - delayed_image stores a forward transform (input->output semantics)
+   - kwimage.warp_affine convention appears to vary across versions/backends
+     (some behave like output->input expected matrix, others like forward)
+   - if the wrong convention is used, sampling goes mostly out-of-bounds,
+     yielding NaN-heavy outputs.
+
+2) Antialias interaction with nearest:
+   - nearest interpolation should not be antialiased.
+   - if antialias is left on (or inferred oddly), behavior can differ by
+     backend/version and produce unexpected interpolation/border artifacts.
+
+3) Crop<->warp optimizer rewrite sensitivity:
+   - moving crop across warp can amplify convention/rounding edge cases and
+     introduce off-by-one border artifacts.
+
+Mitigations applied
+-------------------
+- Keep nearest interpolation antialias disabled.
+- Force inverse-matrix mapping for kwimage.warp_affine to preserve delayed_image
+  behavior parity across environments.
+- Keep crop-after-warp ordering in optimize (avoid rewrite) to preserve
+  behavior parity and avoid subtle border shifts.
+
+Future cleanup ideas
+--------------------
+- Add explicit compatibility matrix in CI over kwimage + numpy + cv2 combos.
+- Consider centralizing transform-convention conversion in one helper with
+  dedicated tests.
+- Add a dedicated regression test that asserts nearest-upscale preserves
+  source unique values (no NaN fill) for float inputs.

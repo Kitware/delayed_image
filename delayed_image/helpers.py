@@ -2,10 +2,50 @@ import kwimage
 import ubelt as ub
 import numpy as np
 import math
+from delayed_image.constants import DEBUG_ARRAY_EVENTS
+from delayed_image.debug_utils import debug_array_event
 from delayed_image.util import util_network_text
 
 
 write_network_text = util_network_text.write_network_text
+
+
+def _scalar_is_representable_in_dtype(value, dtype):
+    dtype = np.dtype(dtype)
+    kind = dtype.kind
+    if kind == 'b':
+        return value in {False, True, 0, 1}
+    if kind in {'u', 'i'}:
+        if isinstance(value, (float, np.floating)) and not float(value).is_integer():
+            return False
+        try:
+            ival = int(value)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        info = np.iinfo(dtype)
+        return info.min <= ival <= info.max
+    if kind == 'f':
+        try:
+            fval = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        if not math.isfinite(fval):
+            return True
+        info = np.finfo(dtype)
+        return -info.max <= fval <= info.max
+    if kind == 'c':
+        try:
+            cval = complex(value)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        if not math.isfinite(cval.real) or not math.isfinite(cval.imag):
+            return True
+        info = np.finfo(dtype)
+        return (
+            -info.max <= cval.real <= info.max and
+            -info.max <= cval.imag <= info.max
+        )
+    return True
 
 
 def _auto_dsize(transform, sub_dsize):
@@ -423,11 +463,32 @@ def dequantize(quant_data, quantization):
         scale = 0
     else:
         scale = (orig_extent / quant_extent)
+    if DEBUG_ARRAY_EVENTS:
+        debug_array_event(
+            'dequantize-input',
+            quant_data,
+            orig_dtype=str(orig_dtype),
+            orig_min=orig_min,
+            orig_max=orig_max,
+            quant_min=quant_min,
+            quant_max=quant_max,
+            nodata=nodata,
+        )
     dequant = quant_data.astype(orig_dtype)
     dequant = (dequant - quant_min) * scale + orig_min
     if nodata is not None:
-        mask = quant_data == nodata
-        dequant[mask] = np.nan
+        if _scalar_is_representable_in_dtype(nodata, quant_data.dtype):
+            if DEBUG_ARRAY_EVENTS:
+                debug_array_event('dequantize-before-mask', quant_data, nodata=nodata)
+            mask = quant_data == nodata
+            dequant[mask] = np.nan
+        else:
+            if DEBUG_ARRAY_EVENTS:
+                debug_array_event(
+                    'dequantize-skip-unrepresentable-nodata',
+                    quant_data,
+                    nodata=nodata,
+                )
     return dequant
 
 

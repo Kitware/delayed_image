@@ -3,6 +3,7 @@ from os import PathLike
 from typing import Tuple
 from _typeshed import Incomplete
 from delayed_image.delayed_nodes import DelayedImage
+from delayed_image.delayed_base import OptimizeContext
 
 from delayed_image.channel_spec import FusedChannelSpec
 
@@ -14,7 +15,7 @@ class DelayedImageLeaf(DelayedImage):
     def get_transform_from_leaf(self) -> kwimage.Affine:
         ...
 
-    def optimize(self):
+    def optimize(self, ctx: OptimizeContext | None = None):
         ...
 
 

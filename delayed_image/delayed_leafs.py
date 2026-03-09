@@ -1,6 +1,7 @@
 """
 Terminal nodes
 """
+from __future__ import annotations
 
 import kwarray
 import kwimage
@@ -30,9 +31,15 @@ class DelayedImageLeaf(delayed_nodes.DelayedImage):
         """
         return kwimage.Affine.eye()
 
-    def optimize(self):
+    def optimize(self, ctx=None):
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        if self in memo:
+            return memo[self]
         if TRACE_OPTIMIZE:
             self._opt_logs.append('optimize DelayedImageLeaf')
+        memo[self] = self
         return self
 
 

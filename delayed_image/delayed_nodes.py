@@ -1,15 +1,19 @@
 """
 Intermediate operations
 """
+from __future__ import annotations
 import kwarray
 import kwimage
 import copy
+import os
 import numpy as np
+import threading
 import ubelt as ub
 import warnings
 from delayed_image import delayed_base
 from delayed_image import delayed_leafs
 from delayed_image.channel_spec import FusedChannelSpec
+from delayed_image.constants import IS_DEVELOPING, TRACE_OPTIMIZE
 
 # --------
 # Stacking
@@ -20,8 +24,60 @@ from delayed_image.delayed_leafs import DelayedIdentity
 from delayed_image.delayed_base import DelayedOperation
 """
 
-TRACE_OPTIMIZE = 0  # TODO: make this a local setting
-IS_DEVELOPING = 0  # set to 1 if hacking in IPython, otherwise 0 for efficiency
+_WARP_AFFINE_MATRIX_MODE = {}
+_WARP_AFFINE_MATRIX_MODE_LOCK = threading.Lock()
+
+
+def _warp_affine_matrix_mode(dtype=np.float32, backend='auto'):
+    """
+    Determine if ``kwimage.warp_affine`` expects a forward or inverse matrix.
+
+    Notes:
+        Different kwimage / backend stacks have shown incompatible transform
+        conventions in practice. We probe behavior once and memoize.
+    """
+    global _WARP_AFFINE_MATRIX_MODE
+    key = (backend, np.dtype(dtype).str)
+    if key in _WARP_AFFINE_MATRIX_MODE:
+        return _WARP_AFFINE_MATRIX_MODE[key]
+
+    with _WARP_AFFINE_MATRIX_MODE_LOCK:
+        if key in _WARP_AFFINE_MATRIX_MODE:
+            return _WARP_AFFINE_MATRIX_MODE[key]
+
+        # Canonical nearest-upscale case for the current dtype.
+        src = np.linspace(0, 1, 36, dtype=np.dtype(dtype)).reshape(6, 6)
+        transform = kwimage.Affine.coerce(offset=(0, 0), scale=(8.6, 8.5))
+        dsize = (52, 51)
+        candidates = {
+            'forward': np.asarray(transform),
+            'inverse': np.asarray(transform.inv()),
+        }
+
+        mode_scores = {}
+        for mode, M in candidates.items():
+            try:
+                warped = kwimage.warp_affine(
+                    src, M, dsize=dsize,
+                    interpolation='nearest',
+                    antialias=False,
+                    border_value=(np.nan,),
+                    origin_convention='corner',
+                    backend=backend,
+                )
+            except Exception:
+                mode_scores[mode] = (-np.inf, -np.inf)
+                continue
+            finite = np.isfinite(warped)
+            finite_ratio = finite.mean()
+            unique_count = np.unique(warped[finite]).size if finite.any() else 0
+            mode_scores[mode] = (finite_ratio, unique_count)
+
+        mode = max(mode_scores.items(), key=lambda kv: kv[1])[0]
+        _WARP_AFFINE_MATRIX_MODE[key] = mode
+        return mode
+
+
 
 
 class DelayedArray(delayed_base.DelayedUnaryOperation):
@@ -658,16 +714,28 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             final = np.concatenate(stack, axis=2)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
         """
-        new_parts = [part.optimize() for part in self.parts]
-        kw = ub.dict_isect(self.meta, ['dsize'])
-        new = self.__class__(new_parts, **kw)
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        if self in memo:
+            return memo[self]
+        new_parts = [part.optimize(ctx) for part in self.parts]
+        if all(p is o for p, o in zip(new_parts, self.parts)):
+            new = self
+        else:
+            kw = ub.dict_isect(self.meta, ['dsize'])
+            try:
+                new = self.__class__(new_parts, **kw)
+            except CoordinateCompatibilityError:
+                new = self
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedChannelConcat')
+        memo[self] = new
         return new
 
     def take_channels(self, channels, missing_channel_policy='return_nan'):
@@ -1304,9 +1372,13 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
         """
         Push this node under its child node if it is a concatenation operation
         """
-        assert isinstance2(self.subdata, DelayedChannelConcat)
+        if not isinstance2(self.subdata, DelayedChannelConcat):
+            return self
         kwargs = ub.compatible(self.meta, self.__class__.__init__)
-        new = self.subdata._push_operation_under(self.__class__, kwargs)
+        try:
+            new = self.subdata._push_operation_under(self.__class__, kwargs)
+        except CoordinateCompatibilityError:
+            return self
         if TRACE_OPTIMIZE:
             new._opt_logs.append('_opt_push_under_concat')
         return new
@@ -1452,14 +1524,24 @@ class DelayedAsXarray(DelayedImage):
         final = xr.DataArray(subfinal, dims=('y', 'x', 'c'), coords=coords)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
         """
-        new = self.subdata.optimize().as_xarray()
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        if self in memo:
+            return memo[self]
+        new_subdata = self.subdata.optimize(ctx)
+        if new_subdata is self.subdata:
+            new = self
+        else:
+            new = new_subdata.as_xarray()
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedAsXarray')
+        memo[self] = new
         return new
 
 
@@ -1590,20 +1672,183 @@ class DelayedWarp(DelayedImage):
         from delayed_image.helpers import _ensure_valid_dsize
         dsize = _ensure_valid_dsize(dsize)
 
-        M = np.asarray(transform)
-        final = kwimage.warp_affine(prewarp, M, dsize=dsize,
-                                    interpolation=interpolation,
-                                    antialias=antialias,
-                                    border_value=border_value,
-                                    origin_convention='corner',
-                                    backend=backend,
-                                    )
+        params = None
+        if interpolation == 'nearest' or bool(antialias):
+            params = transform.decompose()
+
+        # Deterministic nearest path for translated axis-aligned affines.
+        # Pure positive scales use the imresize fastpath below, which is
+        # substantially faster than the generic NumPy sampler.
+        if interpolation == 'nearest':
+            theta = abs(float(params.get('theta', 0)))
+            shearx = abs(float(params.get('shearx', 0)))
+            sx, sy = map(float, params['scale'])
+            tx, ty = map(float, params.get('offset', (0, 0)))
+            is_axis_aligned = (
+                theta < 1e-9 and shearx < 1e-9 and sx > 0 and sy > 0
+            )
+            has_translation = abs(tx) > 1e-9 or abs(ty) > 1e-9
+            if is_axis_aligned and has_translation and not isinstance(border_value, str):
+                out_w, out_h = map(int, dsize)
+                in_h, in_w = prewarp.shape[0:2]
+                x_in = (np.arange(out_w) - tx) / sx
+                y_in = (np.arange(out_h) - ty) / sy
+                xi = np.floor(x_in).astype(int)
+                yi = np.floor(y_in).astype(int)
+                valid_x = (xi >= 0) & (xi < in_w)
+                valid_y = (yi >= 0) & (yi < in_h)
+                valid = valid_y[:, None] & valid_x[None, :]
+
+                fill = border_value[0] if ub.iterable(border_value) else border_value
+                if prewarp.ndim == 2:
+                    final = np.full((out_h, out_w), fill, dtype=prewarp.dtype)
+                    if valid.any():
+                        yy = yi[:, None]
+                        xx = xi[None, :]
+                        final[valid] = prewarp[yy, xx][valid]
+                else:
+                    num_chan = prewarp.shape[2]
+                    final = np.full((out_h, out_w, num_chan), fill, dtype=prewarp.dtype)
+                    if valid.any():
+                        yy = yi[:, None]
+                        xx = xi[None, :]
+                        sampled = prewarp[yy, xx]
+                        final[valid, :] = sampled[valid, :]
+                if os.environ.get('DELAYED_IMAGE_WARP_DEBUG', ''):
+                    print('DelayedWarp nearest axis-aligned fastpath:', {
+                        'dtype': str(prewarp.dtype),
+                        'backend': backend,
+                        'scale': (sx, sy),
+                        'offset': (tx, ty),
+                    })
+                final = kwarray.atleast_nd(final, 3, front=False)
+                return final
+
+        # delayed_image stores forward transforms, but kwimage.warp_affine
+        # matrix semantics differ across some dependency stacks.
+        matrix_mode = _warp_affine_matrix_mode(dtype=prewarp.dtype, backend=backend)
+        if matrix_mode == 'forward':
+            M = np.asarray(transform)
+            alt_M = np.asarray(transform.inv())
+        else:
+            M = np.asarray(transform.inv())
+            alt_M = np.asarray(transform)
+
+
+        # Determine antialiasing from the forward transform semantics.
+        # (Passing the inverse transform directly would invert this heuristic.)
+        # Also, nearest-neighbor interpolation should never use antialiasing.
+        if interpolation == 'nearest':
+            use_antialias = False
+        elif bool(antialias):
+            sx, sy = params['scale']
+            use_antialias = (sx < 1) or (sy < 1)
+        else:
+            use_antialias = False
+
+        warp_border_value = border_value
+        if (interpolation == 'nearest' and prewarp.dtype.kind == 'f' and
+                isinstance(border_value, tuple) and len(border_value) == 1 and
+                np.isnan(border_value[0])):
+            # Some runtime stacks handle scalar NaN border values more
+            # consistently than 1-tuple NaN for nearest interpolation.
+            warp_border_value = np.nan
+
+        if interpolation == 'nearest':
+            theta = abs(float(params.get('theta', 0)))
+            shearx = abs(float(params.get('shearx', 0)))
+            sx, sy = params['scale']
+            tx, ty = params['offset']
+            is_near_scale_only = (
+                theta < 1e-9 and shearx < 1e-9 and
+                abs(float(tx)) < 1e-9 and abs(float(ty)) < 1e-9 and
+                sx > 0 and sy > 0
+            )
+            # Deterministic fast-path: nearest + pure positive scale should
+            # behave like nearest resize regardless of affine convention.
+            if is_near_scale_only:
+                final = kwimage.imresize(prewarp, dsize=dsize,
+                                         interpolation='nearest')
+                if os.environ.get('DELAYED_IMAGE_WARP_DEBUG', ''):
+                    print('DelayedWarp nearest matrix debug:', {
+                        'dtype': str(prewarp.dtype),
+                        'backend': backend,
+                        'matrix_mode': matrix_mode,
+                        'is_near_scale_only': is_near_scale_only,
+                        'used_imresize_fastpath': True,
+                    })
+                final = kwarray.atleast_nd(final, 3, front=False)
+                return final
+
+            # Robustness for runtime convention mismatches: evaluate both
+            # conventions and keep the better-scoring result.
+            cand1 = kwimage.warp_affine(prewarp, M, dsize=dsize,
+                                        interpolation=interpolation,
+                                        antialias=use_antialias,
+                                        border_value=warp_border_value,
+                                        origin_convention='corner',
+                                        backend=backend,
+                                        )
+            cand2 = kwimage.warp_affine(prewarp, alt_M, dsize=dsize,
+                                        interpolation=interpolation,
+                                        antialias=use_antialias,
+                                        border_value=warp_border_value,
+                                        origin_convention='corner',
+                                        backend=backend,
+                                        )
+
+            src_fin = np.isfinite(prewarp)
+            src_uniq = int(np.unique(prewarp[src_fin]).size) if src_fin.any() else 0
+
+            def _score(arr):
+                fin = np.isfinite(arr)
+                fin_ratio = float(fin.mean()) if fin.size else 0.0
+                uniq = int(np.unique(arr[fin]).size) if fin.any() else 0
+                # Prefer outputs with finite coverage and value diversity close
+                # to source for nearest-neighbor upscales.
+                uniq_gap = abs(uniq - src_uniq)
+                return (fin_ratio, -uniq_gap, uniq)
+
+            score1 = _score(cand1)
+            score2 = _score(cand2)
+            use_primary = score1 >= score2
+            final = cand1 if use_primary else cand2
+
+            # Last-resort rescue for pathological runtime stacks where both
+            # matrix conventions collapse to mostly NaNs.
+            if max(score1[0], score2[0]) < 0.05:
+                final = kwimage.imresize(prewarp, dsize=dsize,
+                                         interpolation='nearest')
+
+            if os.environ.get('DELAYED_IMAGE_WARP_DEBUG', ''):
+                print('DelayedWarp nearest matrix debug:', {
+                    'dtype': str(prewarp.dtype),
+                    'backend': backend,
+                    'matrix_mode': matrix_mode,
+                    'source_unique': src_uniq,
+                    'score_primary': score1,
+                    'score_alt': score2,
+                    'chosen': 'primary' if use_primary else 'alt',
+                    'is_near_scale_only': is_near_scale_only,
+                    'used_imresize_rescue': bool(max(score1[0], score2[0]) < 0.05),
+                    'primary_preview': np.unique(cand1)[0:8].tolist(),
+                    'alt_preview': np.unique(cand2)[0:8].tolist(),
+                })
+        else:
+            final = kwimage.warp_affine(prewarp, M, dsize=dsize,
+                                        interpolation=interpolation,
+                                        antialias=use_antialias,
+                                        border_value=warp_border_value,
+                                        origin_convention='corner',
+                                        backend=backend,
+                                        )
+
         # final = kwimage.warp_projective(sub_data_, M, dsize=dsize, flags=flags)
         # Ensure that the last dimension is channels
         final = kwarray.atleast_nd(final, 3, front=False)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
@@ -1646,8 +1891,14 @@ class DelayedWarp(DelayedImage):
             >>> assert len(self.as_graph().nodes) == 2
             >>> assert len(new.as_graph().nodes) == 1
         """
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        if self in memo:
+            return memo[self]
+
         new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
+        new.subdata = self.subdata.optimize(ctx)
         if isinstance2(new.subdata, DelayedWarp):
             new = new._opt_fuse_warps()
 
@@ -1663,22 +1914,27 @@ class DelayedWarp(DelayedImage):
             if TRACE_OPTIMIZE:
                 new._opt_logs.append('Contract identity warp')
         elif isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize()
+            pushed = new._opt_push_under_concat()
+            if pushed is not new:
+                new = pushed.optimize(ctx)
+            else:
+                new = pushed
         elif hasattr(new.subdata, '_optimized_warp'):
             # The subdata knows how to optimize itself wrt a warp
             warp_kwargs = ub.dict_isect(
                 self.meta, self._data_keys + self._algo_keys)
-            new = new.subdata._optimized_warp(**warp_kwargs).optimize()
+            new = new.subdata._optimized_warp(**warp_kwargs).optimize(ctx)
         else:
             split = new._opt_split_warp_overview()
             if new is not split:
                 new = split
-                new.subdata = new.subdata.optimize()
-                new = new.optimize()
+                new.subdata = new.subdata.optimize(ctx)
+                new = new.optimize(ctx)
             else:
                 new = new._opt_absorb_overview()
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedWarp')
+        memo[self] = new
         return new
 
     def _transform_from_subdata(self):
@@ -2091,7 +2347,7 @@ class DelayedDequantize(DelayedImage):
             final = dequantize(final, quantization)
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
 
         Returns:
@@ -2108,8 +2364,14 @@ class DelayedDequantize(DelayedImage):
             >>> self.write_network_text()
             >>> opt = self.optimize()
         """
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        if self in memo:
+            return memo[self]
+
         new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
+        new.subdata = self.subdata.optimize(ctx)
 
         if isinstance2(new.subdata, DelayedDequantize):
             raise AssertionError('Dequantization is only allowed once')
@@ -2117,12 +2379,17 @@ class DelayedDequantize(DelayedImage):
         if isinstance2(new.subdata, DelayedWarp):
             # Swap order so quantize is before the warp
             new = new._opt_dequant_before_other()
-            new = new.optimize()
+            new = new.optimize(ctx)
 
         if isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize()
+            pushed = new._opt_push_under_concat()
+            if pushed is not new:
+                new = pushed.optimize(ctx)
+            else:
+                new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedDequantize')
+        memo[self] = new
         return new
 
     def _opt_dequant_before_other(self):
@@ -2236,7 +2503,7 @@ class DelayedCrop(DelayedImage):
         self_from_subdata = kwimage.Affine.translate(offset)
         return self_from_subdata
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
@@ -2253,21 +2520,36 @@ class DelayedCrop(DelayedImage):
             >>> new.write_network_text()
             >>> assert len(new.as_graph().nodes) == 1
         """
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        if self in memo:
+            return memo[self]
+
         new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
+        new.subdata = self.subdata.optimize(ctx)
         if isinstance2(new.subdata, DelayedCrop):
             new = new._opt_fuse_crops()
 
         if hasattr(new.subdata, '_optimized_crop'):
             # The subdata knows how to optimize itself wrt this node
             crop_kwargs = ub.dict_isect(self.meta, {'space_slice', 'chan_idxs'})
-            new = new.subdata._optimized_crop(**crop_kwargs).optimize()
+            new = new.subdata._optimized_crop(**crop_kwargs).optimize(ctx)
         if isinstance2(new.subdata, DelayedWarp):
-            new = new._opt_warp_after_crop()
-            new = new.optimize()
+            # Nearest-neighbor reorderings are sensitive to pixel-center /
+            # pixel-corner conventions. Keep them in-place, but allow the
+            # rewrite for non-nearest warps where it recovers much smaller
+            # intermediates without tripping the nearest off-by-one cases.
+            interp = new.subdata.meta.get('interpolation', None)
+            if interp != 'nearest':
+                pushed = new._opt_warp_after_crop()
+                if pushed is not new:
+                    new = pushed.optimize(ctx)
+                else:
+                    new = pushed
         elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_crop()
-            new = new.optimize()
+            new = new.optimize(ctx)
 
         if isinstance2(new.subdata, DelayedChannelConcat):
             if isinstance2(new, DelayedCrop):
@@ -2282,18 +2564,27 @@ class DelayedCrop(DelayedImage):
                         _new_logs.extend(new.subdata._opt_logs)
                         _new_logs.extend(new._opt_logs)
                         _new_logs.append('concat-chan-crop-interact')
-                    taken = new.subdata.take_channels(chan_idxs).optimize()
+                    taken = new.subdata.take_channels(chan_idxs).optimize(ctx)
                 if space_slice is not None:
                     if TRACE_OPTIMIZE:
                         _new_logs.append('concat-space-crop-interact')
-                    taken = taken.crop(space_slice)._opt_push_under_concat().optimize()
+                    pushed = taken.crop(space_slice)._opt_push_under_concat()
+                    if pushed is not taken:
+                        taken = pushed.optimize(ctx)
+                    else:
+                        taken = pushed
                 new = taken
                 if TRACE_OPTIMIZE:
                     new._opt_logs.extend(_new_logs)
             else:
-                new = new._opt_push_under_concat().optimize()
+                pushed = new._opt_push_under_concat()
+                if pushed is not new:
+                    new = pushed.optimize(ctx)
+                else:
+                    new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize crop')
+        memo[self] = new
         return new
 
     def _opt_fuse_crops(self):
@@ -2427,19 +2718,75 @@ class DelayedCrop(DelayedImage):
             >>> print(ub.urepr(new_outer.nesting(), nl=-1, sort=0))
         """
         assert isinstance2(self.subdata, DelayedWarp)
+        if 0 in self.meta.get('dsize', ()):
+            return self
         # Inner is the data closer to the leaf (disk), outer is the data closer
         # to the user (output).
         outer_slices = self.meta['space_slice']
         outer_chan_idxs = self.meta['chan_idxs']
         inner_transform = self.subdata.meta['transform']
 
-        outer_region = kwimage.Boxes.from_slice(outer_slices)
-        outer_region = outer_region.to_polygons()[0]
+        # Fast path for positive axis-aligned affine transforms.
+        params = inner_transform.decompose()
+        theta = abs(float(params.get('theta', 0)))
+        shearx = abs(float(params.get('shearx', 0)))
+        sx, sy = map(float, params['scale'])
+        tx, ty = map(float, params.get('offset', (0, 0)))
+        is_axis_aligned = theta < 1e-9 and shearx < 1e-9 and sx > 0 and sy > 0
+        if is_axis_aligned:
+            src_w, src_h = self.subdata.subdata.dsize
+            sl_y, sl_x = outer_slices
+            root_x0 = 0 if sl_x.start is None else int(sl_x.start)
+            root_y0 = 0 if sl_y.start is None else int(sl_y.start)
+            root_x1 = self.dsize[0] if sl_x.stop is None else int(sl_x.stop)
+            root_y1 = self.dsize[1] if sl_y.stop is None else int(sl_y.stop)
+            root_w = max(root_x1 - root_x0, 0)
+            root_h = max(root_y1 - root_y0, 0)
 
-        from delayed_image.helpers import _swap_warp_after_crop
-        # Should origin_convention be configurable? I think no for now.
-        inner_slice, outer_transform = _swap_warp_after_crop(
-            outer_region, inner_transform, origin_convention='corner')
+            leaf_x0_f = (root_x0 - tx) / sx
+            leaf_y0_f = (root_y0 - ty) / sy
+            leaf_x1_f = (root_x1 - tx) / sx
+            leaf_y1_f = (root_y1 - ty) / sy
+            leaf_w = max(leaf_x1_f - leaf_x0_f, 0.0)
+            leaf_h = max(leaf_y1_f - leaf_y0_f, 0.0)
+
+            leaf_x0_q = max(int(np.floor(leaf_x0_f)), 0)
+            leaf_y0_q = max(int(np.floor(leaf_y0_f)), 0)
+            leaf_x1_q = min(int(np.ceil(leaf_x1_f)), src_w)
+            leaf_y1_q = min(int(np.ceil(leaf_y1_f)), src_h)
+
+            if root_w == 0:
+                padw = 0
+            else:
+                padw = int(np.ceil(leaf_w / root_w))
+            if root_h == 0:
+                padh = 0
+            else:
+                padh = int(np.ceil(leaf_h / root_h))
+
+            lt_pad_w = min(leaf_x0_q, 1)
+            lt_pad_h = min(leaf_y0_q, 1)
+            leaf_x0 = leaf_x0_q - lt_pad_w
+            leaf_y0 = leaf_y0_q - lt_pad_h
+            leaf_x1 = min(leaf_x1_q + padw, src_w)
+            leaf_y1 = min(leaf_y1_q + padh, src_h)
+
+            inner_slice = (slice(leaf_y0, leaf_y1), slice(leaf_x0, leaf_x1))
+            outer_transform = kwimage.Affine.affine(
+                scale=(sx, sy),
+                offset=(
+                    tx + sx * leaf_x0 - root_x0,
+                    ty + sy * leaf_y0 - root_y0,
+                ),
+            )
+        else:
+            outer_region = kwimage.Boxes.from_slice(outer_slices)
+            outer_region = outer_region.to_polygons()[0]
+
+            from delayed_image.helpers import _swap_warp_after_crop
+            # Should origin_convention be configurable? I think no for now.
+            inner_slice, outer_transform = _swap_warp_after_crop(
+                outer_region, inner_transform, origin_convention='corner')
 
         warp_meta = ub.dict_isect(self.meta, {'dsize'})
         warp_meta.update(ub.dict_isect(
@@ -2561,13 +2908,19 @@ class DelayedOverview(DelayedImage):
         )
         return final
 
-    def optimize(self):
+    def optimize(self, ctx=None):
         """
         Returns:
             DelayedImage
         """
+        if ctx is None:
+            ctx = delayed_base.OptimizeContext()
+        memo = ctx.memo
+        if self in memo:
+            return memo[self]
+
         new = copy.copy(self)
-        new.subdata = self.subdata.optimize()
+        new.subdata = self.subdata.optimize(ctx)
         if isinstance2(new.subdata, DelayedOverview):
             new = new._opt_fuse_overview()
 
@@ -2575,17 +2928,22 @@ class DelayedOverview(DelayedImage):
             new = new.subdata
         elif isinstance2(new.subdata, DelayedCrop):
             new = new._opt_crop_after_overview()
-            new = new.optimize()
+            new = new.optimize(ctx)
         elif isinstance2(new.subdata, DelayedWarp):
             new = new._opt_warp_after_overview()
-            new = new.optimize()
+            new = new.optimize(ctx)
         elif isinstance2(new.subdata, DelayedDequantize):
             new = new._opt_dequant_after_overview()
-            new = new.optimize()
+            new = new.optimize(ctx)
         if isinstance2(new.subdata, DelayedChannelConcat):
-            new = new._opt_push_under_concat().optimize()
+            pushed = new._opt_push_under_concat()
+            if pushed is not new:
+                new = pushed.optimize(ctx)
+            else:
+                new = pushed
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize overview')
+        memo[self] = new
         return new
 
     def _transform_from_subdata(self):
