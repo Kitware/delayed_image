@@ -3,15 +3,23 @@ Abstract nodes
 """
 from __future__ import annotations
 from collections.abc import Generator, Iterable
+from types import ModuleType
 from typing import Any
 
 import numpy as np
 import ubelt as ub
 
-try:
-    import rich as rich_mod  # type: ignore[import-not-found]
-except Exception:
-    rich_mod = None
+
+def _import_rich() -> ModuleType | None:
+    try:
+        import rich  # type: ignore[import-not-found]
+    except Exception:
+        return None
+    else:
+        return rich
+
+
+rich_mod = _import_rich()
 
 # Flag to evaluate if slots are helping us at all
 USE_SLOTS = True
