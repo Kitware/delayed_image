@@ -129,6 +129,22 @@ stages:
   - '# Get the path to the installed package and run the tests'
   - export MOD_DPATH=$(python -c "import delayed_image, os; print(os.path.dirname(delayed_image.__file__))")
   - export MOD_NAME=delayed_image
+  - export PYTHONFAULTHANDLER=1
+  - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - |-
+    python - <<'PY'
+    import sys
+    import numpy
+    print(f"PYTHON={sys.version}")
+    print(f"NUMPY={numpy.__version__}")
+    try:
+        from osgeo import gdal
+    except Exception as ex:
+        print(f"GDAL_IMPORT_ERROR={ex!r}")
+    else:
+        print(f"GDAL_VERSION={getattr(gdal, '__version__', 'unknown')}")
+        print(f"GDAL_VERSIONINFO={gdal.VersionInfo()}")
+    PY
   - |-
     echo "
     ---
@@ -208,6 +224,22 @@ stages:
   - '# Get the path to the installed package and run the tests'
   - export MOD_DPATH=$(python -c "import delayed_image, os; print(os.path.dirname(delayed_image.__file__))")
   - export MOD_NAME=delayed_image
+  - export PYTHONFAULTHANDLER=1
+  - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - |-
+    python - <<'PY'
+    import sys
+    import numpy
+    print(f"PYTHON={sys.version}")
+    print(f"NUMPY={numpy.__version__}")
+    try:
+        from osgeo import gdal
+    except Exception as ex:
+        print(f"GDAL_IMPORT_ERROR={ex!r}")
+    else:
+        print(f"GDAL_VERSION={getattr(gdal, '__version__', 'unknown')}")
+        print(f"GDAL_VERSIONINFO={gdal.VersionInfo()}")
+    PY
   - |-
     echo "
     ---
@@ -288,6 +320,22 @@ stages:
   - '# Get the path to the installed package and run the tests'
   - export MOD_DPATH=$(python -c "import delayed_image, os; print(os.path.dirname(delayed_image.__file__))")
   - export MOD_NAME=delayed_image
+  - export PYTHONFAULTHANDLER=1
+  - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - |-
+    python - <<'PY'
+    import sys
+    import numpy
+    print(f"PYTHON={sys.version}")
+    print(f"NUMPY={numpy.__version__}")
+    try:
+        from osgeo import gdal
+    except Exception as ex:
+        print(f"GDAL_IMPORT_ERROR={ex!r}")
+    else:
+        print(f"GDAL_VERSION={getattr(gdal, '__version__', 'unknown')}")
+        print(f"GDAL_VERSIONINFO={gdal.VersionInfo()}")
+    PY
   - |-
     echo "
     ---
@@ -368,6 +416,22 @@ stages:
   - '# Get the path to the installed package and run the tests'
   - export MOD_DPATH=$(python -c "import delayed_image, os; print(os.path.dirname(delayed_image.__file__))")
   - export MOD_NAME=delayed_image
+  - export PYTHONFAULTHANDLER=1
+  - export DELAYED_IMAGE_DEBUG_SEGFAULT=1
+  - |-
+    python - <<'PY'
+    import sys
+    import numpy
+    print(f"PYTHON={sys.version}")
+    print(f"NUMPY={numpy.__version__}")
+    try:
+        from osgeo import gdal
+    except Exception as ex:
+        print(f"GDAL_IMPORT_ERROR={ex!r}")
+    else:
+        print(f"GDAL_VERSION={getattr(gdal, '__version__', 'unknown')}")
+        print(f"GDAL_VERSIONINFO={gdal.VersionInfo()}")
+    PY
   - |-
     echo "
     ---

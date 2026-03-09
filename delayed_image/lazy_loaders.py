@@ -6,6 +6,7 @@ import os
 import ubelt as ub
 import numpy as np
 import kwimage
+from delayed_image.debug_utils import debug_array_event
 from os.path import join, exists
 from collections import OrderedDict
 
@@ -521,6 +522,19 @@ class LazyGDalFrameFile(ub.NiceRepr):
             else:
                 raise KeyError('nodata_method={}'.format(nodata_method))
 
+        debug_array_event(
+            'gdal-fast-read',
+            image,
+            fpath=os.path.basename(os.fspath(self.fpath)),
+            overview=self.overview,
+            band_list=band_list,
+            xoff=readkw['xoff'],
+            yoff=readkw['yoff'],
+            xsize=readkw['xsize'],
+            ysize=readkw['ysize'],
+            nodata_method=nodata_method,
+        )
+
         return image
 
     @classmethod
@@ -760,6 +774,18 @@ class LazyGDalFrameFile(ub.NiceRepr):
                                    nodata_value=None,
                                    ignore_color_table=ignore_color_table,
                                    band_indices=band_indices, gdalkw=gdalkw)
+            debug_array_event(
+                'gdal-fallback-read',
+                imdata,
+                fpath=os.path.basename(os.fspath(self.fpath)),
+                overview=overview,
+                band_indices=list(band_indices),
+                xoff=gdalkw['xoff'],
+                yoff=gdalkw['yoff'],
+                xsize=gdalkw['win_xsize'],
+                ysize=gdalkw['win_ysize'],
+                nodata_method=nodata_method,
+            )
         return imdata
 
     def __array__(self):
