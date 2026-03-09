@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import copy
 import os
-import threading
+import re
 import warnings
 from collections.abc import Iterable as IterableABC
 from typing import TYPE_CHECKING, cast
@@ -24,59 +24,75 @@ from delayed_image.constants import IS_DEVELOPING, TRACE_OPTIMIZE
 # Stacking
 # --------
 
-_WARP_AFFINE_MATRIX_MODE: dict[tuple[str, str], str] = {}
-_WARP_AFFINE_MATRIX_MODE_LOCK = threading.Lock()
+_WARP_AFFINE_KWIMAGE_WORKAROUND_WARNED = False
 
 
-def _warp_affine_matrix_mode(dtype=np.float32, backend='auto'):
+def _version_tuple(version_text: str) -> tuple[int, ...]:
     """
-    Determine if ``kwimage.warp_affine`` expects a forward or inverse matrix.
+    Parse a version string into a tuple of integers.
+    """
+    return tuple(int(part) for part in re.findall(r'\d+', version_text))
+
+
+def _cv2_warp_affine_version() -> tuple[int, ...] | None:
+    try:
+        import cv2
+    except Exception:
+        return None
+    return _version_tuple(cv2.__version__)
+
+
+def _kwimage_version() -> tuple[int, ...]:
+    return _version_tuple(getattr(kwimage, '__version__', '0'))
+
+
+def _warn_if_kwimage_may_have_upstream_workaround() -> None:
+    global _WARP_AFFINE_KWIMAGE_WORKAROUND_WARNED
+    if _WARP_AFFINE_KWIMAGE_WORKAROUND_WARNED:
+        return
+    if _kwimage_version() >= (0, 12, 0):
+        warnings.warn(
+            'Applying delayed_image OpenCV 4.13 nearest-float64 warpAffine '
+            'workaround (opencv/opencv#28554) with kwimage>=0.12.0. '
+            'Verify whether kwimage already handles this upstream.',
+            stacklevel=3,
+        )
+        _WARP_AFFINE_KWIMAGE_WORKAROUND_WARNED = True
+
+
+def _warp_affine_matrix_mode(
+    dtype=np.float32, backend='auto', interpolation='linear'
+):
+    """
+    Determine if delayed_image needs to invert the affine matrix before
+    calling ``kwimage.warp_affine``.
 
     Notes:
-        Different kwimage / backend stacks have shown incompatible transform
-        conventions in practice. We probe behavior once and memoize.
+        OpenCV 4.13 has a known regression in ``warpAffine`` for
+        ``float64`` inputs with nearest interpolation, where the matrix
+        behaves as if inverse-map mode were enabled. Restrict this
+        workaround to the affected runtime path instead of probing all
+        dtype/backend combinations.
     """
-    key = (backend, np.dtype(dtype).str)
-    if key in _WARP_AFFINE_MATRIX_MODE:
-        return _WARP_AFFINE_MATRIX_MODE[key]
+    effective_backend = backend
+    if effective_backend == 'auto':
+        cv2_version = _cv2_warp_affine_version()
+        if cv2_version is not None:
+            effective_backend = 'cv2'
+    else:
+        cv2_version = _cv2_warp_affine_version()
 
-    with _WARP_AFFINE_MATRIX_MODE_LOCK:
-        if key in _WARP_AFFINE_MATRIX_MODE:
-            return _WARP_AFFINE_MATRIX_MODE[key]
+    if (
+        effective_backend == 'cv2'
+        and interpolation == 'nearest'
+        and np.dtype(dtype) == np.dtype(np.float64)
+        and cv2_version is not None
+        and cv2_version[:2] == (4, 13)
+    ):
+        _warn_if_kwimage_may_have_upstream_workaround()
+        return 'inverse'
 
-        # Canonical nearest-upscale case for the current dtype.
-        src = np.linspace(0, 1, 36, dtype=np.dtype(dtype)).reshape(6, 6)
-        transform = kwimage.Affine.coerce(offset=(0, 0), scale=(8.6, 8.5))
-        dsize = (52, 51)
-        candidates = {
-            'forward': np.asarray(transform),
-            'inverse': np.asarray(transform.inv()),
-        }
-
-        mode_scores = {}
-        for mode, M in candidates.items():
-            try:
-                warped = kwimage.warp_affine(
-                    src,
-                    M,
-                    dsize=dsize,
-                    interpolation='nearest',
-                    antialias=False,
-                    border_value=(np.nan,),
-                    origin_convention='corner',
-                    backend=backend,
-                )
-            except Exception:
-                mode_scores[mode] = (-np.inf, -np.inf)
-                continue
-            finite = np.isfinite(warped)
-            finite_ratio = finite.mean()
-            unique_count = np.unique(warped[finite]).size if finite.any() else 0
-            mode_scores[mode] = (finite_ratio, unique_count)
-
-        mode = max(mode_scores.items(), key=lambda kv: kv[1])[0]
-        _WARP_AFFINE_MATRIX_MODE[key] = mode
-        return mode
+    return 'forward'
 
 
 class DelayedArray(delayed_base.DelayedUnaryOperation):
@@ -1821,7 +1837,7 @@ class DelayedWarp(DelayedImage):
         # delayed_image stores forward transforms, but kwimage.warp_affine
         # matrix semantics differ across some dependency stacks.
         matrix_mode = _warp_affine_matrix_mode(
-            dtype=prewarp.dtype, backend=backend
+            dtype=prewarp.dtype, backend=backend, interpolation=interpolation
         )
         if matrix_mode == 'forward':
             M = np.asarray(transform)
