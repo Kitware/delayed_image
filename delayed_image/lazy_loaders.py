@@ -6,6 +6,7 @@ import os
 import ubelt as ub
 import numpy as np
 import kwimage
+from delayed_image.constants import DEBUG_ARRAY_EVENTS, GDAL_FAST_PATH
 from delayed_image.debug_utils import debug_array_event
 from os.path import join, exists
 from collections import OrderedDict
@@ -56,13 +57,6 @@ class CacheDict(OrderedDict):
 # GLOBAL_GDAL_CACHE = CacheDict(cache_len=32)
 # GLOBAL_GDAL_CACHE = CacheDict(cache_len=100_000)
 GLOBAL_GDAL_CACHE = None
-
-# Temporary kill switch for the dataset-level GDAL fast path.
-# The optimized dataset-level read is much faster, but it triggers CI-only
-# segfaults downstream in the dequantize path. The original kwimage `_gdal_read`
-# fallback is stable, so keep this disabled until the fast-path bug is isolated.
-GDAL_FAST_PATH = False
-
 
 @cache
 def _import_gdal():
@@ -702,18 +696,19 @@ class LazyGDalFrameFile(ub.NiceRepr):
             else:
                 raise KeyError('nodata_method={}'.format(nodata_method))
 
-        debug_array_event(
-            'gdal-fast-read',
-            image,
-            fpath=os.path.basename(os.fspath(self.fpath)),
-            overview=self.overview,
-            band_list=band_list,
-            xoff=readkw['xoff'],
-            yoff=readkw['yoff'],
-            xsize=readkw['xsize'],
-            ysize=readkw['ysize'],
-            nodata_method=nodata_method,
-        )
+        if DEBUG_ARRAY_EVENTS:
+            debug_array_event(
+                'gdal-fast-read',
+                image,
+                fpath=os.path.basename(os.fspath(self.fpath)),
+                overview=self.overview,
+                band_list=band_list,
+                xoff=readkw['xoff'],
+                yoff=readkw['yoff'],
+                xsize=readkw['xsize'],
+                ysize=readkw['ysize'],
+                nodata_method=nodata_method,
+            )
 
         return image
 
@@ -751,18 +746,19 @@ class LazyGDalFrameFile(ub.NiceRepr):
             )
             log_label = 'gdal-upstream-fallback-read'
 
-        debug_array_event(
-            log_label,
-            imdata,
-            fpath=os.path.basename(os.fspath(self.fpath)),
-            overview=self.overview,
-            band_list=list(b + 1 for b in band_indices),
-            xoff=gdalkw['xoff'],
-            yoff=gdalkw['yoff'],
-            xsize=gdalkw['win_xsize'],
-            ysize=gdalkw['win_ysize'],
-            nodata_method=nodata_method,
-        )
+        if DEBUG_ARRAY_EVENTS:
+            debug_array_event(
+                log_label,
+                imdata,
+                fpath=os.path.basename(os.fspath(self.fpath)),
+                overview=self.overview,
+                band_list=list(b + 1 for b in band_indices),
+                xoff=gdalkw['xoff'],
+                yoff=gdalkw['yoff'],
+                xsize=gdalkw['win_xsize'],
+                ysize=gdalkw['win_ysize'],
+                nodata_method=nodata_method,
+            )
         return imdata
 
     @classmethod
@@ -986,28 +982,27 @@ class LazyGDalFrameFile(ub.NiceRepr):
         nodata_method = self.nodata_method
         if nodata_method == 'auto':
             nodata_method = 'float'  # just use floats
-        if GDAL_FAST_PATH:
-            try:
-                imdata = self._dataset_read_as_array(
-                    band_indices=band_indices,
-                    gdalkw=gdalkw,
-                    nodata_method=nodata_method,
-                )
-            except Exception:
-                imdata = self._compat_gdal_read(
-                    ds=ds,
-                    band_indices=band_indices,
-                    gdalkw=gdalkw,
-                    nodata_method=nodata_method,
-                )
-        else:
-            imdata = self._compat_gdal_read(
+        if not GDAL_FAST_PATH:
+            return self._compat_gdal_read(
                 ds=ds,
                 band_indices=band_indices,
                 gdalkw=gdalkw,
                 nodata_method=nodata_method,
             )
-        return imdata
+
+        try:
+            return self._dataset_read_as_array(
+                band_indices=band_indices,
+                gdalkw=gdalkw,
+                nodata_method=nodata_method,
+            )
+        except Exception:
+            return self._compat_gdal_read(
+                ds=ds,
+                band_indices=band_indices,
+                gdalkw=gdalkw,
+                nodata_method=nodata_method,
+            )
 
     def __array__(self):
         """

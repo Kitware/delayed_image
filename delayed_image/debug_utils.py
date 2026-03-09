@@ -7,10 +7,11 @@ import json
 import os
 
 import numpy as np
+from delayed_image.constants import DEBUG_ARRAY_EVENTS
 
 
 def debug_enabled():
-    return bool(os.environ.get('DELAYED_IMAGE_DEBUG_SEGFAULT', ''))
+    return bool(DEBUG_ARRAY_EVENTS)
 
 
 def _array_info(arr):
@@ -51,7 +52,7 @@ def _array_info(arr):
 
 
 def debug_array_event(label, arr=None, **info):
-    if not debug_enabled():
+    if not DEBUG_ARRAY_EVENTS:
         return
     payload = {
         'label': label,

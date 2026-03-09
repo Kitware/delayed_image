@@ -2,6 +2,7 @@ import kwimage
 import ubelt as ub
 import numpy as np
 import math
+from delayed_image.constants import DEBUG_ARRAY_EVENTS
 from delayed_image.debug_utils import debug_array_event
 from delayed_image.util import util_network_text
 
@@ -462,29 +463,32 @@ def dequantize(quant_data, quantization):
         scale = 0
     else:
         scale = (orig_extent / quant_extent)
-    debug_array_event(
-        'dequantize-input',
-        quant_data,
-        orig_dtype=str(orig_dtype),
-        orig_min=orig_min,
-        orig_max=orig_max,
-        quant_min=quant_min,
-        quant_max=quant_max,
-        nodata=nodata,
-    )
+    if DEBUG_ARRAY_EVENTS:
+        debug_array_event(
+            'dequantize-input',
+            quant_data,
+            orig_dtype=str(orig_dtype),
+            orig_min=orig_min,
+            orig_max=orig_max,
+            quant_min=quant_min,
+            quant_max=quant_max,
+            nodata=nodata,
+        )
     dequant = quant_data.astype(orig_dtype)
     dequant = (dequant - quant_min) * scale + orig_min
     if nodata is not None:
         if _scalar_is_representable_in_dtype(nodata, quant_data.dtype):
-            debug_array_event('dequantize-before-mask', quant_data, nodata=nodata)
+            if DEBUG_ARRAY_EVENTS:
+                debug_array_event('dequantize-before-mask', quant_data, nodata=nodata)
             mask = quant_data == nodata
             dequant[mask] = np.nan
         else:
-            debug_array_event(
-                'dequantize-skip-unrepresentable-nodata',
-                quant_data,
-                nodata=nodata,
-            )
+            if DEBUG_ARRAY_EVENTS:
+                debug_array_event(
+                    'dequantize-skip-unrepresentable-nodata',
+                    quant_data,
+                    nodata=nodata,
+                )
     return dequant
 
 

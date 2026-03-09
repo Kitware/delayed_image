@@ -13,6 +13,7 @@ import warnings
 from delayed_image import delayed_base
 from delayed_image import delayed_leafs
 from delayed_image.channel_spec import FusedChannelSpec
+from delayed_image.constants import IS_DEVELOPING, TRACE_OPTIMIZE
 
 # --------
 # Stacking
@@ -22,10 +23,6 @@ __docstubs__ = """
 from delayed_image.delayed_leafs import DelayedIdentity
 from delayed_image.delayed_base import DelayedOperation
 """
-
-TRACE_OPTIMIZE = 0  # TODO: make this a local setting
-IS_DEVELOPING = 0  # set to 1 if hacking in IPython, otherwise 0 for efficiency
-
 
 _WARP_AFFINE_MATRIX_MODE = {}
 _WARP_AFFINE_MATRIX_MODE_LOCK = threading.Lock()
