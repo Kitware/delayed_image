@@ -279,7 +279,9 @@ class DelayedLoad(DelayedImageLeaf):
         """
         required_meta_keys = ('dsize', 'num_channels', 'num_overviews')
         if all(self.meta[k] is not None for k in required_meta_keys):
-            if self.dsize is not None and not any(d is None for d in self.dsize):
+            if self.dsize is not None and not any(
+                d is None for d in self.dsize
+            ):
                 return self
         self._load_reference()
         ref = self.lazy_ref

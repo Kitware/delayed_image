@@ -24,7 +24,9 @@ PadLike: TypeAlias = int | Sequence[tuple[int, int]]
 QuantizationSpec: TypeAlias = dict[str, Any]
 SpaceSlice: TypeAlias = tuple[slice, slice]
 WarpComponentKey: TypeAlias = Literal['offset', 'scale', 'shearx', 'theta']
-WarpTransformLike: TypeAlias = np.ndarray | dict[str, Any] | kwimage.Affine | None
+WarpTransformLike: TypeAlias = (
+    np.ndarray | dict[str, Any] | kwimage.Affine | None
+)
 
 
 class DelayedImageLike(Protocol):
@@ -73,7 +75,9 @@ class DelayedImageLike(Protocol):
     def undo_warp(
         self,
         remove: Sequence[WarpComponentKey] | None = None,
-        retain: Sequence[WarpComponentKey] | set[WarpComponentKey] | None = None,
+        retain: Sequence[WarpComponentKey]
+        | set[WarpComponentKey]
+        | None = None,
         squash_nans: bool = False,
         return_warp: bool = False,
     ) -> DelayedImageLike | tuple[DelayedImageLike, kwimage.Affine]: ...

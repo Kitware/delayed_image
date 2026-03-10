@@ -24,17 +24,17 @@ def summarize_warp(src: np.ndarray, matrix: np.ndarray, interp: int) -> dict:
         dsize=(52, 51),
         flags=interp,
         borderMode=cv2.BORDER_CONSTANT,
-        borderValue=np.nan if src.dtype.kind == "f" else 0,
+        borderValue=np.nan if src.dtype.kind == 'f' else 0,
     )
-    if warped.dtype.kind == "f":
+    if warped.dtype.kind == 'f':
         finite = np.isfinite(warped)
     else:
         finite = np.ones(warped.shape, dtype=bool)
     uniq = np.unique(warped[finite]) if finite.any() else np.array([])
     return {
-        "finite_ratio": float(finite.mean()),
-        "unique_count": int(len(uniq)),
-        "unique_head": uniq[:8].tolist(),
+        'finite_ratio': float(finite.mean()),
+        'unique_count': int(len(uniq)),
+        'unique_head': uniq[:8].tolist(),
     }
 
 
@@ -43,11 +43,11 @@ def main() -> None:
     forward = np.array([[8.6, 0, 0], [0, 8.5, 0]], dtype=np.float64)
     inverse = np.array([[1 / 8.6, 0, 0], [0, 1 / 8.5, 0]], dtype=np.float64)
 
-    print("opencv", cv2.__version__)
-    print("numpy", np.__version__)
+    print('opencv', cv2.__version__)
+    print('numpy', np.__version__)
     print()
 
-    for interp_name in ["INTER_NEAREST", "INTER_LINEAR"]:
+    for interp_name in ['INTER_NEAREST', 'INTER_LINEAR']:
         interp = getattr(cv2, interp_name)
         print(interp_name)
         for src_dtype in [np.uint8, np.float32, np.float64]:
@@ -64,17 +64,24 @@ def main() -> None:
             }
             import ubelt as ub
             import rich
+
             rich.print(f'info = {ub.urepr(info, nl=2)}')
         print()
 
-    f64_nearest_forward = summarize_warp(raw.astype(np.float64), forward, cv2.INTER_NEAREST)
-    f64_nearest_inverse = summarize_warp(raw.astype(np.float64), inverse, cv2.INTER_NEAREST)
-    bug_present = (
-        f64_nearest_forward["unique_count"] < f64_nearest_inverse["unique_count"]
-        and f64_nearest_forward["finite_ratio"] < f64_nearest_inverse["finite_ratio"]
+    f64_nearest_forward = summarize_warp(
+        raw.astype(np.float64), forward, cv2.INTER_NEAREST
     )
-    print("float64 nearest regression present:", bug_present)
+    f64_nearest_inverse = summarize_warp(
+        raw.astype(np.float64), inverse, cv2.INTER_NEAREST
+    )
+    bug_present = (
+        f64_nearest_forward['unique_count']
+        < f64_nearest_inverse['unique_count']
+        and f64_nearest_forward['finite_ratio']
+        < f64_nearest_inverse['finite_ratio']
+    )
+    print('float64 nearest regression present:', bug_present)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

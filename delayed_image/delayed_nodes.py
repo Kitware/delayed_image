@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 # Stacking
 # --------
 
+
 def _version_tuple(version_text: str) -> tuple[int, ...]:
     """
     Parse a version string into a tuple of integers.
@@ -354,7 +355,9 @@ class ImageOpsMixin:
             # FIXME: This is using index-based slices and it there needs to be
             # a an explicit distinction between index and coordinate based
             # slices.
-            new = DelayedCrop(cast('DelayedImageLike', self), space_slice, chan_idxs)
+            new = DelayedCrop(
+                cast('DelayedImageLike', self), space_slice, chan_idxs
+            )
         return new
 
     def _coordinate_crop(self, roi, lazy=False):
@@ -520,7 +523,12 @@ class ImageOpsMixin:
                     can_be_lazy = True
             if can_be_lazy:
                 return cast('DelayedImageLike', self)
-        new = DelayedWarp(cast('DelayedImageLike', self), transform, dsize=dsize, **warp_kwargs)
+        new = DelayedWarp(
+            cast('DelayedImageLike', self),
+            transform,
+            dsize=dsize,
+            **warp_kwargs,
+        )
         return new
 
     def scale(self, scale, dsize='auto', **warp_kwargs):
@@ -1071,7 +1079,9 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
     def undo_warps(
         self,
         remove: Sequence[WarpComponentKey] | None = None,
-        retain: Sequence[WarpComponentKey] | set[WarpComponentKey] | None = None,
+        retain: Sequence[WarpComponentKey]
+        | set[WarpComponentKey]
+        | None = None,
         squash_nans: bool = False,
         return_warps: bool = False,
     ) -> list[DelayedImage] | tuple[list[DelayedImage], list[kwimage.Affine]]:
@@ -1497,7 +1507,9 @@ class DelayedImage(DelayedArray, ImageOpsMixin):
     def undo_warp(
         self,
         remove: Sequence[WarpComponentKey] | None = None,
-        retain: Sequence[WarpComponentKey] | set[WarpComponentKey] | None = None,
+        retain: Sequence[WarpComponentKey]
+        | set[WarpComponentKey]
+        | None = None,
         squash_nans: bool = False,
         return_warp: bool = False,
     ) -> DelayedImageLike | tuple[DelayedImageLike, kwimage.Affine]:
