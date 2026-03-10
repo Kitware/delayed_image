@@ -279,7 +279,7 @@ class DelayedLoad(DelayedImageLeaf):
         """
         required_meta_keys = ('dsize', 'num_channels', 'num_overviews')
         if all(self.meta[k] is not None for k in required_meta_keys):
-            if not any(d is None for d in self.dsize):
+            if self.dsize is not None and not any(d is None for d in self.dsize):
                 return self
         self._load_reference()
         ref = self.lazy_ref
@@ -411,11 +411,14 @@ class DelayedNans(DelayedImageLeaf):
         if chan_idxs is None:
             channels = self.channels
         else:
+            assert self.channels is not None
             channels = self.channels[chan_idxs]
         dsize = self.dsize
         assert dsize is not None
-        assert all(d is not None for d in dsize)
-        data_dims = dsize[::-1]
+        width, height = dsize
+        assert width is not None
+        assert height is not None
+        data_dims = (height, width)
         data_slice, extra_pad = kwarray.embed_slice(space_slice, data_dims)
         box = kwimage.Boxes.from_slice(data_slice)
         new_width = box.width.ravel()[0]
