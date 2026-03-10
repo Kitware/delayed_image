@@ -124,6 +124,8 @@ def _warp_affine_matrix_mode(
         workaround to the affected runtime path, and defer to kwimage's
         normal forward semantics once kwimage has its own fix.
     """
+    # TODO: once the minimum kwimage version is >= 0.12.0, remove this
+    # compatibility check and always use forward semantics here.
     if _kwimage_version() >= (0, 12, 0):
         return 'forward'
 
