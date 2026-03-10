@@ -8,8 +8,8 @@ import copy
 import os
 import re
 import warnings
-from collections.abc import Iterable as IterableABC, Sequence
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast
+from collections.abc import Iterable as IterableABC
+from typing import TYPE_CHECKING, cast
 
 import kwarray
 import kwimage  # type: ignore[import-not-found]
@@ -20,70 +20,25 @@ from delayed_image import delayed_base, delayed_leafs
 from delayed_image.channel_spec import FusedChannelSpec
 from delayed_image.constants import IS_DEVELOPING, TRACE_OPTIMIZE
 
-ArrayLike: TypeAlias = Any
-BorderValueLike: TypeAlias = int | float | str | Sequence[int | float]
-ChannelSpecLike: TypeAlias = FusedChannelSpec | str
-ChannelSelectLike: TypeAlias = list[int] | slice | ChannelSpecLike | None
-DSize: TypeAlias = tuple[int | None, int | None]
-KnownDSize: TypeAlias = tuple[int, int]
-MissingChannelPolicy: TypeAlias = Literal['return_nan', 'error']
-PadLike: TypeAlias = int | Sequence[tuple[int, int]]
-QuantizationSpec: TypeAlias = dict[str, Any]
-SpaceSlice: TypeAlias = tuple[slice, slice]
-WarpComponentKey: TypeAlias = Literal['offset', 'scale', 'shearx', 'theta']
-WarpTransformLike: TypeAlias = np.ndarray | dict[str, Any] | kwimage.Affine | None
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Any, Literal
 
-
-class DelayedImageLike(Protocol):
-    dsize: DSize | None
-    channels: FusedChannelSpec | None
-    num_channels: int | None
-    num_overviews: int | None
-    meta: dict[str, Any]
-    _opt_logs: list[str]
-
-    def get_transform_from_leaf(self) -> kwimage.Affine: ...
-
-    def _leaf_paths(self) -> Any: ...
-
-    def _finalize(self) -> ArrayLike: ...
-
-    def optimize(
-        self, ctx: delayed_base.OptimizeContext | None = None
-    ) -> DelayedImageLike: ...
-
-    def crop(
-        self,
-        space_slice: SpaceSlice | None = None,
-        chan_idxs: list[int] | None = None,
-        clip: bool = True,
-        wrap: bool = True,
-        pad: PadLike = 0,
-        lazy: bool = False,
-    ) -> DelayedImageLike: ...
-
-    def warp(
-        self,
-        transform: WarpTransformLike,
-        dsize: KnownDSize | Literal['auto'] = 'auto',
-        lazy: bool = False,
-        **warp_kwargs: Any,
-    ) -> DelayedImageLike: ...
-
-    def take_channels(
-        self,
-        channels: ChannelSelectLike,
-        lazy: bool = False,
-        missing_channel_policy: MissingChannelPolicy = 'return_nan',
-    ) -> DelayedImageLike: ...
-
-    def undo_warp(
-        self,
-        remove: Sequence[WarpComponentKey] | None = None,
-        retain: Sequence[WarpComponentKey] | set[WarpComponentKey] | None = None,
-        squash_nans: bool = False,
-        return_warp: bool = False,
-    ) -> DelayedImageLike | tuple[DelayedImageLike, kwimage.Affine]: ...
+    from delayed_image._typing import (
+        ArrayLike,
+        BorderValueLike,
+        ChannelSelectLike,
+        ChannelSpecLike,
+        DSize,
+        DelayedImageLike,
+        KnownDSize,
+        MissingChannelPolicy,
+        PadLike,
+        QuantizationSpec,
+        SpaceSlice,
+        WarpComponentKey,
+        WarpTransformLike,
+    )
 
 # --------
 # Stacking
@@ -378,7 +333,7 @@ class ImageOpsMixin:
                 and (not pad)
             )
             if is_noop:
-                return cast(DelayedImageLike, self)
+                return cast('DelayedImageLike', self)
 
         if not clip or not wrap or pad:
             if clip or wrap:
@@ -399,7 +354,7 @@ class ImageOpsMixin:
             # FIXME: This is using index-based slices and it there needs to be
             # a an explicit distinction between index and coordinate based
             # slices.
-            new = DelayedCrop(cast(DelayedImageLike, self), space_slice, chan_idxs)
+            new = DelayedCrop(cast('DelayedImageLike', self), space_slice, chan_idxs)
         return new
 
     def _coordinate_crop(self, roi, lazy=False):
@@ -564,8 +519,8 @@ class ImageOpsMixin:
                 if transform.isclose_identity():
                     can_be_lazy = True
             if can_be_lazy:
-                return cast(DelayedImageLike, self)
-        new = DelayedWarp(cast(DelayedImageLike, self), transform, dsize=dsize, **warp_kwargs)
+                return cast('DelayedImageLike', self)
+        new = DelayedWarp(cast('DelayedImageLike', self), transform, dsize=dsize, **warp_kwargs)
         return new
 
     def scale(self, scale, dsize='auto', **warp_kwargs):
@@ -624,7 +579,7 @@ class ImageOpsMixin:
             >>> assert self.finalize().max() > 1
             >>> assert new.finalize().max() <= 1
         """
-        new = DelayedDequantize(cast(DelayedImageLike, self), quantization)
+        new = DelayedDequantize(cast('DelayedImageLike', self), quantization)
         return new
 
     def get_overview(self, overview: int) -> DelayedOverview:
@@ -637,7 +592,7 @@ class ImageOpsMixin:
         Returns:
             DelayedOverview
         """
-        new = DelayedOverview(cast(DelayedImageLike, self), overview)
+        new = DelayedOverview(cast('DelayedImageLike', self), overview)
         return new
 
     def as_xarray(self) -> DelayedAsXarray:
@@ -645,7 +600,7 @@ class ImageOpsMixin:
         Returns:
             DelayedAsXarray
         """
-        return DelayedAsXarray(cast(DelayedImageLike, self))
+        return DelayedAsXarray(cast('DelayedImageLike', self))
 
     def get_transform_from(self, src: DelayedImageLike) -> kwimage.Affine:
         """
@@ -842,7 +797,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
         if self in memo:
-            return cast(DelayedImageLike, memo[self])
+            return cast('DelayedImageLike', memo[self])
         new_parts = [part.optimize(ctx) for part in self.parts]
         if all(p is o for p, o in zip(new_parts, self.parts)):
             new = self
@@ -855,7 +810,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize DelayedChannelConcat')
         memo[self] = new
-        return cast(DelayedImageLike, new)
+        return cast('DelayedImageLike', new)
 
     def take_channels(
         self,
@@ -949,7 +904,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             >>>     new = self.take_channels(channels, missing_channel_policy='not-a-policy')
         """
         if channels is None:
-            return cast(DelayedImageLike, self)
+            return cast('DelayedImageLike', self)
         current_channels = self.channels
 
         if isinstance(channels, list):
@@ -964,7 +919,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             channels = FusedChannelSpec.coerce(channels)
             if current_channels == channels:
                 # If the request is equal to what we already have then skip this.
-                return cast(DelayedImageLike, self)
+                return cast('DelayedImageLike', self)
             assert current_channels is not None
             # Compute subindex integer mapping
             request_codes = channels.as_list()
@@ -1046,7 +1001,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
             curr.get_subcomponent(self.dsize) for curr in outer_accum
         ]
         new = DelayedChannelConcat(new_components)
-        return cast(DelayedImageLike, new)
+        return cast('DelayedImageLike', new)
 
     def __getitem__(self, sl):
         if not isinstance(sl, tuple):
@@ -1084,7 +1039,7 @@ class DelayedChannelConcat(DelayedConcat, ImageOpsMixin):
         Returns:
             DelayedAsXarray
         """
-        return DelayedAsXarray(cast(DelayedImageLike, self))
+        return DelayedAsXarray(cast('DelayedImageLike', self))
 
     def _push_operation_under(self, op, kwargs):
         # Note: we can't do this with a crop that has band selection
@@ -2131,7 +2086,7 @@ class DelayedWarp(DelayedImage):
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
         if self in memo:
-            return cast(DelayedImageLike, memo[self])
+            return cast('DelayedImageLike', memo[self])
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -2628,7 +2583,7 @@ class DelayedDequantize(DelayedImage):
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
         if self in memo:
-            return cast(DelayedImageLike, memo[self])
+            return cast('DelayedImageLike', memo[self])
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -2796,7 +2751,7 @@ class DelayedCrop(DelayedImage):
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
         if self in memo:
-            return cast(DelayedImageLike, memo[self])
+            return cast('DelayedImageLike', memo[self])
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -2857,7 +2812,7 @@ class DelayedCrop(DelayedImage):
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize crop')
         memo[self] = new
-        return cast(DelayedImageLike, new)
+        return cast('DelayedImageLike', new)
 
     def _opt_fuse_crops(self):
         """
@@ -3206,7 +3161,7 @@ class DelayedOverview(DelayedImage):
             ctx = delayed_base.OptimizeContext()
         memo = ctx.memo
         if self in memo:
-            return cast(DelayedImageLike, memo[self])
+            return cast('DelayedImageLike', memo[self])
 
         new = copy.copy(self)
         new.subdata = self.subdata.optimize(ctx)
@@ -3233,7 +3188,7 @@ class DelayedOverview(DelayedImage):
         if TRACE_OPTIMIZE:
             new._opt_logs.append('optimize overview')
         memo[self] = new
-        return cast(DelayedImageLike, new)
+        return cast('DelayedImageLike', new)
 
     def _transform_from_subdata(self):
         scale = 1 / 2 ** self.meta['overview']
