@@ -21,17 +21,19 @@ def test_crop_optimize_issue():
     """
     # from delayed_image import demo
     # demo.non_aligned_leafs()
-    import delayed_image
     import numpy as np
-
     import pytest
+
+    import delayed_image
+
     try:
         from osgeo import gdal  # NOQA
     except ImportError:
         pytest.skip()
 
-    import ubelt as ub
     import kwimage
+    import ubelt as ub
+
     dpath = ub.Path.appdir('delayed_image/tests/test_crop_optimize_issue')
     dpath.ensuredir()
 
@@ -40,12 +42,22 @@ def test_crop_optimize_issue():
         imdata = kwimage.grab_test_image()
         bband = kwimage.imresize(imdata[..., 2], dsize=(835, 549))
         sband = kwimage.imresize(imdata[..., 0], dsize=(582, 384))
-        bband_fpath = kwimage.imwrite(dpath / 'dummy_blue.tif', bband, overviews=2)
-        sband_fpath = kwimage.imwrite(dpath / 'dummy_salient.tif', sband, overviews=2)
-        bandB = delayed_image.DelayedLoad(bband_fpath, dsize=(835, 549), channels='blue')
-        bandS = delayed_image.DelayedLoad(sband_fpath, dsize=(582, 384), channels='salient')
+        bband_fpath = kwimage.imwrite(
+            dpath / 'dummy_blue.tif', bband, overviews=2
+        )
+        sband_fpath = kwimage.imwrite(
+            dpath / 'dummy_salient.tif', sband, overviews=2
+        )
+        bandB = delayed_image.DelayedLoad(
+            bband_fpath, dsize=(835, 549), channels='blue'
+        )
+        bandS = delayed_image.DelayedLoad(
+            sband_fpath, dsize=(582, 384), channels='salient'
+        )
         bandB = bandB.warp(np.eye(3) + 1e-8, dsize=(835, 549))
-        bandS.meta['channels'] = delayed_image.FusedChannelSpec.coerce('salient')
+        bandS.meta['channels'] = delayed_image.FusedChannelSpec.coerce(
+            'salient'
+        )
         bandS = bandS.dequantize({'orig_max': 1})
         bandS = bandS.resize((835, 549))
         delayed = delayed_image.DelayedChannelConcat([bandB, bandS])
@@ -86,10 +98,12 @@ def test_lazy_warp_with_explicit_dsize():
     Test that this is fixed. This error showed up in the geowatch msi example
     when doing kwcoco msi image generation.
     """
-    import ubelt as ub
-    import numpy as np
     import kwimage
+    import numpy as np
+    import ubelt as ub
+
     from delayed_image import DelayedLoad
+
     dpath = ub.Path.appdir('delayed_image/tests/lazy_warp_with_explicit_dsize')
     dpath.ensuredir()
 
@@ -103,14 +117,18 @@ def test_lazy_warp_with_explicit_dsize():
     for lazy in [True, False]:
         # Test case with a real transform
         without_dsize1 = band1.warp({'scale': 6.0, 'type': 'affine'}, lazy=lazy)
-        with_dsize1 = band1.warp({'scale': 6.0, 'type': 'affine'}, dsize=canvas_dsize, lazy=lazy)
+        with_dsize1 = band1.warp(
+            {'scale': 6.0, 'type': 'affine'}, dsize=canvas_dsize, lazy=lazy
+        )
 
         assert without_dsize1.dsize == (432, 432)
         assert with_dsize1.dsize == canvas_dsize
 
         # Test case with an identity transform
         without_dsize2 = band2.warp({'scale': 1.0, 'type': 'affine'}, lazy=lazy)
-        with_dsize2 = band2.warp({'scale': 1.0, 'type': 'affine'}, dsize=canvas_dsize, lazy=lazy)
+        with_dsize2 = band2.warp(
+            {'scale': 1.0, 'type': 'affine'}, dsize=canvas_dsize, lazy=lazy
+        )
         assert without_dsize2.dsize != canvas_dsize
         assert without_dsize2.dsize == (432, 427)
         assert with_dsize2.dsize == canvas_dsize

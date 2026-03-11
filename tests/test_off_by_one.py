@@ -1,6 +1,6 @@
-
 def test_off_by_one_with_upscale():
     import delayed_image
+
     delayed = delayed_image.DelayedLoad.demo(key='astro').prepare()
 
     x = delayed.scale(2.0001)[0:4, 0:4]
@@ -8,9 +8,13 @@ def test_off_by_one_with_upscale():
     data2 = x.finalize(nodata_method='float')
 
     import kwarray
-    assert kwarray.ArrayAPI.coerce('numpy').array_equal(data2, data1, equal_nan=True)
+
+    assert kwarray.ArrayAPI.coerce('numpy').array_equal(
+        data2, data1, equal_nan=True
+    )
     if 0:
         import kwplot
+
         kwplot.autompl()
         kwplot.plt.ion()
         kwplot.imshow(data1, pnum=(1, 2, 1))
@@ -18,8 +22,10 @@ def test_off_by_one_with_upscale():
 
 
 def test_off_by_one_with_multi_scale():
-    import delayed_image
     import numpy as np
+
+    import delayed_image
+
     delayed = delayed_image.DelayedLoad.demo(key='astro').prepare()
 
     for s in np.linspace(0.4, 2.5, 100).tolist() + [0.5, 1.0, 2.0]:
@@ -28,7 +34,10 @@ def test_off_by_one_with_multi_scale():
         data2 = x.finalize(nodata_method='float')
         # assert np.all(data2 == data1)
         import kwarray
-        assert kwarray.ArrayAPI.coerce('numpy').array_equal(data2, data1, equal_nan=True)
+
+        assert kwarray.ArrayAPI.coerce('numpy').array_equal(
+            data2, data1, equal_nan=True
+        )
 
         # import kwplot
         # kwplot.autompl()
@@ -59,9 +68,11 @@ def test_off_by_one_with_small_img():
         ~/code/kwimage/kwimage/im_cv2.py
 
     """
-    import delayed_image
     import kwimage
     import numpy as np
+
+    import delayed_image
+
     raw = np.linspace(0, 1, 36).reshape(6, 6)
     delayed = delayed_image.DelayedIdentity(raw)
 
@@ -84,43 +95,92 @@ def test_off_by_one_with_small_img():
     SHOW = 0
     if SHOW:
         import kwplot
+
         pnum_ = kwplot.PlotNums(nRows=1, nCols=4)
         kwplot.autompl()
         kwplot.plt.ion()
-        kwplot.imshow(raw, pnum=pnum_(), title='original image', show_ticks=True, origin_convention='corner')
-        kwplot.imshow(kwimage.fill_nans_with_checkers(data1.copy()), pnum=pnum_(), title='scaled by non-integer', show_ticks=True, origin_convention='corner')
-        kwplot.imshow(kwimage.fill_nans_with_checkers(data2.copy()), pnum=pnum_(), title='scaled by 2 and shifted by 0.5', show_ticks=True, origin_convention='corner')
-        kwplot.imshow(kwimage.fill_nans_with_checkers(data3.copy()), pnum=pnum_(), title='imresize scale by 2', show_ticks=True, origin_convention='corner')
+        kwplot.imshow(
+            raw,
+            pnum=pnum_(),
+            title='original image',
+            show_ticks=True,
+            origin_convention='corner',
+        )
+        kwplot.imshow(
+            kwimage.fill_nans_with_checkers(data1.copy()),
+            pnum=pnum_(),
+            title='scaled by non-integer',
+            show_ticks=True,
+            origin_convention='corner',
+        )
+        kwplot.imshow(
+            kwimage.fill_nans_with_checkers(data2.copy()),
+            pnum=pnum_(),
+            title='scaled by 2 and shifted by 0.5',
+            show_ticks=True,
+            origin_convention='corner',
+        )
+        kwplot.imshow(
+            kwimage.fill_nans_with_checkers(data3.copy()),
+            pnum=pnum_(),
+            title='imresize scale by 2',
+            show_ticks=True,
+            origin_convention='corner',
+        )
 
     raw.shape
     raw_unique = np.unique(raw)
     data1_unique = np.unique(data1)
 
     data1_warp = kwimage.Affine.coerce(offset=(0, 0), scale=(8.6, 8.5))
-    fwd = kwimage.warp_affine(raw, np.asarray(data1_warp), dsize=data1_dsize,
-                              interpolation='nearest', antialias=False,
-                              border_value=np.nan, origin_convention='corner',
-                              backend='auto')
-    inv = kwimage.warp_affine(raw, np.asarray(data1_warp.inv()), dsize=data1_dsize,
-                              interpolation='nearest', antialias=False,
-                              border_value=np.nan, origin_convention='corner',
-                              backend='auto')
+    fwd = kwimage.warp_affine(
+        raw,
+        np.asarray(data1_warp),
+        dsize=data1_dsize,
+        interpolation='nearest',
+        antialias=False,
+        border_value=np.nan,
+        origin_convention='corner',
+        backend='auto',
+    )
+    inv = kwimage.warp_affine(
+        raw,
+        np.asarray(data1_warp.inv()),
+        dsize=data1_dsize,
+        interpolation='nearest',
+        antialias=False,
+        border_value=np.nan,
+        origin_convention='corner',
+        backend='auto',
+    )
     fwd_fin = np.isfinite(fwd).mean()
     inv_fin = np.isfinite(inv).mean()
 
-    assert raw_unique.shape == data1_unique.shape and np.all(raw_unique == data1_unique), (
+    assert raw_unique.shape == data1_unique.shape and np.all(
+        raw_unique == data1_unique
+    ), (
         'data1 should have exactly the same values as raw because it is '
         'just an upscale with nearest resampling. '
-        'It should not have any nan values. '        f'raw_unique.shape={raw_unique.shape}, data1_unique.shape={data1_unique.shape}, '        f'raw_unique[:8]={raw_unique[:8]!r}, data1_unique[:8]={data1_unique[:8]!r}, '        f'data1 finite ratio={np.isfinite(data1).mean():.6f}, '        f'fwd finite ratio={fwd_fin:.6f}, inv finite ratio={inv_fin:.6f}, '        f'fwd unique[:8]={np.unique(fwd)[:8]!r}, inv unique[:8]={np.unique(inv)[:8]!r}')
+        'It should not have any nan values. '
+        f'raw_unique.shape={raw_unique.shape}, data1_unique.shape={data1_unique.shape}, '
+        f'raw_unique[:8]={raw_unique[:8]!r}, data1_unique[:8]={data1_unique[:8]!r}, '
+        f'data1 finite ratio={np.isfinite(data1).mean():.6f}, '
+        f'fwd finite ratio={fwd_fin:.6f}, inv finite ratio={inv_fin:.6f}, '
+        f'fwd unique[:8]={np.unique(fwd)[:8]!r}, inv unique[:8]={np.unique(inv)[:8]!r}'
+    )
 
     assert not np.any(np.isnan(data2[1:, 1:])), (
         'data2 should not have any nan values except in the first row / column '
-        'due to the 0.5 translation')
+        'due to the 0.5 translation'
+    )
 
     assert np.all(np.isnan(data2[:1, :])), (
-        'data2 first row should be all nans due to a shift by 0.5 and scale by 2')
+        'data2 first row should be all nans due to a shift by 0.5 and scale by 2'
+    )
     assert np.all(np.isnan(data2[:, :1])), (
-        'data2 first row should be all nans due to a shift by 0.5 and scale by 2')
+        'data2 first row should be all nans due to a shift by 0.5 and scale by 2'
+    )
 
     assert not np.any(np.isnan(data3)), (
-        'data3 is just a sanity check and should not have nans due to imresize implementation')
+        'data3 is just a sanity check and should not have nans due to imresize implementation'
+    )

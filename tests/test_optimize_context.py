@@ -16,6 +16,7 @@ def _finalize_ignoring_warnings(node):
 
 def _require_warp_backend():
     from kwimage import im_transform
+
     backend = im_transform._default_backend()
     if backend == 'skimage':
         pytest.skip('kwimage warp/imresize backend is unavailable')
@@ -30,8 +31,11 @@ def test_optimize_idempotence():
     quantization = {'quant_max': 255, 'nodata': 0}
 
     node = base.dequantize(quantization)
-    node = node.warp({'scale': 1.1, 'offset': (2, -1)},
-                     interpolation='nearest', antialias=False)
+    node = node.warp(
+        {'scale': 1.1, 'offset': (2, -1)},
+        interpolation='nearest',
+        antialias=False,
+    )
     node = node.crop((slice(2, 24), slice(3, 25)))
     node = node.get_overview(1)
 
@@ -51,8 +55,9 @@ def test_repeated_optimize_equivalence():
     base = delayed_image.DelayedIdentity(data, channels='r|g|b')
     quantization = {'quant_max': 255, 'nodata': 0}
 
-    node = base.warp({'scale': (1.2, 0.9), 'theta': 0.05},
-                     interpolation='linear')
+    node = base.warp(
+        {'scale': (1.2, 0.9), 'theta': 0.05}, interpolation='linear'
+    )
     node = node.crop((slice(4, 40), slice(5, 41)))
     node = node.dequantize(quantization)
 
@@ -77,12 +82,21 @@ def test_randomized_tree_finalize_equivalence():
 
     node = base.dequantize(quantization)
     node = node.get_overview(1)
-    node = node.scale(rng.uniform(0.6, 1.4), dsize='auto',
-                      interpolation='linear', antialias=True)
-    node = node.warp({'scale': (rng.uniform(0.7, 1.3), rng.uniform(0.7, 1.3)),
-                      'offset': (rng.uniform(-5, 5), rng.uniform(-5, 5)),
-                      'theta': rng.uniform(-0.2, 0.2)},
-                     dsize='auto', interpolation='nearest')
+    node = node.scale(
+        rng.uniform(0.6, 1.4),
+        dsize='auto',
+        interpolation='linear',
+        antialias=True,
+    )
+    node = node.warp(
+        {
+            'scale': (rng.uniform(0.7, 1.3), rng.uniform(0.7, 1.3)),
+            'offset': (rng.uniform(-5, 5), rng.uniform(-5, 5)),
+            'theta': rng.uniform(-0.2, 0.2),
+        },
+        dsize='auto',
+        interpolation='nearest',
+    )
 
     w, h = node.dsize
     y0 = rng.integers(0, max(1, h // 4))
@@ -102,15 +116,21 @@ def test_optimize_preserves_metadata(tmp_path):
     data = (rng.random((64, 64, 3)) * 255).astype(np.uint8)
     fpath = tmp_path / 'meta.png'
     import kwimage
+
     kwimage.imwrite(str(fpath), data)
     base = delayed_image.DelayedLoad(
-        fpath, channels='r|g|b', nodata_method='float').prepare()
+        fpath, channels='r|g|b', nodata_method='float'
+    ).prepare()
     quantization = {'quant_max': 255, 'nodata': 0}
 
     node = base.dequantize(quantization)
-    node = node.warp({'scale': 1.3, 'offset': (2, -1)},
-                     interpolation='nearest', antialias=False,
-                     border_value=0, dsize='auto')
+    node = node.warp(
+        {'scale': 1.3, 'offset': (2, -1)},
+        interpolation='nearest',
+        antialias=False,
+        border_value=0,
+        dsize='auto',
+    )
     node = node.crop((slice(5, 40), slice(4, 50)))
 
     opt = node.optimize()
@@ -118,15 +138,21 @@ def test_optimize_preserves_metadata(tmp_path):
     assert opt.channels == node.channels
     assert opt.dsize == node.dsize
 
-    warp_nodes = [n for _, n in opt._traverse()
-                  if isinstance(n, delayed_image.DelayedWarp)]
+    warp_nodes = [
+        n
+        for _, n in opt._traverse()
+        if isinstance(n, delayed_image.DelayedWarp)
+    ]
     assert warp_nodes, 'optimized graph should retain a warp'
     warp = warp_nodes[0]
     assert warp.meta['interpolation'] == 'nearest'
     assert warp.meta['antialias'] is False
 
-    load_nodes = [n for _, n in opt._traverse()
-                  if isinstance(n, delayed_image.DelayedLoad)]
+    load_nodes = [
+        n
+        for _, n in opt._traverse()
+        if isinstance(n, delayed_image.DelayedLoad)
+    ]
     assert load_nodes, 'optimized graph should retain a load node'
     assert load_nodes[0].meta['nodata_method'] == 'float'
 
@@ -139,8 +165,9 @@ def test_linear_crop_after_warp_rewrite_equivalence():
 
     node = base.warp({'scale': 0.75}, interpolation='linear')
     node = node.crop((slice(8, 60), slice(5, 58)))
-    node = node.warp({'scale': 1.35, 'offset': (2.5, -3.5)},
-                     interpolation='linear')
+    node = node.warp(
+        {'scale': 1.35, 'offset': (2.5, -3.5)}, interpolation='linear'
+    )
     node = node.crop((slice(0, 40), slice(0, 40)))
     node = node.take_channels([0, 1])
 
@@ -150,6 +177,9 @@ def test_linear_crop_after_warp_rewrite_equivalence():
 
     assert np.allclose(final_raw, final_opt, equal_nan=True)
 
-    warp_nodes = [n for _, n in opt._traverse()
-                  if isinstance(n, delayed_image.DelayedWarp)]
+    warp_nodes = [
+        n
+        for _, n in opt._traverse()
+        if isinstance(n, delayed_image.DelayedWarp)
+    ]
     assert len(warp_nodes) == 1

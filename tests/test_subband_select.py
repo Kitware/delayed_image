@@ -1,15 +1,15 @@
-
-
 def test_subchannel_select_with_overviews_case1():
     """
     This reproduces a bug in version < 0.2.8 with the exact operation tree that
     caused it in production.
     """
     import delayed_image
+
     try:
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip('test has overviews')
 
     leaf = delayed_image.DelayedLoad.demo(channels='r|g|b', overviews=3)
@@ -18,6 +18,7 @@ def test_subchannel_select_with_overviews_case1():
     class meta_mkslice:
         def __getitem__(self, index):
             return index
+
     mkslice = meta_mkslice()
 
     quantization = {
@@ -59,10 +60,12 @@ def test_subchannel_select_with_overviews_case2():
     This reproduces a bug in version < 0.2.8 with a minimal example
     """
     import delayed_image
+
     try:
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip('test has overviews')
 
     leaf = delayed_image.DelayedLoad.demo(channels='r|g|b', overviews=3)

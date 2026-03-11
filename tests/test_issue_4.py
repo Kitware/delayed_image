@@ -94,34 +94,48 @@ def test_issue4():
         so we just need to ensure the divide by zero doesn't happen.
 
     """
-    from delayed_image import DelayedChannelConcat
-    import delayed_image
     import kwimage
     import numpy as np
+
+    import delayed_image
+    from delayed_image import DelayedChannelConcat
 
     try:
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip('test uses overviews. needs osgeo.gdal')
 
-    r = delayed_image.DelayedLoad.demo(channels='r', overviews=6, dsize=(219, 219))
-    g = delayed_image.DelayedLoad.demo(channels='g', overviews=6, dsize=(219, 219))
-    b = delayed_image.DelayedLoad.demo(channels='b', overviews=6, dsize=(219, 219))
+    r = delayed_image.DelayedLoad.demo(
+        channels='r', overviews=6, dsize=(219, 219)
+    )
+    g = delayed_image.DelayedLoad.demo(
+        channels='g', overviews=6, dsize=(219, 219)
+    )
+    b = delayed_image.DelayedLoad.demo(
+        channels='b', overviews=6, dsize=(219, 219)
+    )
 
     concat = DelayedChannelConcat([r.warp({}), g.warp({}), b.warp({})])
 
-    mat = kwimage.Affine(np.array([[ 9.99169700e-01,  0.00000000e+00, -5.82076609e-11],
-                                   [ 0.00000000e+00,  9.99169700e-01,  2.91038305e-11],
-                                   [ 0.00000000e+00,  0.00000000e+00,  1.00000000e+00]]))
+    mat = kwimage.Affine(
+        np.array(
+            [
+                [9.99169700e-01, 0.00000000e00, -5.82076609e-11],
+                [0.00000000e00, 9.99169700e-01, 2.91038305e-11],
+                [0.00000000e00, 0.00000000e00, 1.00000000e00],
+            ]
+        )
+    )
     delayed_frame = concat.warp(mat)
     delayed_frame.print_graph()
 
     requested_space_slice = (slice(-21.0, 204.0, None), slice(219, 444.0, None))
     space_pad = [(0, 0), (0, 0)]
-    delayed_crop = delayed_frame.crop(requested_space_slice,
-                                      clip=False, wrap=False,
-                                      pad=space_pad)
+    delayed_crop = delayed_frame.crop(
+        requested_space_slice, clip=False, wrap=False, pad=space_pad
+    )
     delayed_crop = delayed_crop.prepare()
 
     delayed_crop.print_graph()
@@ -133,6 +147,7 @@ def test_issue4():
 def test_clipped_negative_slice():
     import delayed_image
     from delayed_image.helpers import mkslice
+
     base = delayed_image.DelayedLoad.demo(dsize=(256, 256))
     slices = mkslice[-10:216, 0:256]
     cropped = base.crop(slices)
@@ -141,9 +156,11 @@ def test_clipped_negative_slice():
 
 
 def test_oob_crop_after_load():
-    import delayed_image
     import ubelt as ub
+
+    import delayed_image
     from delayed_image.helpers import mkslice
+
     base = delayed_image.DelayedLoad.demo(dsize=(256, 256))
     slices = mkslice[300:500, 400:500]
 
@@ -176,6 +193,7 @@ def test_oob_crop_after_warp():
     """
     import delayed_image
     from delayed_image.helpers import mkslice
+
     base = delayed_image.DelayedLoad.demo(dsize=(256, 256))
     base = base.warp({'scale': 1.01})
     slices = mkslice[300:500, 400:500]
@@ -187,6 +205,7 @@ def test_oob_crop_after_warp():
     variants['v3'] = base.crop(slices, wrap=False, clip=False, pad=pad)
 
     import ubelt as ub
+
     errors = []
     outputs = {}
     for key, orig in variants.items():
@@ -222,6 +241,7 @@ def test_oob_crop_after_warp_with_overviews():
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip('test uses overviews. needs osgeo.gdal')
 
     base = delayed_image.DelayedLoad.demo(dsize=(256, 256), overviews=3)
@@ -235,6 +255,7 @@ def test_oob_crop_after_warp_with_overviews():
     variants['v3'] = base.crop(slices, wrap=False, clip=False, pad=pad)
 
     import ubelt as ub
+
     errors = []
     outputs = {}
     for key, orig in variants.items():
@@ -260,10 +281,12 @@ def test_oob_crop_after_warp_with_overviews():
 
 def test_both_total_negative_slice():
     import delayed_image
+
     try:
         import osgeo
     except ImportError:
         import pytest
+
         pytest.skip('test uses overviews. needs osgeo.gdal')
     base = delayed_image.DelayedLoad.demo(dsize=(128, 128), overviews=3)
     base = base.warp({'scale': 2.0})

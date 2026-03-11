@@ -17,9 +17,9 @@ windowed write it ...
 oh, if I use r+ mode, it seems to work
 """
 
-
-import numpy as np
 import kwimage
+import numpy as np
+
 data = np.zeros((2048, 2048), dtype=np.uint8) + 1
 
 fpath = 'foo.tif'
@@ -30,6 +30,7 @@ kwimage.imwrite(fpath, data, backend='gdal', overviews=2, blocksize=256)
 
 
 from delayed_image import lazy_loaders
+
 self = lazy_loaders.LazyGDalFrameFile(fpath)
 self[0:100, 20:200]
 ds = self._ds
@@ -56,7 +57,9 @@ import rasterio
 from rasterio.windows import Window
 
 new = np.ones((32, 16), dtype=np.uint8) + 10
-with rasterio.open(fpath, 'r+', driver='COG', width=2048, height=2048, count=1, dtype=np.uint8) as dst:
+with rasterio.open(
+    fpath, 'r+', driver='COG', width=2048, height=2048, count=1, dtype=np.uint8
+) as dst:
     dst.write(new, window=Window(2, 3, 16, 32), indexes=1)
 
 after = kwimage.imread(fpath)

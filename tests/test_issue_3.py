@@ -1,4 +1,3 @@
-
 def mwe_issue_3():
     """
     Ran into an issue in production where optimize was different between two
@@ -62,17 +61,18 @@ def mwe_issue_3():
         Load channels=Site Preparation|Active Construction|Post Construction|No Activity,dsize=(1140,554),nodata_method=float,num_overviews=2,fname=crop__b54cf76afea0535b.tif
     """
 
-    import delayed_image
     import kwimage
+
+    import delayed_image
     from delayed_image import DelayedChannelConcat
 
     delayed_image.delayed_nodes.TRACE_OPTIMIZE = 0
 
     overviews = 3
 
-    leaf = delayed_image.DelayedLoad.demo(channels='r|g|b',
-                                          overviews=overviews,
-                                          dsize=(1140, 554))
+    leaf = delayed_image.DelayedLoad.demo(
+        channels='r|g|b', overviews=overviews, dsize=(1140, 554)
+    )
     leaf.prepare()
 
     sf1 = (0.1764, 0.1753)
@@ -89,7 +89,7 @@ def mwe_issue_3():
         'nodata': None,
     }
 
-    def make_operation_tree(leaf, take_channels : bool):
+    def make_operation_tree(leaf, take_channels: bool):
         delayed = leaf
         delayed = delayed.scale(sf1)
         delayed = delayed.dequantize(quantization)
@@ -143,6 +143,7 @@ def mwe_issue_3():
 
     if 0:
         import kwplot
+
         kwplot.autoplt()
         im1 = delayed1.finalize()
         im2 = delayed2.finalize()

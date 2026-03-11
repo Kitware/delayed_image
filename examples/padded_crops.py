@@ -1,5 +1,6 @@
-import delayed_image
 import kwimage
+
+import delayed_image
 
 # Grab a test image
 fpath = kwimage.grab_test_image_fpath('amazon')

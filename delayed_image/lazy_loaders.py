@@ -2,18 +2,20 @@
 Ducktyped interfaces for loading subregions of images with standard slice
 syntax
 """
+
 from __future__ import annotations
 
 import os
+from collections import OrderedDict
+from os.path import exists, join
 from typing import Any
 
-import ubelt as ub
-import numpy as np
 import kwimage  # type: ignore[import-not-found]
+import numpy as np
+import ubelt as ub
+
 from delayed_image.constants import DEBUG_ARRAY_EVENTS, GDAL_FAST_PATH
 from delayed_image.debug_utils import debug_array_event
-from os.path import join, exists
-from collections import OrderedDict
 
 cache: Any = getattr(__import__('functools'), 'cache', ub.memoize)
 
@@ -59,9 +61,11 @@ class CacheDict(OrderedDict):
 # GLOBAL_GDAL_CACHE = CacheDict(cache_len=100_000)
 GLOBAL_GDAL_CACHE = None
 
+
 @cache
 def _import_gdal():
     from osgeo import gdal
+
     if getattr(gdal, '_UserHasSpecifiedIfUsingExceptions', lambda: False)():
         gdal.UseExceptions()
     return gdal
@@ -96,13 +100,21 @@ def _have_spectral():
     else:
         return spectral is not None
 
+
 complex_ = np.complex128
 
 _GDAL_DTYPE_LUT = {
-    1: np.uint8,     2: np.uint16,
-    3: np.int16,     4: np.uint32,      5: np.int32,
-    6: np.float32,   7: np.float64,     8: complex_,
-    9: complex_,    10: np.complex64,  11: np.complex128
+    1: np.uint8,
+    2: np.uint16,
+    3: np.int16,
+    4: np.uint32,
+    5: np.int32,
+    6: np.float32,
+    7: np.float64,
+    8: complex_,
+    9: complex_,
+    10: np.complex64,
+    11: np.complex128,
 }
 
 
@@ -159,10 +171,13 @@ def _gdal_read_kwimage_compatible(
                     raise KeyError(overview)
             if overview < 0:
                 ub.schedule_deprecation(
-                    'kwimage', name='overviews',
+                    'kwimage',
+                    name='overviews',
                     type='as a negative integer argument to kwimage.imread',
                     migration='Use overviews="coarsest" to get the lowest resolution overview',
-                    deprecate='0.9.21', error='1.0.0', remove='1.1.0',
+                    deprecate='0.9.21',
+                    error='1.0.0',
+                    remove='1.1.0',
                 )
                 overview = max(overview_count + overview, 0)
             if overview > overview_count:
@@ -171,7 +186,8 @@ def _gdal_read_kwimage_compatible(
                 bands = [b.GetOverview(overview - 1) for b in default_bands]
                 if any(b is None for b in bands):
                     raise AssertionError(
-                        'Band was None in {}'.format(gdal_dset.GetDescription()))
+                        'Band was None in {}'.format(gdal_dset.GetDescription())
+                    )
             else:
                 bands = default_bands
         else:
@@ -235,11 +251,14 @@ def _gdal_read_kwimage_compatible(
             buf = image[:, :, idx]
             ret = band.ReadAsArray(buf_obj=buf, **gdalkw)
             if ret is None:
-                raise IOError(ub.paragraph(
-                    '''
+                raise IOError(
+                    ub.paragraph(
+                        """
                     GDAL was unable to read band: {}, {}
                     from {!r}
-                    '''.format(idx, band, gdal_dset.GetDescription())))
+                    """.format(idx, band, gdal_dset.GetDescription())
+                    )
+                )
             if nodata_method is not None:
                 band_nodata = band_nodata_values[idx]
                 if band_nodata is not None:
@@ -262,13 +281,16 @@ class LazySpectralFrameFile(ub.NiceRepr):
     """
     Potentially faster than GDAL for HDR formats.
     """
+
     def __init__(self, fpath):
         self.fpath = fpath
 
     @ub.memoize_property
     def _ds(self):
-        import spectral  # type: ignore[import-not-found]
         from os.path import exists
+
+        import spectral  # type: ignore[import-not-found]
+
         if not exists(self.fpath):
             raise Exception('File does not exist: {}'.format(self.fpath))
         ds = spectral.envi.open(os.fspath(self.fpath))
@@ -295,6 +317,7 @@ class LazySpectralFrameFile(ub.NiceRepr):
 
     def __nice__(self):
         from os.path import basename
+
         return '.../' + basename(self.fpath)
 
     def __getitem__(self, index):
@@ -306,7 +329,7 @@ class LazySpectralFrameFile(ub.NiceRepr):
 
         index = list(index)
         if len(index) < 3:
-            n = (3 - len(index))
+            n = 3 - len(index)
             index = index + [None] * n
 
         ypart = _rectify_slice_dim(index[0], height)
@@ -328,8 +351,10 @@ class LazySpectralFrameFile(ub.NiceRepr):
         xstart, xstop = map(int, [xpart.start, xpart.stop])
 
         img_part = ds.read_subregion(
-            row_bounds=(ystart, ystop), col_bounds=(xstart, xstop),
-            bands=band_indices)
+            row_bounds=(ystart, ystop),
+            col_bounds=(xstart, xstop),
+            bands=band_indices,
+        )
         return img_part
 
 
@@ -365,6 +390,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
                 lazy_gdal[:]
 
     """
+
     def __init__(self, fpath):
         self.fpath = fpath
 
@@ -377,8 +403,10 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
 
     @ub.memoize_property
     def _ds(self):
-        import rasterio  # type: ignore[import-not-found]
         from os.path import exists
+
+        import rasterio  # type: ignore[import-not-found]
+
         if not exists(self.fpath):
             raise Exception('File does not exist: {}'.format(self.fpath))
         ds = rasterio.open(self.fpath, mode='r')
@@ -402,6 +430,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
 
     def __nice__(self):
         from os.path import basename
+
         return '.../' + basename(self.fpath)
 
     def __getitem__(self, index):
@@ -415,7 +444,7 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
 
         index = list(index)
         if len(index) < 3:
-            n = (3 - len(index))
+            n = 3 - len(index)
             index = index + [None] * n
 
         ypart = _rectify_slice_dim(index[0], height)
@@ -437,7 +466,9 @@ class LazyRasterIOFrameFile(ub.NiceRepr):
         xstart, xstop = map(int, [xpart.start, xpart.stop])
 
         indexes = [b + 1 for b in band_indices]
-        img_part = ds.read(indexes=indexes, window=((ystart, ystop), (xstart, xstop)))
+        img_part = ds.read(
+            indexes=indexes, window=((ystart, ystop), (xstart, xstop))
+        )
         img_part = img_part.transpose(1, 2, 0)
         return img_part
 
@@ -477,7 +508,14 @@ def _demo_geoimg_with_nodata():
     imdata[-100:] = nodata
     imdata[0:200:, -200:-180] = nodata
 
-    kwimage.imwrite(geo_fpath, imdata, backend='gdal', nodata_value=-9999, crs=crs, transform=transform)
+    kwimage.imwrite(
+        geo_fpath,
+        imdata,
+        backend='gdal',
+        nodata_value=-9999,
+        crs=crs,
+        transform=transform,
+    )
     return geo_fpath
 
 
@@ -523,6 +561,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
         self.shape
         self[:]
     """
+
     def __init__(self, fpath, nodata_method=None, overview=None):
         self.fpath = fpath
         self.nodata_method = nodata_method
@@ -554,11 +593,16 @@ class LazyGDalFrameFile(ub.NiceRepr):
             ds = gdal.Open(_fpath, gdal.GA_ReadOnly)
             if ds is None:
                 if not exists(self.fpath):
-                    raise Exception('File does not exist: {}'.format(self.fpath))
-                raise Exception((
-                    'GDAL Failed to open the fpath={!r} for an unknown reason. '
-                    'Call gdal.UseExceptions() beforehand to get the '
-                    'real exception').format(self.fpath))
+                    raise Exception(
+                        'File does not exist: {}'.format(self.fpath)
+                    )
+                raise Exception(
+                    (
+                        'GDAL Failed to open the fpath={!r} for an unknown reason. '
+                        'Call gdal.UseExceptions() beforehand to get the '
+                        'real exception'
+                    ).format(self.fpath)
+                )
             self._ds_cache = ds
             if GLOBAL_GDAL_CACHE is not None:
                 GLOBAL_GDAL_CACHE[_fpath] = ds
@@ -573,8 +617,9 @@ class LazyGDalFrameFile(ub.NiceRepr):
         """
         Returns the overview relative to the base
         """
-        new = self.__class__(self.fpath, nodata_method=self.nodata_method,
-                             overview=overview)
+        new = self.__class__(
+            self.fpath, nodata_method=self.nodata_method, overview=overview
+        )
         new._ds_cache = self._ds_cache
         return new
 
@@ -617,7 +662,9 @@ class LazyGDalFrameFile(ub.NiceRepr):
     @ub.memoize_property
     def _read_bands(self):
         ds = self._ds
-        default_bands = tuple(ds.GetRasterBand(i + 1) for i in range(ds.RasterCount))
+        default_bands = tuple(
+            ds.GetRasterBand(i + 1) for i in range(ds.RasterCount)
+        )
         overview = self.overview or 0
         if overview <= 0:
             return default_bands
@@ -629,7 +676,8 @@ class LazyGDalFrameFile(ub.NiceRepr):
         bands = tuple(b.GetOverview(overview - 1) for b in default_bands)
         if any(b is None for b in bands):
             raise AssertionError(
-                'Band was None in {}'.format(ds.GetDescription()))
+                'Band was None in {}'.format(ds.GetDescription())
+            )
         return bands
 
     @ub.memoize_property
@@ -662,28 +710,40 @@ class LazyGDalFrameFile(ub.NiceRepr):
         if len(band_list) == 1:
             image = gdal_dset.ReadAsArray(**readkw)
             if image is None:
-                raise IOError('GDAL dataset-level read failed for {!r}'.format(self.fpath))
+                raise IOError(
+                    'GDAL dataset-level read failed for {!r}'.format(self.fpath)
+                )
         else:
             # Populate our own band-major array so the returned HWC view is
             # backed by NumPy-owned memory rather than a GDAL-managed buffer.
-            image_bands = np.empty((len(band_list), ysize, xsize), dtype=self.dtype)
+            image_bands = np.empty(
+                (len(band_list), ysize, xsize), dtype=self.dtype
+            )
             ret = gdal_dset.ReadAsArray(buf_obj=image_bands, **readkw)
             if ret is None:
-                raise IOError('GDAL dataset-level read failed for {!r}'.format(self.fpath))
+                raise IOError(
+                    'GDAL dataset-level read failed for {!r}'.format(self.fpath)
+                )
             image = image_bands.transpose(1, 2, 0)
 
         if nodata_method is not None:
             if image.ndim == 2:
-                band_nodata = gdal_dset.GetRasterBand(band_list[0]).GetNoDataValue()
+                band_nodata = gdal_dset.GetRasterBand(
+                    band_list[0]
+                ).GetNoDataValue()
                 mask = np.zeros(image.shape, dtype=bool)
                 if band_nodata is not None:
                     np.equal(image, band_nodata, out=mask)
             else:
                 mask = np.zeros(image.shape, dtype=bool)
                 for idx, band_num in enumerate(band_list):
-                    band_nodata = gdal_dset.GetRasterBand(band_num).GetNoDataValue()
+                    band_nodata = gdal_dset.GetRasterBand(
+                        band_num
+                    ).GetNoDataValue()
                     if band_nodata is not None:
-                        np.equal(image[..., idx], band_nodata, out=mask[..., idx])
+                        np.equal(
+                            image[..., idx], band_nodata, out=mask[..., idx]
+                        )
 
             if nodata_method == 'ma':
                 image = np.ma.array(image, mask=mask)
@@ -732,7 +792,10 @@ class LazyGDalFrameFile(ub.NiceRepr):
             )
             log_label = 'gdal-vendored-read'
         except Exception:
-            from kwimage.im_io import _gdal_read  # type: ignore[import-not-found]
+            from kwimage.im_io import (
+                _gdal_read,  # type: ignore[import-not-found]
+            )
+
             imdata, _ = _gdal_read(
                 gdal_dset=ds,
                 overview=self.overview,
@@ -768,8 +831,9 @@ class LazyGDalFrameFile(ub.NiceRepr):
         cache_dpath = ub.Path.appdir('delayed_image/demo').ensuredir()
         fpath = join(cache_dpath, key + '.cog.tiff')
         depends = None if dsize is None else [str(tuple(dsize))]
-        stamp = ub.CacheStamp(fname=key, depends=depends, dpath=cache_dpath,
-                              product=[fpath])
+        stamp = ub.CacheStamp(
+            fname=key, depends=depends, dpath=cache_dpath, product=[fpath]
+        )
         if stamp.expired():
             img = kwimage.grab_test_image(key, dsize=dsize)
             kwimage.imwrite(fpath, img, backend='gdal')
@@ -826,6 +890,7 @@ class LazyGDalFrameFile(ub.NiceRepr):
 
     def __nice__(self):
         from os.path import basename
+
         return '.../' + basename(self.fpath)
 
     def __getitem__(self, index):
@@ -942,14 +1007,18 @@ class LazyGDalFrameFile(ub.NiceRepr):
         elif num_ellipsis == 1:
             # Expand the ellipsis
             ell_idx = index.index(Ellipsis)
-            n = (1 + TOTAL_DIMS - len(index))
+            n = 1 + TOTAL_DIMS - len(index)
             if n > 0:
-                index = index[:ell_idx] + ([slice(None, None)] * n) + index[ell_idx + 1:]
+                index = (
+                    index[:ell_idx]
+                    + ([slice(None, None)] * n)
+                    + index[ell_idx + 1 :]
+                )
                 # index = index[:ell_idx] + ([None] * n) + index[ell_idx + 1:]
         else:
             # Expand trailing dims
             if len(index) < TOTAL_DIMS:
-                n = (TOTAL_DIMS - len(index))
+                n = TOTAL_DIMS - len(index)
                 index = index + [slice(None, None)] * n
                 # index = index + [None] * n
 
@@ -974,8 +1043,9 @@ class LazyGDalFrameFile(ub.NiceRepr):
         ysize = ystop - ystart
         xsize = xstop - xstart
 
-        gdalkw = dict(xoff=xstart, yoff=ystart,
-                      win_xsize=xsize, win_ysize=ysize)
+        gdalkw = dict(
+            xoff=xstart, yoff=ystart, win_xsize=xsize, win_ysize=ysize
+        )
 
         nodata_method = self.nodata_method
         if nodata_method == 'auto':
@@ -1047,6 +1117,7 @@ def _validate_nonzero_data(file):
     """
     try:
         import numpy as np
+
         # Find center point of the image
         cx, cy = np.array(file.shape[0:2]) // 2
         center = [cx, cy]
@@ -1086,13 +1157,16 @@ def _read_envi_header(file):
     except UnicodeDecodeError:
         msg = (
             'File does not appear to be an ENVI header (appears to be a '
-            'binary file).')
+            'binary file).'
+        )
         f.close()
         raise Exception(msg)
     else:
         if not starts_with_ENVI:
-            msg = ('File does not appear to be an ENVI header (missing "ENVI" '
-                   'at beginning of first line).')
+            msg = (
+                'File does not appear to be an ENVI header (missing "ENVI" '
+                'at beginning of first line).'
+            )
             f.close()
             raise Exception(msg)
 
@@ -1136,11 +1210,14 @@ def _read_envi_header(file):
 
         if have_nonlowercase_param and not support_nonlowercase_params:
             import warnings
-            msg = 'Parameters with non-lowercase names encountered ' \
-                  'and converted to lowercase. To retain source file ' \
-                  'parameter name capitalization, set ' \
-                  'spectral.settings.envi_support_nonlowercase_params to ' \
-                  'True.'
+
+            msg = (
+                'Parameters with non-lowercase names encountered '
+                'and converted to lowercase. To retain source file '
+                'parameter name capitalization, set '
+                'spectral.settings.envi_support_nonlowercase_params to '
+                'True.'
+            )
             warnings.warn(msg)
         return dict
     except Exception:

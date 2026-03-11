@@ -1,16 +1,17 @@
-
-
 def test_find_reference_scale():
     try:
         from rich import print as rprint
+
         use_rich = 1
     except ImportError:
         rprint = print
         use_rich = 0
     import delayed_image
+
     raw = delayed_image.DelayedLoad.demo(key='astro').prepare()
 
     import kwimage
+
     transform = kwimage.Affine.random()
     transform1 = kwimage.Affine.random()
     transform2 = kwimage.Affine.random()
@@ -59,6 +60,7 @@ def test_find_reference_scale():
 
     # https://math.stackexchange.com/questions/507742/distance-similarity-between-two-matrices
     import numpy as np
+
     d12 = np.linalg.norm(tf1.matrix - tf2.matrix, ord='fro')
     d23 = np.linalg.norm(tf2.matrix - tf3.matrix, ord='fro')
     d13 = np.linalg.norm(tf1.matrix - tf3.matrix, ord='fro')
@@ -68,5 +70,6 @@ def test_find_reference_scale():
 
     tf_mod_from_ref2 = opt_mod.get_transform_from(opt_ref)
     d = np.linalg.norm(
-        tf_mod_from_ref.matrix - tf_mod_from_ref2.matrix, ord='fro')
+        tf_mod_from_ref.matrix - tf_mod_from_ref2.matrix, ord='fro'
+    )
     assert np.isclose(d, 0)

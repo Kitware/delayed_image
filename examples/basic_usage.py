@@ -1,12 +1,15 @@
 """
 Basic usage demo.
 """
+
 import kwimage
+
 import delayed_image
 
 
 def demo():
     import kwplot
+
     kwplot.autompl()
 
     # Lets say you have some image. Maybe it is a very large image, but maybe not.
