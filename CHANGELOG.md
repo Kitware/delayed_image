@@ -5,7 +5,10 @@ We are currently working on porting this changelog to the specifications in
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## Version 0.4.6 - Unreleased
+## Version 0.4.7 - Unreleased
+
+
+## Version 0.4.6 - Released 2026-03-31
 
 ### Performance
 * Improve optimize() performance via per-call memoization, reduced allocations, and fixed-point rewrite loops; no behavior change intended.
